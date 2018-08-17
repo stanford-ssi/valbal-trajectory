@@ -8,20 +8,22 @@ from urllib.request import urlretrieve
 import os
 import pickle
 
-s = "2017-05-21_4"
 
-time = dt.strptime(s,"%Y-%m-%d_%H")
-time=time.replace(hour=math.floor(time.hour/3)*3,minute=0,second=0)
-print(time+timedelta(1/8))
 
 def fetchGFSAnalysisData(start,end):
 	""" Fetch data from gfs database for times inbetween start and end
 	"""
-	remote="ftp://nomads.ncdc.noaa.gov/GFS/analysis_only/"
+	remote="https://nomads.ncdc.noaa.gov/data/gfsanl/"
 	local="../ignored/GFS-anl-0deg5/"
+	if not type(start) == type("boop"):
+		start = "%04d-%02d-%02d_%02d"%(start.year,start.month,start.day,start.hour)
+		end = "%04d-%02d-%02d_%02d"%(end.year,end.month,end.day,end.hour)		
+	print(start)
 	t = dt.strptime(start,"%Y-%m-%d_%H");
-	t = t.replace(hour=math.floor(t.hour/3)*3,minute=0,second=0)
-	end_t = dt.strptime(end,"%Y-%m-%d_%H");
+	t = t.replace(hour=math.floor(t.hour/6)*6,minute=0,second=0)
+	end_t = dt.strptime(end,"%Y-%m-%d_%H") + timedelta(1/4);
+	start = "%04d-%02d-%02d_%02d"%(t.year,t.month,t.day,t.hour)
+	end = "%04d-%02d-%02d_%02d"%(end_t.year,end_t.month,end_t.day,end_t.hour)
 	print("Downloading files")
 	filelist = []
 	times = []
@@ -41,18 +43,18 @@ def fetchGFSAnalysisData(start,end):
 			filelist.append(fulfpath)
 			times.append(t)
 		t +=  timedelta(1/4)
-	return filelist,times
+	return filelist,times,start,end,
 
-def makeWindArray(start,end):
+def makeWindArray(start,end,overwrite=False,altitude_range=[10000,20000],name_modifier=''):
 	""" gets data and returns in a mulitdimentional array of format:
 		[lon,lat,alt,time,pred,vaules]
 	"""
+	files,times,start,end = fetchGFSAnalysisData(start,end)
 	local="../ignored/GFS-anl-0deg5/"
-	filepath = "../ignored/GFS_anl_0deg5_objs/" + start + "_to_" +end + ".pickle"
-
-	if os.path.exists(filepath): print("File " +filepath+ " already exists, skipping") ; return
+	filepath = "../ignored/GFS_anl_0deg5_objs/" + start + "_to_" +end + name_modifier+ ".pickle"
+	filepath2 = "../ignored/GFS_anl_0deg5_objs/" + start + "_to_" +end + name_modifier+".npy"
+	if os.path.exists(filepath) and not overwrite: print("File " +filepath+ " already exists, skipping") ; return filepath,filepath2
 	windobj = {}
-	files,times = fetchGFSAnalysisData(start,end)
 	grb = gb.open(local+files[0])
 	lat,lon = grb.select(shortName="u",typeOfLevel='isobaricInhPa',level=250)[0].latlons() #arbitrary data, doing this for latlons
 	windobj["lats"] = lat[:,0] 
@@ -62,11 +64,14 @@ def makeWindArray(start,end):
 	windobj["values"] = ["u","v"]
 	nvalues = 2;
 	levels = getGRIBlevels(grb,windobj["values"][0])
-	windobj["levels"] = levels
 	alts = p2a(levels)
+	idxs = np.where(np.logical_and(altitude_range[0]<=alts,alts<=altitude_range[1]))
+	levels = levels[idxs]
+	alts = alts[idxs]
+	windobj["levels"] = levels
 	windobj["alts"] = alts
 	nalts = alts.size
-	timeshr = np.unique([(t - times[0]).seconds/3600 for t in times])
+	timeshr = np.unique([(t - times[0]).seconds/3600 + (t - times[0]).days*24 for t in times])
 	ntimes = timeshr.size
 	windobj["times"] = timeshr
 	windobj["start_time"] = times[0]
@@ -82,17 +87,19 @@ def makeWindArray(start,end):
 	for i in range(len(files)):
 		path = local+files[i]
 		grb = gb.open(path)
-		for valind,val in enumerate(windobj["values"]):
+		for valind,val in enumerate(windobj["values"]): #this could be sped up by a factor of 2 if u selected both vals are once. But then have to be sure they are returned in the correct order
 			dat = grb.select(shortName=val,typeOfLevel='isobaricInhPa',level=levels)
 			data[:,:,:,tind,dtind,valind] = np.array(list(map(lambda x : x.values,dat))).T
 			ctr+=1
 			print("%d/%d"%(ctr,total))
 		dtind += 1
 		if dtind == 3 : tind += 1; dtind=0
-	windobj["data"] = data
 	print("done")
 	print("Saving to ",filepath)
 	pickle.dump(windobj,open(filepath,'wb'))
+	print("Saving to ",filepath2)
+	np.save(filepath2,data)
+	return filepath,filepath2
 
 def getGRIBlevels(grib,shortname='v'):
 	""" retruns array of all levels in a GRIB file
@@ -108,25 +115,4 @@ def getGRIBlevels(grib,shortname='v'):
 def p2a(x):
 	""" Presure to altitude hectopascals to meters 
 	"""
-	return (1-(x/1013.25)**0.190284)*145366.45
-
-
-wind =  pickle.load(open("../ignored/GFS_anl_0deg5_objs/2018-05-1_0_to_2018-05-2_0.pickle","rb"))
-print(wind)
-
-exit()
-makeWindArray("2018-05-1_0","2018-05-2_0")
-
-grb = gb.open("../ignored/gfsanl_3_20060407_0000_000.grb")
-
-
-Udat = grb.select(shortName="u",typeOfLevel='isobaricInhPa',level=250)[0]
-Vdat = grb.select(shortName="v",typeOfLevel='isobaricInhPa',level=250)[0]
-U = Udat.values
-V = Vdat.values
-print(V)
-lat, lon = Udat.latlons()
-lat = lat[90-50:90-25,:45] 
-lon = lon[:25,360-115:360-70]
-plt.quiver(lon,lat,U[90-50:90-25,360-115:360-70],V[90-50:90-25,360-115:360-70])
-plt.show()
+	return (1-(x/1013.25)**0.190284)*145366.45*0.3048

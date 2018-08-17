@@ -1,2 +1,4 @@
 ignored/*
 *.o
+*/__pycache__/*
+*.h5

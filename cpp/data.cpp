@@ -46,7 +46,6 @@ void load_data() {
 	for (uint64_t time : timestamps) {
 		char path[PATH_MAX];
 		snprintf(path, PATH_MAX, "../proc/%lu.bin", time);
-		printf("%s\n", path);
 
 		// Resize the list to fit. Usually a no-op
 		files = (data_file_t*)realloc(files, (i+1)*sizeof(data_file_t));

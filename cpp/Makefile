@@ -22,3 +22,6 @@ $(TARGET): $(OBJECTS)
 clean:
 	-rm -f *.o
 	-rm -f $(TARGET)
+
+open:
+	vi -p traj.cpp config.h data.h data.cpp

@@ -12,10 +12,14 @@
 #include <string.h>
 #include <sys/resource.h>
 
+#include <algorithm>
+#include <vector>
+
 #include "config.h"
 #include "data.h"
 
 data_file_t *files;
+int num_files;
 
 void load_data() {
 	#ifdef SHOULD_PRELOAD
@@ -23,24 +27,32 @@ void load_data() {
 		rl.rlim_cur = rl.rlim_max = 1024*1024*512;
 		assert(setrlimit(RLIMIT_MEMLOCK, &rl) == 0 && "Need root to increase memory limit");
 	#endif
-	DIR *dir = opendir("proc");
+	DIR *dir = opendir("../proc");
 	assert(dir != 0);
 
-	files = (data_file_t*)malloc(100 * sizeof(data_file_t));
+	std::vector<uint64_t> timestamps;
 	struct dirent *entry;	
 	int i = 0;
 	while ((entry = readdir(dir)) != 0) {
 		if (entry->d_name[0] == '.') {
 			continue;
 		}
+		timestamps.push_back(atoll(entry->d_name));
+	}
+	std::sort(timestamps.begin(), timestamps.end());
+
+	files = (data_file_t*)malloc(timestamps.size() * sizeof(data_file_t));
+
+	for (uint64_t time : timestamps) {
 		char path[PATH_MAX];
-		snprintf(path, PATH_MAX, "proc/%s", entry->d_name);
+		snprintf(path, PATH_MAX, "../proc/%lu.bin", time);
+		printf("%s\n", path);
 
 		// Resize the list to fit. Usually a no-op
 		files = (data_file_t*)realloc(files, (i+1)*sizeof(data_file_t));
 		assert(files != 0);
 
-		files[i].time = atoll(entry->d_name);
+		files[i].time = time;
 
 		files[i].fd = open(path, O_RDONLY);
 		assert(files[i].fd >= 0);
@@ -57,4 +69,5 @@ void load_data() {
 
 		i++;
 	}
+	num_files = i;
 }

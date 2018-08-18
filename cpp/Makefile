@@ -1,7 +1,7 @@
 TARGET = traj
 LIBS = -lm
 CC = g++
-CFLAGS = -g -Werror -O2 -fno-strict-aliasing -Wall
+CXXFLAGS = -g -Werror -O2 -fno-strict-aliasing -Wall
 
 .PHONY: default all clean
 
@@ -24,4 +24,4 @@ clean:
 	-rm -f $(TARGET)
 
 open:
-	vi -p traj.cpp config.h data.h data.cpp
+	vi -p traj.cpp config.h data.h data.cpp sim.h sim.cpp

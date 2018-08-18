@@ -1,3 +1,4 @@
+#include <math.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
@@ -18,7 +19,7 @@
 #include "config.h"
 #include "data.h"
 
-data_file_t *files;
+data_file *files;
 int num_files;
 
 void load_data() {
@@ -32,24 +33,20 @@ void load_data() {
 
 	std::vector<uint64_t> timestamps;
 	struct dirent *entry;	
-	int i = 0;
 	while ((entry = readdir(dir)) != 0) {
-		if (entry->d_name[0] == '.') {
+		if (entry->d_name[0] < '0' || entry->d_name[0] > '9') {
 			continue;
 		}
 		timestamps.push_back(atoll(entry->d_name));
 	}
 	std::sort(timestamps.begin(), timestamps.end());
 
-	files = (data_file_t*)malloc(timestamps.size() * sizeof(data_file_t));
+	files = (data_file*)malloc(timestamps.size() * sizeof(data_file));
 
-	for (uint64_t time : timestamps) {
+	for (size_t i=0; i<timestamps.size(); i++) {
+		uint64_t time = timestamps[i];
 		char path[PATH_MAX];
 		snprintf(path, PATH_MAX, "../proc/%lu.bin", time);
-
-		// Resize the list to fit. Usually a no-op
-		files = (data_file_t*)realloc(files, (i+1)*sizeof(data_file_t));
-		assert(files != 0);
 
 		files[i].time = time;
 
@@ -60,13 +57,29 @@ void load_data() {
 		fstat(files[i].fd, &s);
 		int mmap_flags = MAP_SHARED;
 		mmap_flags |= MAP_POPULATE; /* Possibly only if SHOULD_PRELOAD? */
-		files[i].data = (wind_t*)mmap(NULL, s.st_size, PROT_READ, mmap_flags, files[i].fd, 0);
+		files[i].data = (wind_data*)mmap(NULL, s.st_size, PROT_READ, mmap_flags, files[i].fd, 0);
 		assert(files[i].data != MAP_FAILED);
 		#ifdef SHOULD_PRELOAD
 			assert(mlock(files[i].data, s.st_size) == 0);
 		#endif
-
-		i++;
 	}
-	num_files = i;
+	num_files = timestamps.size();
+	printf("Loaded %d wind data files.\n", num_files);
+}
+
+wind_data *get_data_at_point(data_file *file, point p) {
+	//printf("%d %d %lu %p\n", latidx, lonidx, sizeof(wind_data), file);
+	return &file->data[NUM_LONS * p.lat + p.lon];
+}
+
+point get_base_neighbor(float lat, float lon) {
+	int lat0 = (int)((lat - LAT_MIN)/LAT_D);
+	int lon0 = (int)((lon - LON_MIN)/LON_D);
+	return {lat0, lon0};
+}
+
+point get_nearest_neighbor(float lat, float lon) {
+	int lat0 = (int)round((lat - LAT_MIN)/LAT_D);
+	int lon0 = (int)round((lon - LON_MIN)/LON_D);
+	return {lat0, lon0};
 }

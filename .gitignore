@@ -2,3 +2,5 @@ ignored/*
 *.o
 */__pycache__/*
 *.h5
+*.swp
+/cpp/traj

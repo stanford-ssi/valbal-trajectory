@@ -10,7 +10,7 @@ typedef struct __attribute__((packed)) {
 } wind_data;
 
 typedef struct {
-	uint64_t time;
+	int64_t time;
 	wind_data *data;
 	int fd;
 } data_file;
@@ -20,7 +20,13 @@ typedef struct {
 	int lon;
 } point;
 
-void load_data();
+template<class Float>
+struct wind_vector {
+	Float u;
+	Float v;
+};
+
+void load_data(const char *dname);
 wind_data *get_data_at_point(data_file*, point);
 point get_base_neighbor(float, float);
 point get_nearest_neighbor(float, float);

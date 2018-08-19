@@ -3,7 +3,7 @@
 
 /* Preload the wind data into physical RAM. It's otherwise memory mapped so it has a much smaller
  * memory footprint. */
-/* #define SHOULD_PRELOAD */
+//#define SHOULD_PRELOAD
 
 /* Type used to store wind data on disk, in cm/s. */
 typedef short wind_t;

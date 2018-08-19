@@ -22,13 +22,13 @@
 data_file *files;
 int num_files;
 
-void load_data() {
+void load_data(const char *dname) {
 	#ifdef SHOULD_PRELOAD
 		struct rlimit rl;
 		rl.rlim_cur = rl.rlim_max = 1024*1024*512;
 		assert(setrlimit(RLIMIT_MEMLOCK, &rl) == 0 && "Need root to increase memory limit");
 	#endif
-	DIR *dir = opendir("../proc");
+	DIR *dir = opendir(dname);
 	assert(dir != 0);
 
 	std::vector<uint64_t> timestamps;
@@ -46,7 +46,7 @@ void load_data() {
 	for (size_t i=0; i<timestamps.size(); i++) {
 		uint64_t time = timestamps[i];
 		char path[PATH_MAX];
-		snprintf(path, PATH_MAX, "../proc/%lu.bin", time);
+		snprintf(path, PATH_MAX, "%s/%lu.bin", dname, time);
 
 		files[i].time = time;
 

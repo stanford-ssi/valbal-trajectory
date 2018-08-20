@@ -36,13 +36,13 @@ lats = key["lats"]
 lons = key["lons"]
 hrs = key["times"]
 levels = key["levels"]
-glati = lambda lat : int((lats[0] - lat)/(lats[0] - lats[-1])*(lats.size-1))
-gloni = lambda lon : int((lons[0] - lon)/(lons[0] - lons[-1])*(lons.size-1))
-gti = lambda t : (int((hrs[0] - t)/(hrs[0] - hrs[-1])*(hrs.size-1)),int((hrs[0] - t)/(hrs[0] - hrs[-1])*(hrs.size-1)*2) % 2)
+glati = lambda lat : int(round((lats[0] - lat)/(lats[0] - lats[-1])*(lats.size-1)))
+gloni = lambda lon : int(round((lons[0] - lon)/(lons[0] - lons[-1])*(lons.size-1)))
+gti = lambda t : (int(round((hrs[0] - t)/(hrs[0] - hrs[-1])*(hrs.size-1))),int(round((hrs[0] - t)/(hrs[0] - hrs[-1])*(hrs.size-1)*2)) % 2)
 gli = lambda l : np.argmin(np.abs(levels - l))
 #yolo, 111111 meter/deg ftw
 
-starthr = 6
+starthr = 40
 startind = np.argmin(np.abs(fhrs - starthr))
 
 idx = startind
@@ -53,7 +53,8 @@ ploc = np.ones((2,N))
 
 for i in range(N):
 	vels = data[gloni(lon),glati(lat),gli(fl[idx]),gti(fhrs[idx])[0],gti(fhrs[idx])[1],:]
-	lon += vels[0]*10*60/111111
+	print(np.cos(lat/180*np.pi),lat)
+	lon += vels[0]*10*60/111111/np.cos(lat/180*np.pi)
 	lat += vels[1]*10*60/111111
 	ploc[:,i] = [lon,lat]
 	idx+=1
@@ -76,22 +77,6 @@ parallels = np.arange(0.,81,10.)
 m.drawparallels(parallels,labels=[False,True,True,False])
 meridians = np.arange(10.,351.,20.)
 m.drawmeridians(meridians,labels=[True,False,False,True])
-
-'''
-quiveropts = dict(headlength=0, headwidth=1,width=.001)
-U = data[:,:,0,time,0,0]*1000
-V = data[:,:,0,time,0,1]*1000
-
-plt.quiver(x,y,U[360-125:360-70,90-50:90-25],V[360-125:360-70,90-50:90-25],**quiveropts,color='xkcd:fuchsia',alpha=1)
-
-U = data[:,:,1,time,0,0]
-V = data[:,:,1,time,0,1]
-plt.quiver(x,y,U[360-125:360-70,90-50:90-25],V[360-125:360-70,90-50:90-25],**quiveropts,color='xkcd:violet',alpha=1)
-
-U = data[:,:,2,time,0,0]
-V = data[:,:,2,time,0,1]
-plt.quiver(x,y,U[360-125:360-70,90-50:90-25],V[360-125:360-70,90-50:90-25],**quiveropts,color='xkcd:indigo',alpha=1)
-'''
 
 plt.plot(xpath,ypath)
 plt.plot(xpred,ypred)

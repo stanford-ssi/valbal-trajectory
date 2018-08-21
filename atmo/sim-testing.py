@@ -11,9 +11,10 @@ if 0:
 	dfs = df[['raw_pressure_1','raw_pressure_2','raw_pressure_3','raw_pressure_4','lat_gps','long_gps']]
 	dfs.to_hdf('ssi63_position.h5','df',complib='zlib', mode='w', complevel=5)
 	exit()
-if 0:
+if 1:
 	df = pd.read_hdf('ssi63_position.h5')
-	windkey,winddata = at.makeWindArray(df.index[0],df.index[-1],overwrite=True)
+	at.fetchWindData(df.index[0],df.index[-1],db="gfs_anl_0deg5")
+	#windkey,winddata = at.makeWindArray(df.index[0],df.index[-1],overwrite=True)
 	exit()
 
 windobj = "../ignored/GFS_anl_0deg5_objs/2017-12-09_18_to_2017-12-15_05.pickle"

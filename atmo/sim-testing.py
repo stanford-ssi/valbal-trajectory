@@ -13,7 +13,7 @@ if 0:
 	exit()
 if 1:
 	df = pd.read_hdf('ssi63_position.h5')
-	at.fetchWindData(df.index[0],df.index[-1],db="gfs_anl_0deg5")
+	at.procWindData(df.index[0],df.index[-1],db="gfs_anl_0deg5")
 	#windkey,winddata = at.makeWindArray(df.index[0],df.index[-1],overwrite=True)
 	exit()
 

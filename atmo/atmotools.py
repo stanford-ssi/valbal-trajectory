@@ -7,6 +7,7 @@ import math
 from urllib.request import urlretrieve
 import os
 import pickle
+import pandas as pd
 
 def fetchWindData(start,end,db='gfs_anl_1deg'):
 	""" Fetch data from gfs database for times inbetween start and end
@@ -49,14 +50,21 @@ def fetchWindData(start,end,db='gfs_anl_1deg'):
 			filelist.append(fulfpath)
 			times.append(t)
 		t +=  timedelta(1/4)
-	return filelist,times,start,end,
+	return filelist,times,start,end
 
 def procWindData(start,end,db='gfs_anl_1deg'):
 	dstpath = "../ignored/proc/" + db + "/"
 	srcpath = "../ignored/raw/" + db + "/"
+	files = fetchWindData(start,end,db)[0]
 	if not os.path.exists(dstpath):
 		os.makedirs(dstpath)
-	headertext = genWindHeader(db,np.array([1,2,3,4]),np.array([1,2,3,4]),np.array([1,2,3,4]))
+
+	grb = gb.open(srcpath+files[0])
+	lats,lons = grb.select(shortName="u",typeOfLevel='isobaricInhPa',level=250)[0].latlons() #arbitrary data, doing this for latlons
+	lats = lats[:,0]
+	lons = lons[0,:]
+	levels = getGRIBlevels(grb)
+	headertext = genWindHeader(db,lons,lats,levels)
 	headerfile = dstpath + db + ".h"
 	with open(headerfile,"w") as f:
 		f.write(headertext)
@@ -69,18 +77,21 @@ def genWindHeader(dataset,lons,lats,levels):
 	filetext += " */ \n\r \n\r"
 	filetext += "typedef short wind_t; // Type used to store wind data on disk, in cm/s. \n\r \n\r"
 	filetext += "/* wind grid paramters */ \n\r"
-	filetext += "const float LON_MIN = %d;\n\r" % lons[0]
-	filetext += "const float LON_MAX = %d;\n\r" % lons[-1]
-	filetext += "const float LON_D = %d;\n\r" % (lons[1] - lons[0])
+	print(lons[0])
+	filetext += "const float LON_MIN = %f;\n\r" % lons[0]
+	filetext += "const float LON_MAX = %f;\n\r" % lons[-1]
+	filetext += "const float LON_D = %f;\n\r" % (lons[1] - lons[0])
 	filetext += "const int NUM_LONS = %d;\n\r" % lons.size
-	filetext += "const float LAT_MIN = %d;\n\r" % lats[0]
-	filetext += "const float LAT_MAX = %d;\n\r" % lats[-1]
-	filetext += "const float LAT_D = %d;\n\r" % (lats[1] - lats[0])
+	filetext += "const float LAT_MIN = %f;\n\r" % lats[0]
+	filetext += "const float LAT_MAX = %f;\n\r" % lats[-1]
+	filetext += "const float LAT_D = %f;\n\r" % (lats[1] - lats[0])
 	filetext += "const int NUM_LATS = %d;\n\r" % lats.size
 	filetext += "float LEVELS[] = {" + ",".join(map(str,levels)) + "}; \n\r"
 	filetext += "const int NUM_LEVELS = sizeof(LEVELS)/sizeof(LEVELS[0]); \n\r"
 	filetext += "const int NUM_VARIABLES = 2; \n\r"
 	return filetext;
+
+
 
 def makeWindArray(start,end,overwrite=False,altitude_range=[10000,20000],name_modifier=''):
 	""" gets data and returns in a mulitdimentional array of format:
@@ -138,7 +149,7 @@ def makeWindArray(start,end,overwrite=False,altitude_range=[10000,20000],name_mo
 	np.save(filepath2,data)
 	return filepath,filepath2
 
-def getGRIBlevels(grib,shortname='v'):
+def getGRIBlevels(grib,shortname='v',altitude_range = [10000,20000]):
 	""" retruns array of all levels in a GRIB file
 	"""
 	levels = []
@@ -147,6 +158,9 @@ def getGRIBlevels(grib,shortname='v'):
 			if message.typeOfLevel == "isobaricInhPa":
 				levels.append(message.level)
 	levels = np.unique(levels)
+	alts = p2a(levels)
+	idxs = np.where(np.logical_and(altitude_range[0]<=alts,alts<=altitude_range[1]))
+	levels = levels[idxs]
 	return levels
 
 def p2a(x):
@@ -154,3 +168,7 @@ def p2a(x):
 	"""
 	return (1-(x/1013.25)**0.190284)*145366.45*0.3048
 
+
+
+df = pd.read_hdf('ssi63_position.h5')
+procWindData(df.index[0],df.index[-1],db="gfs_anl_0deg5")

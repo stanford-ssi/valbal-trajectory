@@ -3,7 +3,13 @@
 
 #include <stdint.h>
 
+#include <adept.h>
+using adept::adouble;
+
 #include "data.h"
+
+inline float VAL(float f) { return f; }
+inline float VAL(adouble f) { return f.value(); }
 
 template <class Float>
 class PressureSource {
@@ -14,7 +20,7 @@ public:
 template <class Float>
 class WindSource {
 public:
-	virtual wind_vector<Float> get_wind(int t, float lat, float lon, float pres) = 0;
+	virtual wind_vector<Float> get_wind(int t, Float lat, Float lon, Float pres) = 0;
 };
 
 template <class Float>
@@ -24,12 +30,12 @@ public:
 	PressureSource<Float>& pressure;
 	WindSource<Float>& winds;
 
-	void run(int, float, float);
+	vec2<Float> run(int, Float, Float);
 
 	int cur_file;
 
 	const int dt = 60*10;
-	const int tmax = 60*60*100;
+	const int tmax = 60*60*50;
 
 	FILE *file;
 };
@@ -54,7 +60,7 @@ public:
 
 	int t0;
 	int dt;
-	float *alts;
+	Float *alts;
 };
 
 template <class Float>

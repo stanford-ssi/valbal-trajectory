@@ -5,6 +5,9 @@
 #include <time.h>
 #include <limits.h>
 
+#include <adept.h>
+using adept::adouble;
+
 #include "sim.h"
 
 #define Assert(x) { if (!(x)) { printf("fatal error\n"); exit(1); } }
@@ -15,7 +18,10 @@ WaypointController<Float>::WaypointController(int t0_, int dt_, Float *alts_)
 
 template<class Float>
 Float WaypointController<Float>::get_pressure(int t) {
-	return (float)t;
+	unsigned int idx = (t-t0)/dt;
+	float theta = (t - (t0 + dt*idx))/((float)dt);
+	//printf("hi %f %d\n", theta, idx);
+	return alts[idx] + theta * (alts[idx+1] - alts[idx]);
 }
 
 template<class Float>
@@ -60,7 +66,7 @@ wind_vector<Float> NearestNeighborWind<Float>::get_wind(int t, Float lat, Float 
 	#define LAT(x) (LAT_MIN + LAT_D * (x))
 	#define LON(x) (LON_MIN + LON_D * (x))
 
-	point pt = get_base_neighbor(lat, lon);
+	point pt = get_base_neighbor(VAL(lat), VAL(lon));
 	Float theta_lat = (lat - (LAT_MIN + LAT_D * pt.lat))/LAT_D;
 	Float theta_lon = (lon - (LON_MIN + LON_D * pt.lon))/LON_D;
 	float theta_t = t-files[cur_file].time;
@@ -126,21 +132,24 @@ Simulation<Float>::Simulation(PressureSource<Float>& s, WindSource<Float>& w, in
 		: pressure(s), winds(w) {
 	char path[PATH_MAX];
 	snprintf(path, PATH_MAX, "../ignored/output.%d.bin", i);
-	printf("path %s\n", path);
 	file = fopen(path, "wb");
 	assert(file != 0);
 }
 
 template<class Float>
-void Simulation<Float>::run(int t, float lat, float lon) {
+vec2<Float> Simulation<Float>::run(int t, Float lat, Float lon) {
 	int Tmax = tmax + t;
 	const float idlat = dt / (2 * M_PI * 6371008 / 360.);
-	printf("Starting from (%f, %f)\n", lat, lon);
+	//printf("Starting from (%f, %f)\n", VAL(lat), VAL(lon));
 	clock_t t0 = clock();
 	while (t < Tmax) {
-		fwrite(&lat, sizeof(float), 1, file);
-		fwrite(&lon, sizeof(float), 1, file);
+		float actual_lat = VAL(lat);
+		float actual_lon = VAL(lon);
+		fwrite(&actual_lat, sizeof(float), 1, file);
+		fwrite(&actual_lon, sizeof(float), 1, file);
 		Float p = pressure.get_pressure(t);
+		float actual_p = VAL(p);
+		fwrite(&actual_p, sizeof(float), 1, file);
 		//printf("lat %f lon %f pres %f\n", lat, lon, p);
 		wind_vector<Float> w = winds.get_wind(t, lat, lon, p);
 		lat += w.v * idlat;
@@ -148,10 +157,18 @@ void Simulation<Float>::run(int t, float lat, float lon) {
 		t += dt;
 	}
 	float dt = (clock() - t0)/((double)CLOCKS_PER_SEC)*1000;
-	printf("Ended up in (%f, %f) after %.2f ms\n", lat, lon, dt);
+	(void)dt;
+	//printf("Ended up in (%f, %f) after %.2f ms\n", VAL(lat), VAL(lon), dt);
+	vec2<Float> ret = {lat, lon};
+	fclose(file);
+	return ret;
 }
 
-template class PressureTable<float>;
-template class WaypointController<float>;
-template class NearestNeighborWind<float>;
-template class Simulation<float>;
+#define INIT(type) \
+		template class PressureTable<type>; \
+		template class WaypointController<type>; \
+		template class NearestNeighborWind<type>; \
+		template class Simulation<type>;
+
+INIT(adouble)
+INIT(float)

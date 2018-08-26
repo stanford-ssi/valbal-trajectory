@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#include "config.h"
+#include "../ignored/proc/gfs_anl_0deg5/gfs_anl_0deg5.h"
 
 typedef struct __attribute__((packed)) {
 	wind_t data[NUM_LEVELS][NUM_VARIABLES];
@@ -26,7 +26,7 @@ struct wind_vector {
 	Float v;
 };
 
-void load_data(const char *dname);
+void load_data(const char *dname, uint64_t start, uint64_t end);
 wind_data *get_data_at_point(data_file*, point);
 point get_base_neighbor(float, float);
 point get_nearest_neighbor(float, float);

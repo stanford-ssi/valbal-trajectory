@@ -9,7 +9,7 @@ int main() {
 	printf("ValBal trajectory optimization.\n");
 	printf("This program is highly cunning and, on the face of it, not entirely wrong.\n");
 
-	load_data("../proc");
+	load_data("../ignored/proc/gfs_anl_0deg5", 1500000000,1600000000);
 
 	/*wind_data *sample = get_data_at_point(files+0, {42, 120});
 	printf("(u,v) %hd %hd\n", sample->data[4][0], sample->data[4][1]);

@@ -16,13 +16,12 @@
 #include <algorithm>
 #include <vector>
 
-#include "config.h"
 #include "data.h"
 
 data_file *files;
 int num_files;
 
-void load_data(const char *dname) {
+void load_data(const char *dname, uint64_t start, uint64_t end) {
 	#ifdef SHOULD_PRELOAD
 		struct rlimit rl;
 		rl.rlim_cur = rl.rlim_max = 1024*1024*512;
@@ -37,7 +36,10 @@ void load_data(const char *dname) {
 		if (entry->d_name[0] < '0' || entry->d_name[0] > '9') {
 			continue;
 		}
-		timestamps.push_back(atoll(entry->d_name));
+		uint64_t ftime = atoll(entry->d_name);
+		if (start <= ftime && ftime <= end ){
+			timestamps.push_back(atoll(entry->d_name));
+		}
 	}
 	std::sort(timestamps.begin(), timestamps.end());
 

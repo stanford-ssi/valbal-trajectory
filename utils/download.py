@@ -82,7 +82,7 @@ while it < (landing_time + timedelta(hours=3)):
     t = datetime(it.year, it.month, it.day, int(int(sp[0])/100+int(sp[1])))
     if url not in done:
         dt = int((t-datetime(1970,1,1)).total_seconds())
-        fname = "data/"+str(dt)+".grb2"
+        fname = "../ignored/raw/GFS_anl_0deg5"+str(dt)+".grb2"
         if not os.path.exists(fname):
             print("Downloading",t)
             done.add(url)

@@ -48,7 +48,7 @@ def fetchWindData(start,end,db='gfs_anl_1deg'):
 				urlretrieve(remote+path,local+fulfpath)
 				print("   done")
 			filelist.append(fulfpath)
-			times.append(t)
+			times.append(t + i*timedelta(1/24))
 		t +=  timedelta(1/4)
 	return filelist,times,start,end
 
@@ -108,7 +108,7 @@ def genWindHeader(dataset,lons,lats,levels):
 	filetext += "const float LAT_MAX = %f;\n\r" % lats[-1]
 	filetext += "const float LAT_D = %f;\n\r" % (lats[1] - lats[0])
 	filetext += "const int NUM_LATS = %d;\n\r" % lats.size
-	filetext += "const float LEVELS[] = {" + ",".join(map(str,levels)) + "}; \n\r"
+	filetext += "const float LEVELS[] = {" + ",".join(map(str,levels*100)) + "}; \n\r"
 	filetext += "const int NUM_LEVELS = sizeof(LEVELS)/sizeof(LEVELS[0]); \n\r"
 	filetext += "const int NUM_VARIABLES = 2; \n\r \n\r"
 	filetext += "#endif \n\r"
@@ -194,4 +194,4 @@ def p2a(x):
 
 
 df = pd.read_hdf('ssi63_position.h5')
-procWindData(df.index[0],df.index[-1],db="gfs_anl_0deg5")
+procWindData(df.index[0],df.index[-1],db="gfs_anl_0deg5",overwrite=True)

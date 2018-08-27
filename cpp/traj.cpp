@@ -19,7 +19,7 @@ int main() {
 	printf("(%d,%d) (%d, %d)\n", base.lat, base.lon, near.lat, near.lon);
 	*/
 
-	PressureTable<float> pres("../proc/inp.bin");
+	PressureTable<float> pres("../ignored/flights/inp.bin");
 	NearestNeighborWind<float> winds;
 	Simulation<float> sim(pres, winds, 0);
 	//sim.run(pres.t0 + pres.dt*2500, 37.7633, 239.86015);

@@ -141,6 +141,9 @@ void Simulation<Float>::run(int t, float lat, float lon) {
 		fwrite(&lat, sizeof(float), 1, file);
 		fwrite(&lon, sizeof(float), 1, file);
 		Float p = pressure.get_pressure(t);
+
+		// jank hack for simmed lasagna here
+
 		//printf("lat %f lon %f pres %f\n", lat, lon, p);
 		wind_vector<Float> w = winds.get_wind(t, lat, lon, p);
 		lat += w.v * idlat;
@@ -151,7 +154,19 @@ void Simulation<Float>::run(int t, float lat, float lon) {
 	printf("Ended up in (%f, %f) after %.2f ms\n", lat, lon, dt);
 }
 
+float p2alt(float p){
+  return (1.0-(pow(((float)p/101350.0),0.190284)))*145366.45*0.3048;
+}
+
+
+
+
 template class PressureTable<float>;
 template class WaypointController<float>;
 template class NearestNeighborWind<float>;
 template class Simulation<float>;
+
+
+
+
+

@@ -5,6 +5,9 @@
 
 #include "data.h"
 
+#include "../ignored/balloons-VALBAL/src/LasagnaController.h"
+#include "../ignored/balloons-VALBAL/hootl/lasagna/PastaSim.h"
+
 template <class Float>
 class PressureSource {
 public:
@@ -63,5 +66,18 @@ public:
 	wind_vector<Float> get_wind(int t, Float lat, Float lon, Float pres);
 	int cur_file = 0;
 };
+
+
+float p2alt(float p);
+
+class LasSim {
+public: 
+	LasSim(float start_alt);
+	float update(int delta_t);
+	LasagnaController las;
+	PastaSim sim;
+};
+
+
 
 #endif

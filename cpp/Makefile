@@ -5,6 +5,7 @@ CXXFLAGS = -g -Werror -Ofast -fno-strict-aliasing -Wall
 
 PATHS = -I ../ignored/balloons-VALBAL/lib/spa
 PATHS += -I ../ignored/balloons-VALBAL/src
+PATHS += -I /usr/local/include
 
 
 .PHONY: default all clean
@@ -49,12 +50,7 @@ opendiff:
 	vi -p diff.h diff.cpp
 
 install-adept:
-	cd lib/adept-2.0.5
-	./configure CXXFLAGS="-g1 -O3 -march=native"
-	make -j2
-	sudo make install
-	sudo echo "i totally couuld have just rm -rf the filesystem"
+	cd lib/adept-2.0.5 ; ./configure CXXFLAGS="-g1 -O3 -march=native" ; make -j2 ; sudo make install ; sudo echo "i totally couuld have just rm -rf the filesystem"
 
 flight-code:
-	cd ..
-	./utils/flight_code.sh
+	cd .. ; ./utils/flight_code.sh

@@ -20,6 +20,7 @@ def fetchWindData(start,end,db='gfs_anl_1deg'):
 		remote="https://nomads.ncdc.noaa.gov/data/gfsanl/"
 		local="../ignored/raw/gfs_anl_0deg5/"
 		fstartname = "gfsanl_4_"
+	start -= timedelta(hours=1)
 	if not os.path.exists(local):
 		os.makedirs(local)
 	if not type(start) == type("boop"):
@@ -76,7 +77,7 @@ def procWindData(start,end,db='gfs_anl_1deg',overwrite=False):
 			print("Local file "+outpath+" found, skipping (%d / %d)" % (k+1, len(files)))
 		else:	
 			print("Saving to",outpath+"...",end='',flush=True)
-			data = np.zeros((lons.size,lats.size,levels.size,2),dtype=np.int16)
+			data = np.zeros((lats.size,lons.size,levels.size,2),dtype=np.int16)
 			path = srcpath+file
 			grb = gb.open(path)
 			i = 0.
@@ -84,7 +85,7 @@ def procWindData(start,end,db='gfs_anl_1deg',overwrite=False):
 				if row.shortName == 'u' or row.shortName == 'v':
 					if row['typeOfLevel'] == 'isobaricInhPa' and row.level >= levels[0] and row.level <= levels[-1]:
 						j = 0 if row.name.startswith('U') else 1
-						data[:,:,int(i),j] = row.values.T*100
+						data[:,:,int(i),j] = row.values*100
 						i += 0.5
 			data.flatten().tofile(outpath)
 			print("   done (%d / %d)" % (k+1, len(files)))

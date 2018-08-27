@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "../ignored/proc/gfs_anl_0deg5/gfs_anl_0deg5.h"
+//#include "config.h"
 
 typedef struct __attribute__((packed)) {
 	wind_t data[NUM_LEVELS][NUM_VARIABLES];
@@ -24,6 +25,12 @@ template<class Float>
 struct wind_vector {
 	Float u;
 	Float v;
+};
+
+template<class Float>
+struct vec2 {
+	Float a;
+	Float b;
 };
 
 void load_data(const char *dname, uint64_t start, uint64_t end);

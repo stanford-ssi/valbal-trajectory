@@ -1,3 +1,4 @@
+#!/bin/sh
 #run this script from top level dir
 if [ -d ignored/balloons-VALBAL ]; then
  	cd ignored/balloons-VALBAL

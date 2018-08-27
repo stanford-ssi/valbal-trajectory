@@ -1,5 +1,5 @@
 TARGET = traj
-LIBS = -lm
+LIBS = -lm -ladept
 CC = g++
 CXXFLAGS = -g -Werror -Ofast -fno-strict-aliasing -Wall
 
@@ -47,3 +47,14 @@ open:
 
 opendiff:
 	vi -p diff.h diff.cpp
+
+install-adept:
+	cd lib/adept-2.0.5
+	./configure CXXFLAGS="-g1 -O3 -march=native"
+	make -j2
+	sudo make install
+	sudo echo "i totally couuld have just rm -rf the filesystem"
+
+flight-code:
+	cd ..
+	./utils/flight_code.sh

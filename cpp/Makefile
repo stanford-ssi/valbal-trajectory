@@ -1,7 +1,7 @@
 TARGET = traj
 LIBS = -lm -ladept
 CC = g++
-CXXFLAGS = -g -Werror -Ofast -march=native -fno-strict-aliasing -Wall
+CXXFLAGS = -g -Werror -Ofast -march=native -fno-strict-aliasing -Wall -ffast-math
 
 PATHS = -I ../ignored/balloons-VALBAL/lib/spa
 PATHS += -I ../ignored/balloons-VALBAL/src

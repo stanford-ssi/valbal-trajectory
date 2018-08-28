@@ -7,12 +7,16 @@
 using adept::adouble;
 
 #include "data.h"
+#include "utils.h"
 
 #include "../ignored/balloons-VALBAL/src/LasagnaController.h"
 #include "../ignored/balloons-VALBAL/hootl/lasagna/PastaSim.h"
 
 inline float VAL(float f) { return f; }
 inline float VAL(adouble f) { return f.value(); }
+inline adouble cosf(adouble f) { return cos(f); }
+inline float fastcos(float f) { return __builtin_cos(f); }
+inline adouble fastcos(adouble f) { return cos(f); }
 
 template <class Float>
 class PressureSource {
@@ -21,25 +25,20 @@ public:
 };
 
 template <class Float>
-class WindSource {
-public:
-	virtual wind_vector<Float> get_wind(int t, Float lat, Float lon, Float pres) = 0;
-};
-
-template <class Float>
 class Simulation {
 public:
-	Simulation(PressureSource<Float>& s, WindSource<Float>& w, int i);
+	Simulation(PressureSource<Float>& s, int i=-1);
 	PressureSource<Float>& pressure;
-	WindSource<Float>& winds;
 
 	vec2<Float> run(int, Float, Float);
+	wind_vector<Float> get_wind(int t, Float lat, Float lon, Float pres);
 
-	int cur_file;
+	int cur_file = 0;
 
 	const int dt = 60*10;
 	const int tmax = 60*60*100;
 
+	bool save_to_file = false;
 	FILE *file;
 };
 
@@ -79,14 +78,6 @@ public:
 	int t_last;
 	bool is_first_run = true;
 };
-
-template <class Float>
-class NearestNeighborWind : public WindSource<Float> {
-public:
-	wind_vector<Float> get_wind(int t, Float lat, Float lon, Float pres);
-	int cur_file = 0;
-};
-
 
 /**
  * Basic pressure to altitude conversion and back

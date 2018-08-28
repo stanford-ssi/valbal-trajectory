@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 #include "../ignored/proc/gfs_anl_0deg5/gfs_anl_0deg5.h"
-//#include "config.h"
+#include "config.h"
 
 typedef struct __attribute__((packed)) {
 	wind_t data[NUM_LEVELS][NUM_VARIABLES];

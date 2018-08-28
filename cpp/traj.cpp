@@ -10,22 +10,27 @@ using namespace std;
 
 void simpleSim(){
 	PressureTable<float> pres("../ignored/flights/inp.bin");
-	NearestNeighborWind<float> winds;
-	Simulation<float> sim(pres, winds, 0);
 	//sim.run(pres.t0 + pres.dt*2500, 37.7633, 239.86015);
 	//printf("actual t0 %d %d\n", pres.t0 + pres.dt*5000, pres.t0);
 	//sim.run(pres.t0 + pres.dt*5000, 35.339, -115.0733+360);
-	sim.run(pres.t0 + pres.dt*1000, 36.95854187, -121.84505463+360);
+	clock_t timer0 = clock();
+	vec2<float> f;
+	for (int i=0; i<10000; i++) {
+		Simulation<float> sim(pres, -1);
+		f = sim.run(pres.t0 + pres.dt*1000, 36.95854187, -121.84505463+360);
+	}
+	float dt = (clock() - timer0)/((double)CLOCKS_PER_SEC)*1000;
+	printf("SIMDONE %f %f\n", f.a, f.b);
+	printf("Took %.2f ms\n", dt);
 }
 
 void Sims(){
-	for(int i = 0; i < 10; i++){
+	for(int i = 0; i < 2; i++){
 		PressureTable<float> pres1("../ignored/flights/inp.bin");
 		LasSim<float> pres2(13000.);
-		NearestNeighborWind<float> winds;
-		Simulation<float> sim(pres2, winds, i);
-		sim.run(pres1.t0 + pres1.dt*1000, 36.95854187, -121.84505463+360);
-		printf("SIMDONE\n");
+		Simulation<float> sim(pres2, i);
+		vec2<float> f = sim.run(pres1.t0 + pres1.dt*1000, 36.95854187, -121.84505463+360);
+		printf("SIMDONE %f %f\n", f.a, f.b);
 	}
 
 }
@@ -48,8 +53,7 @@ void gradientsStuff(){
 		stack.new_recording();
 	
 		WaypointController<adouble> pres(t0, dt, waypoints);
-		NearestNeighborWind<adouble> winds;
-		Simulation<adouble> sim(pres, winds, it);
+		Simulation<adouble> sim(pres, it);
 		float lon0 = -121.84505463+360;
 		vec2<adouble> end = sim.run(pres.t0, 36.95854187, lon0);
 		adouble cost = (end.b-lon0)*111195;
@@ -63,7 +67,6 @@ void gradientsStuff(){
 		printf("Took %.2f ms, got %f\n", dt, VAL(cost)/1e6);
 	}
 }
-
 
 int main() {
 	printf("ValBal trajectory optimization.\n");
@@ -79,5 +82,6 @@ int main() {
 	point near = get_nearest_neighbor(69.5, 60.9);
 	printf("(%d,%d) (%d, %d)\n", base.lat, base.lon, near.lat, near.lon);
 	*/
-	Sims();
+	//Sims();
+	simpleSim();
 }

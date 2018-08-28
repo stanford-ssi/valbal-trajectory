@@ -8,6 +8,9 @@ using adept::adouble;
 
 #include "data.h"
 
+#include "../ignored/balloons-VALBAL/src/LasagnaController.h"
+#include "../ignored/balloons-VALBAL/hootl/lasagna/PastaSim.h"
+
 inline float VAL(float f) { return f; }
 inline float VAL(adouble f) { return f.value(); }
 
@@ -63,11 +66,34 @@ public:
 	Float *alts;
 };
 
+/**
+ * Simulator for a valbal using a LasagnaController and a PastaSim from the balloons-VALBAL repo.
+ */
+template <class Float>
+class LasSim : public PressureSource<Float> {
+public: 
+	LasSim(float start_h) {sim.h = start_h;}; 
+	Float get_pressure(int);
+	LasagnaController las;
+	PastaSim sim;
+	int t_last;
+	bool is_first_run = true;
+};
+
 template <class Float>
 class NearestNeighborWind : public WindSource<Float> {
 public:
 	wind_vector<Float> get_wind(int t, Float lat, Float lon, Float pres);
 	int cur_file = 0;
 };
+
+
+/**
+ * Basic pressure to altitude conversion and back
+ * Meters, Pascals
+ */
+float p2alt(float p);
+float alt2p(float alt);
+
 
 #endif

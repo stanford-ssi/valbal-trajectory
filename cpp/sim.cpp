@@ -47,6 +47,24 @@ Float PressureTable<Float>::get_pressure(int t) {
 }
 
 template<class Float>
+Float LasSim<Float>::get_pressure(int t){
+	//Currently slow AF cause it sims lasagna at 20hz RIP
+	if(is_first_run){
+		is_first_run = false;
+	} else {
+		const int N = (t-t_last)*20;
+		LasagnaController::Input input;
+		for(int i = 0; i < N; i++){
+			input.h_abs = sim.evolve(double(las.getAction()));
+			input.h_rel =input.h_abs;
+			las.update(input);
+		}
+	}
+	t_last = t;
+	return alt2p(sim.h);
+}
+
+template<class Float>
 wind_vector<Float> NearestNeighborWind<Float>::get_wind(int t, Float lat, Float lon, Float pres) {
 	while (files[cur_file+1].time < t) {
 		cur_file++;
@@ -146,10 +164,13 @@ vec2<Float> Simulation<Float>::run(int t, Float lat, Float lon) {
 		float actual_lon = VAL(lon);
 		fwrite(&actual_lat, sizeof(float), 1, file);
 		fwrite(&actual_lon, sizeof(float), 1, file);
+
 		Float p = pressure.get_pressure(t);
 		float actual_p = VAL(p);
-		fwrite(&actual_p, sizeof(float), 1, file);
-		//printf("lat %f lon %f pres %f\n", lat, lon, p);
+		float h = p2alt(actual_p);
+		fwrite(&h, sizeof(float), 1, file);
+		
+		printf("lat %f lon %f pres %f alt %f\n", VAL(lat), VAL(lon), actual_p, h);
 		wind_vector<Float> w = winds.get_wind(t, lat, lon, p);
 		lat += w.v * idlat;
 		lon += w.u * idlat / cos(lat * M_PI / 180.);
@@ -160,11 +181,21 @@ vec2<Float> Simulation<Float>::run(int t, Float lat, Float lon) {
 	return ret;
 }
 
+float p2alt(float p){
+	return (1.0-(pow((p/101350.0),0.190284)))*145366.45*0.3048;
+}
+
+float alt2p(float alt){
+	return pow(-((alt/145366.45/0.3048)-1.0),1.0/0.190284)*101350.0;
+}
+
 #define INIT(type) \
 		template class PressureTable<type>; \
 		template class WaypointController<type>; \
+		template class LasSim<type>; \
 		template class NearestNeighborWind<type>; \
 		template class Simulation<type>;
 
 INIT(adouble)
 INIT(float)
+

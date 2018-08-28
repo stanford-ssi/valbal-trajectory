@@ -8,21 +8,30 @@ using adept::adouble;
 
 using namespace std;
 
-int main() {
-	printf("ValBal trajectory optimization.\n");
-	printf("This program is highly cunning and, on the face of it, not entirely wrong.\n");
+void simpleSim(){
+	PressureTable<float> pres("../ignored/flights/inp.bin");
+	NearestNeighborWind<float> winds;
+	Simulation<float> sim(pres, winds, 0);
+	//sim.run(pres.t0 + pres.dt*2500, 37.7633, 239.86015);
+	//printf("actual t0 %d %d\n", pres.t0 + pres.dt*5000, pres.t0);
+	//sim.run(pres.t0 + pres.dt*5000, 35.339, -115.0733+360);
+	sim.run(pres.t0 + pres.dt*1000, 36.95854187, -121.84505463+360);
+}
 
-	load_data("../ignored/proc/gfs_anl_0deg5", 1500000000,1600000000);
-	//load_data("../proc", 1500000000,1600000000);
+void Sims(){
+	for(int i = 0; i < 10; i++){
+		PressureTable<float> pres1("../ignored/flights/inp.bin");
+		LasSim<float> pres2(13000.);
+		NearestNeighborWind<float> winds;
+		Simulation<float> sim(pres2, winds, i);
+		sim.run(pres1.t0 + pres1.dt*1000, 36.95854187, -121.84505463+360);
+		printf("SIMDONE\n");
+	}
 
-	/*wind_data *sample = get_data_at_point(files+0, {42, 120});
-	printf("(u,v) %hd %hd\n", sample->data[4][0], sample->data[4][1]);
+}
 
-	point base = get_base_neighbor(69.5, 60.6);
-	point near = get_nearest_neighbor(69.5, 60.9);
-	printf("(%d,%d) (%d, %d)\n", base.lat, base.lon, near.lat, near.lon);
-	*/
 
+void gradientsStuff(){
 	int t0 = 1512871200;
 	int dt = 3600;
 	const int N_W = 101;
@@ -53,4 +62,22 @@ int main() {
 		float dt = (clock() - timer0)/((double)CLOCKS_PER_SEC)*1000;
 		printf("Took %.2f ms, got %f\n", dt, VAL(cost)/1e6);
 	}
+}
+
+
+int main() {
+	printf("ValBal trajectory optimization.\n");
+	printf("This program is highly cunning and, on the face of it, not entirely wrong.\n");
+
+	load_data("../ignored/proc/gfs_anl_0deg5", 1500000000,1600000000);
+	//load_data("../proc", 1500000000,1600000000);
+
+	/*wind_data *sample = get_data_at_point(files+0, {42, 120});
+	printf("(u,v) %hd %hd\n", sample->data[4][0], sample->data[4][1]);
+
+	point base = get_base_neighbor(69.5, 60.6);
+	point near = get_nearest_neighbor(69.5, 60.9);
+	printf("(%d,%d) (%d, %d)\n", base.lat, base.lon, near.lat, near.lon);
+	*/
+	Sims();
 }

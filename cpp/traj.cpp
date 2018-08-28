@@ -1,27 +1,32 @@
 #include <stdio.h>
+#include <assert.h>
 
 #include <adept.h>
 using adept::adouble;
 
 #include "data.h"
 #include "sim.h"
+#include "utils.h"
 
 using namespace std;
 
 void simpleSim(){
 	PressureTable<float> pres("../ignored/flights/inp.bin");
-	//sim.run(pres.t0 + pres.dt*2500, 37.7633, 239.86015);
-	//printf("actual t0 %d %d\n", pres.t0 + pres.dt*5000, pres.t0);
-	//sim.run(pres.t0 + pres.dt*5000, 35.339, -115.0733+360);
-	clock_t timer0 = clock();
-	vec2<float> f;
-	for (int i=0; i<10000; i++) {
-		Simulation<float> sim(pres, -1);
-		f = sim.run(pres.t0 + pres.dt*1000, 36.95854187, -121.84505463+360);
+	TIMEIT("Running simple sims",
+		const int N = 100000;
+    	Scheduler<float> sched(-2, N);
+		for (int i=0; i<N; i++) {
+			sched.add([&pres]() {
+				Simulation<float> sim(pres, -1);
+				vec2<float> f = sim.run(pres.t0 + pres.dt*1000, 36.95854187, -121.84505463+360);
+				return f.a;
+			});
+		}
+		sched.finish();
+	)
+	for (int i=0; i<N; i++) {
+		assert(sched.results[i] != 0);
 	}
-	float dt = (clock() - timer0)/((double)CLOCKS_PER_SEC)*1000;
-	printf("SIMDONE %f %f\n", f.a, f.b);
-	printf("Took %.2f ms\n", dt);
 }
 
 void Sims(){
@@ -35,17 +40,16 @@ void Sims(){
 
 }
 
-
 void gradientsStuff(){
 	int t0 = 1512871200;
 	int dt = 3600;
 	const int N_W = 101;
-	const float LR = 10;
+	const float LR = 10; (void)LR;
 	double waypoints_val[N_W]; for (int i=0; i<N_W; i++) waypoints_val[i] = 15000;
 
+	adept::Stack stack;
 	for (int it=0; it<100; it++) {
 		clock_t timer0 = clock();
-		adept::Stack stack;
 		adouble waypoints[N_W];
 		for (int i=0; i<N_W; i++) {
 			waypoints[i] = min(23000., max(10000., waypoints_val[i]));
@@ -60,11 +64,11 @@ void gradientsStuff(){
 		cost.set_gradient(1.0);
 		stack.compute_adjoint();
 		for (int i=0; i<N_W; i++) {
-			waypoints_val[i] += LR * waypoints[i].get_gradient();
+			//waypoints_val[i] += LR * waypoints[i].get_gradient();
 			//printf("Update at %d: %f\n", i, LR * waypoints[i].get_gradient());
 		}
 		float dt = (clock() - timer0)/((double)CLOCKS_PER_SEC)*1000;
-		printf("Took %.2f ms, got %f\n", dt, VAL(cost)/1e6);
+		printf("Took %.2f ms, got %f, first grad %f\n", dt, VAL(cost)/1e6, waypoints[0].get_gradient());
 	}
 }
 
@@ -84,4 +88,5 @@ int main() {
 	*/
 	//Sims();
 	simpleSim();
+	//gradientsStuff();
 }

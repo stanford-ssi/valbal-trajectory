@@ -1,5 +1,5 @@
 TARGET = traj
-LIBS = -lm -ladept
+LIBS = -lm -ladept -lpthread
 CC = g++
 CXXFLAGS = -g -Werror -Ofast -march=native -fno-strict-aliasing -Wall -ffast-math
 

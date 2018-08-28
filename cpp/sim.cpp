@@ -6,16 +6,7 @@
 #include <limits.h>
 
 #include "sim.h"
-
-/* This macro is like assert, but when program logic is included inside the statement. This ensures
- * that compiling with -DNDEBUG won't make it go away. Useful for making sure system calls have the
- * proper return value. */
-#define ensure(x) { \
-	if (!(x)) { \
-		printf("fatal error on file %s, line %d\n", __FILE__, __LINE__); \
-		exit(1); \
-	} \
-}
+#include "utils.h"
 
 template<class Float>
 WaypointController<Float>::WaypointController(int t0_, int dt_, Float *alts_)
@@ -74,7 +65,7 @@ wind_vector<Float> Simulation<Float>::get_wind(int t, Float lat, Float lon, Floa
 	while (files[cur_file+1].time < t) {
 		cur_file++;
 	}
-	//printf("%d cur file %d %d\n", t, cur_file, ((int)(t-files[cur_file].time)));
+	debugd("%d cur file %d %d\n", t, cur_file, ((int)(t-files[cur_file].time)));
 
 	/* Get pressure level. Here a simple linear search is faster, although it
 	 * can probably be vectorized. */
@@ -126,6 +117,11 @@ wind_vector<Float> Simulation<Float>::get_wind(int t, Float lat, Float lon, Floa
 
 		vs[j] = vlat1 + theta_lon * (vlat2 - vlat1);
 	}
+
+	/* When I find myself in need of variance,
+	 * Father Wareham comes to me,
+	 * Speaking words of cunning,
+	 * sqrt(E[X^2] - E[X]^2) = es. tee. dee */
 
 	wind_vector<Float> w;
 	w.u = (us[0] + theta_t * (us[1] - us[0])) / 100.;

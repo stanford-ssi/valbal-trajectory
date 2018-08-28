@@ -1,7 +1,7 @@
 TARGET = traj
 LIBS = -lm -ladept
 CC = g++
-CXXFLAGS = -g -Werror -Ofast -fno-strict-aliasing -Wall
+CXXFLAGS = -g -Werror -Ofast -march=native -fno-strict-aliasing -Wall
 
 .PHONY: default all clean
 

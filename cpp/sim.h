@@ -35,7 +35,7 @@ public:
 	int cur_file;
 
 	const int dt = 60*10;
-	const int tmax = 60*60*50;
+	const int tmax = 60*60*100;
 
 	FILE *file;
 };

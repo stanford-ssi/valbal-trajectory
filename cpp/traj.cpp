@@ -24,12 +24,13 @@ int main() {
 	*/
 
 	int t0 = 1512871200;
-	int dt = 1800;
+	int dt = 3600;
 	const int N_W = 101;
 	const float LR = 10;
 	double waypoints_val[N_W]; for (int i=0; i<N_W; i++) waypoints_val[i] = 15000;
 
-	for (int it=0; it<1000; it++) {
+	for (int it=0; it<100; it++) {
+		clock_t timer0 = clock();
 		adept::Stack stack;
 		adouble waypoints[N_W];
 		for (int i=0; i<N_W; i++) {
@@ -49,6 +50,7 @@ int main() {
 			waypoints_val[i] += LR * waypoints[i].get_gradient();
 			//printf("Update at %d: %f\n", i, LR * waypoints[i].get_gradient());
 		}
-		printf("%d got %f\n", it, VAL(cost)/1e6);
+		float dt = (clock() - timer0)/((double)CLOCKS_PER_SEC)*1000;
+		printf("Took %.2f ms, got %f\n", dt, VAL(cost)/1e6);
 	}
 }

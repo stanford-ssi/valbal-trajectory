@@ -141,7 +141,6 @@ vec2<Float> Simulation<Float>::run(int t, Float lat, Float lon) {
 	int Tmax = tmax + t;
 	const float idlat = dt / (2 * M_PI * 6371008 / 360.);
 	//printf("Starting from (%f, %f)\n", VAL(lat), VAL(lon));
-	clock_t t0 = clock();
 	while (t < Tmax) {
 		float actual_lat = VAL(lat);
 		float actual_lon = VAL(lon);
@@ -156,9 +155,6 @@ vec2<Float> Simulation<Float>::run(int t, Float lat, Float lon) {
 		lon += w.u * idlat / cos(lat * M_PI / 180.);
 		t += dt;
 	}
-	float dt = (clock() - t0)/((double)CLOCKS_PER_SEC)*1000;
-	(void)dt;
-	//printf("Ended up in (%f, %f) after %.2f ms\n", VAL(lat), VAL(lon), dt);
 	vec2<Float> ret = {lat, lon};
 	fclose(file);
 	return ret;

@@ -7,7 +7,7 @@ import sys
 
 
 def load_file(i):
-    output = np.fromfile('../ignored/output.%s.bin' % i, dtype=np.float32)
+    output = np.fromfile('../ignored/output.%03d.bin' % int(i), dtype=np.float32)
     output.shape = (len(output)//3, 3)
     return output
 

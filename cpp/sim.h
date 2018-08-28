@@ -66,6 +66,20 @@ public:
 	Float *alts;
 };
 
+/**
+ * Simulator for a valbal using a LasagnaController and a PastaSim from the balloons-VALBAL repo.
+ */
+template <class Float>
+class LasSim : public PressureSource<Float> {
+public: 
+	LasSim(float start_h) {sim.h = start_h;}; 
+	Float get_pressure(int);
+	LasagnaController las;
+	PastaSim sim;
+	int t_last;
+	bool is_first_run = true;
+};
+
 template <class Float>
 class NearestNeighborWind : public WindSource<Float> {
 public:
@@ -74,16 +88,12 @@ public:
 };
 
 
+/**
+ * Basic pressure to altitude conversion and back
+ * Meters, Pascals
+ */
 float p2alt(float p);
-
-class LasSim {
-public: 
-	LasSim(float start_alt);
-	float update(int delta_t);
-	LasagnaController las;
-	PastaSim sim;
-};
-
+float alt2p(float alt);
 
 
 #endif

@@ -8,12 +8,14 @@
 #include "sim.h"
 #include "utils.h"
 
+#define STORE_ALTITUDE
+
 template<class Float>
 WaypointController<Float>::WaypointController(int t0_, int dt_, Float *alts_)
 		: t0(t0_), dt(dt_), alts(alts_) {}
 
 template<class Float>
-Float WaypointController<Float>::get_pressure(int t) {
+Float WaypointController<Float>::get_pressure(int t, float lat, float lon) {
 	unsigned int idx = (t-t0)/dt;
 	float theta = (t - (t0 + dt*idx))/((float)dt);
 	return alts[idx] + theta * (alts[idx+1] - alts[idx]);
@@ -36,19 +38,21 @@ PressureTable<Float>::PressureTable(const char *fname) {
 }
 
 template<class Float>
-Float PressureTable<Float>::get_pressure(int t) {
+Float PressureTable<Float>::get_pressure(int t, float lat, float lon) {
 	unsigned int idx = (t-t0)/dt;
 	assert(idx >= 0 && idx < n);
 	return alts[idx];
 }
 
 template<class Float>
-Float LasSim<Float>::get_pressure(int t){
+Float LasSim<Float>::get_pressure(int t, float lat, float lon){
 	//Currently slow AF cause it sims lasagna at 20hz RIP
 	if(is_first_run){
 		is_first_run = false;
 	} else {
 		const int N = (t-t_last)*20;
+		sim.conf.lat = lat;
+		sim.conf.lon = lon;
 		LasagnaController::Input input;
 		for(int i = 0; i < N; i++){
 			input.h_abs = sim.evolve(double(las.getAction()));
@@ -65,7 +69,8 @@ wind_vector<Float> Simulation<Float>::get_wind(int t, Float lat, Float lon, Floa
 	while (files[cur_file+1].time < t) {
 		cur_file++;
 	}
-	debugd("%d cur file %d %d\n", t, cur_file, ((int)(t-files[cur_file].time)));
+	assert(cur_file < num_files && "file requested out of range");
+	debugf("%d cur file %d %d\n", t, cur_file, ((int)(t-files[cur_file].time)));
 
 	/* Get pressure level. Here a simple linear search is faster, although it
 	 * can probably be vectorized. */
@@ -135,7 +140,7 @@ Simulation<Float>::Simulation(PressureSource<Float>& s, int i) : pressure(s) {
 	save_to_file = i >= 0;
 	if (save_to_file) {
 		char path[PATH_MAX];
-		snprintf(path, PATH_MAX, "../ignored/output.%03d.bin", i);
+		snprintf(path, PATH_MAX, "../ignored/sim/output.%03d.bin", i);
 		file = fopen(path, "wb");
 		ensure(file != 0);
 		ensure(setvbuf(file, 0, _IOFBF, 16384) == 0);
@@ -148,8 +153,7 @@ vec2<Float> Simulation<Float>::run(int t, Float lat, Float lon) {
 	const float idlat = dt / (2 * M_PI * 6371008 / 360.);
 	debugf("Starting from (%f, %f)\n", VAL(lat), VAL(lon));
 	while (t < Tmax) {
-		Float p = pressure.get_pressure(t);
-
+		Float p = pressure.get_pressure(t, VAL(lat), VAL(lon));
 		if (save_to_file) {
 			float actual_lat = VAL(lat);
 			float actual_lon = VAL(lon);
@@ -160,13 +164,12 @@ vec2<Float> Simulation<Float>::run(int t, Float lat, Float lon) {
 
 			/* Computing pressure -> altitude makes the simulation ~16% slower, so
 			 * it's optional. */
-			#ifdef STORE_PRESSURE
+			#ifdef STORE_ALTITUDE
 				actual_p = p2alt(actual_p);
 			#endif
 
 			fwrite(&actual_p, sizeof(float), 1, file);
 		}
-		
 		wind_vector<Float> w = get_wind(t, lat, lon, p);
 		lat += w.v * idlat;
 		lon += w.u * idlat / fastcos(lat * M_PI / 180.);

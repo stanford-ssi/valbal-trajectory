@@ -21,7 +21,7 @@ inline adouble fastcos(adouble f) { return cos(f); }
 template <class Float>
 class PressureSource {
 public:
-	virtual Float get_pressure(int) = 0;
+	virtual Float get_pressure(int, float, float) = 0;
 };
 
 template <class Float>
@@ -36,7 +36,7 @@ public:
 	int cur_file = 0;
 
 	const int dt = 60*10;
-	const int tmax = 60*60*100;
+	const int tmax = 60*60*65;
 
 	bool save_to_file = false;
 	FILE *file;
@@ -46,7 +46,7 @@ template <class Float>
 class PressureTable : public PressureSource<Float> {
 public:
 	PressureTable(const char *);
-	Float get_pressure(int);
+	Float get_pressure(int, float, float);
 
 	uint32_t t0;
 	uint32_t dt;
@@ -58,7 +58,7 @@ template <class Float>
 class WaypointController : public PressureSource<Float> {
 public:
 	WaypointController(int, int, Float *);
-	Float get_pressure(int);
+	Float get_pressure(int, float, float);
 
 	int t0;
 	int dt;
@@ -72,7 +72,7 @@ template <class Float>
 class LasSim : public PressureSource<Float> {
 public: 
 	LasSim(float start_h) {sim.h = start_h;}; 
-	Float get_pressure(int);
+	Float get_pressure(int, float, float);
 	LasagnaController las;
 	PastaSim sim;
 	int t_last;

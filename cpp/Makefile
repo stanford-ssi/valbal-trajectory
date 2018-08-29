@@ -54,3 +54,6 @@ install-adept:
 
 flight-code:
 	cd .. ; ./utils/flight_code.sh
+
+setup:
+	cd .. ; sh utils/setup.sh	

@@ -173,7 +173,7 @@ def makeWindArray(start,end,overwrite=False,altitude_range=[10000,20000],name_mo
 	np.save(filepath2,data)
 	return filepath,filepath2
 
-def getGRIBlevels(grib,shortname='v',altitude_range = [10000,20000]):
+def getGRIBlevels(grib,shortname='v',altitude_range = [0,20000]):
 	""" retruns array of all levels in a GRIB file
 	"""
 	levels = []
@@ -194,5 +194,8 @@ def p2a(x):
 
 
 
-df = pd.read_hdf('ssi63_position.h5')
-procWindData(df.index[0],df.index[-1],db="gfs_anl_0deg5",overwrite=True)
+df = pd.read_hdf('../ignored/flights/ssi71_location.h5')
+print(df.long_gps.values[1000])
+print(df.lat_gps.values[1000])
+print(df.index[0])
+procWindData(df.index[0],df.index[-1] + timedelta(2),db="gfs_anl_0deg5",overwrite=False)

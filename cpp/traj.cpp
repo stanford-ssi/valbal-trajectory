@@ -8,6 +8,8 @@ using adept::adouble;
 #include "sim.h"
 #include "utils.h"
 
+#define STORE_ALTITUDE
+
 using namespace std;
 
 void simpleSim(){
@@ -29,12 +31,25 @@ void simpleSim(){
 	}
 }
 
-void Sims(){
-	for(int i = 0; i < 2; i++){
-		PressureTable<float> pres1("../ignored/flights/inp.bin");
-		LasSim<float> pres2(13000.);
+void ssi71Sims(){
+	// for playing around with ssi71 data
+	PressureTable<float> pres1("../ignored/flights/ssi71_inp.bin");
+	Simulation<float> sim(pres1, 1);
+	vec2<float> f = sim.run(pres1.t0, 42.8539, -71.0081+360);
+	printf("SIMDONE %f %f\n", f.a, f.b);
+	for(int i = 2; i < 100; i++){
+		LasSim<float> pres2(1000.);
+		pres2.sim.l = 0.3;
+		pres2.sim.conf.gtime.year = 2080;
+		pres2.sim.conf.gtime.month = 6;
+		pres2.sim.conf.gtime.day = 14;
+		pres2.sim.conf.gtime.hour = 17;
+		pres2.sim.conf.gtime.minute = 4;
+		pres2.sim.conf.gtime.second = 0;
+		//LasagnaController::Constants con; con.h_cmd = 
+		//pres2.las.update
 		Simulation<float> sim(pres2, i);
-		vec2<float> f = sim.run(pres1.t0 + pres1.dt*1000, 36.95854187, -121.84505463+360);
+		vec2<float> f = sim.run(pres1.t0, 42.8539, -71.0081+360);
 		printf("SIMDONE %f %f\n", f.a, f.b);
 	}
 
@@ -87,6 +102,6 @@ int main() {
 	printf("(%d,%d) (%d, %d)\n", base.lat, base.lon, near.lat, near.lon);
 	*/
 	//Sims();
-	simpleSim();
+	ssi71Sims();
 	//gradientsStuff();
 }

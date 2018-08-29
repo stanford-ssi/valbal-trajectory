@@ -44,7 +44,7 @@ clean:
 	-rm -f $(TARGET)
 
 open:
-	vi -p traj.cpp config.h data.h data.cpp sim.h sim.cpp diff.h diff.cpp
+	vi -p traj.cpp config.h utils.h data.h data.cpp sim.h sim.cpp
 
 opendiff:
 	vi -p diff.h diff.cpp
@@ -56,4 +56,4 @@ flight-code:
 	cd .. ; ./utils/flight_code.sh
 
 setup:
-	cd .. ; sh utils/setup.sh	
+	cd .. ; sh utils/setup.sh

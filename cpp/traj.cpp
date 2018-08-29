@@ -35,21 +35,21 @@ void ssi71Sims(){
 	// for playing around with ssi71 data
 	PressureTable<float> pres1("../ignored/flights/ssi71_inp.bin");
 	Simulation<float> sim(pres1, 1);
-	vec2<float> f = sim.run(pres1.t0, 42.8539, -71.0081+360);
+	vec2<float> f = sim.run(1529007840, 42.46636, -68.021255+360);
 	printf("SIMDONE %f %f\n", f.a, f.b);
-	for(int i = 2; i < 100; i++){
-		LasSim<float> pres2(1000.);
-		pres2.sim.l = 0.3;
-		pres2.sim.conf.gtime.year = 2080;
+	for(int i = 2; i < 50; i++){
+		LasSim<float> pres2(13500.);
+		pres2.sim.l = 0.0;
+		pres2.sim.conf.gtime.year = 2018;
 		pres2.sim.conf.gtime.month = 6;
 		pres2.sim.conf.gtime.day = 14;
-		pres2.sim.conf.gtime.hour = 17;
-		pres2.sim.conf.gtime.minute = 4;
+		pres2.sim.conf.gtime.hour = 20;
+		pres2.sim.conf.gtime.minute = 34;
 		pres2.sim.conf.gtime.second = 0;
 		//LasagnaController::Constants con; con.h_cmd = 
 		//pres2.las.update
 		Simulation<float> sim(pres2, i);
-		vec2<float> f = sim.run(pres1.t0, 42.8539, -71.0081+360);
+		vec2<float> f = sim.run(1529007840, 42.46636, -68.021255+360);
 		printf("SIMDONE %f %f\n", f.a, f.b);
 	}
 
@@ -92,6 +92,7 @@ int main() {
 	printf("This program is highly cunning and, on the face of it, not entirely wrong.\n");
 
 	load_data("../ignored/proc/gfs_anl_0deg5", 1500000000,1600000000);
+	//load_data("../ignored/proc/euro_anl", 1500000000,1600000000);
 	//load_data("../proc", 1500000000,1600000000);
 
 	/*wind_data *sample = get_data_at_point(files+0, {42, 120});

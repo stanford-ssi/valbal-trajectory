@@ -34,7 +34,7 @@ PressureTable<Float>::PressureTable(const char *fname) {
 	ensure(fread(alts, sizeof(float), n, f) == n);
 	ensure(fclose(f) == 0);
 
-	printf("Loaded %d pressures from %s, dt: %d s, t0: %d.\n", n, fname, dt, t0);
+	debugf("Loaded %d pressures from %s, dt: %d s, t0: %d.\n", n, fname, dt, t0);
 }
 
 template<class Float>
@@ -70,7 +70,7 @@ wind_vector<Float> Simulation<Float>::get_wind(int t, Float lat, Float lon, Floa
 		cur_file++;
 	}
 	assert(cur_file < num_files && "file requested out of range");
-	debugf("%d cur file %d %d\n", t, cur_file, ((int)(t-files[cur_file].time)));
+	debugf("%d cur file %d %d %d pres %f\n", t, cur_file, ((int)(t-files[cur_file].time)), (int)(files[cur_file].time), VAL(pres));
 
 	/* Get pressure level. Here a simple linear search is faster, although it
 	 * can probably be vectorized. */
@@ -91,6 +91,7 @@ wind_vector<Float> Simulation<Float>::get_wind(int t, Float lat, Float lon, Floa
 	Float theta_lon = (lon - LON(pt.lon))/LON_D;
 	float theta_t = t-files[cur_file].time;
 	theta_t /= (files[cur_file+1].time-files[cur_file].time);
+	debugf("theta t %f\n", theta_t);
 	assert(theta_t >= 0 && theta_t <= 1);
 
 	data_file *f = files + cur_file;
@@ -105,12 +106,18 @@ wind_vector<Float> Simulation<Float>::get_wind(int t, Float lat, Float lon, Floa
 		INTERP_ALT(u11, p11, 0);
 		INTERP_ALT(u21, p21, 0);
 		Float ulat1 = u11 + theta_lat * (u21 - u11);
+		debugf("v11! @ %f %d %d %f %f\n", VAL(pres), pt.lat, pt.lon, LAT(pt.lat), LON(pt.lon));
+		for (int k=0; k<NUM_LEVELS; k++) {
+			debugf("%f: %d\n", LEVELS[k], p11->data[k][1]);
+		}
 
 		INTERP_ALT(u12, p12, 0);
 		INTERP_ALT(u22, p22, 0);
 		Float ulat2 = u12 + theta_lat * (u22 - u12);
 
 		us[j] = ulat1 + theta_lon * (ulat2 - ulat1);
+		debugf("U: %f (%f,%f,%f,%f)\n", VAL(us[j]),
+				VAL(u11), VAL(u12), VAL(u21), VAL(u22));
 
 		INTERP_ALT(v11, p11, 1);
 		INTERP_ALT(v21, p21, 1);
@@ -121,7 +128,10 @@ wind_vector<Float> Simulation<Float>::get_wind(int t, Float lat, Float lon, Floa
 		Float vlat2 = v12 + theta_lat * (v22 - v12);
 
 		vs[j] = vlat1 + theta_lon * (vlat2 - vlat1);
+		debugf("V: %f (%f,%f,%f,%f)\n", VAL(vs[j]),
+				VAL(v11), VAL(v12), VAL(v21), VAL(v22));
 	}
+	debugf("---\n");
 
 	/* When I find myself in need of variance,
 	 * Father Wareham comes to me,

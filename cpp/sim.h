@@ -1,6 +1,7 @@
 #ifndef SIM_H
 #define SIM_H
 
+#include <random>
 #include <stdint.h>
 
 #include <adept.h>
@@ -35,11 +36,16 @@ public:
 
 	int cur_file = 0;
 
-	const int dt = 60*10;
-	const int tmax = 60*60*65;
+	int dt = 60*10;
+	//const int tmax = 60*60*103;
+	int tmax = 60*60*50;
 
 	bool save_to_file = false;
 	FILE *file;
+	float sigma = 0;
+
+    std::mt19937 random_gen;
+    std::normal_distribution<> normal;
 };
 
 template <class Float>

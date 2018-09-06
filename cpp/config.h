@@ -11,4 +11,7 @@
 /* Sprinkles random debug statements throughout the code. Significant slowdown. */
 //#define DEBUG_PRINT
 
+/* Interpolates in time. May violate causality. */
+#define INTERPOLATE_IN_TIME
+
 #endif

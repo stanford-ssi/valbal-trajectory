@@ -13,24 +13,23 @@ def load_file(i):
     output.shape = (len(output)//3, 3)
     return output
 
-files = list(map(load_file, range(1,100)))
+files = list(map(load_file, range(1,2000)))
 
 t0 = df.index[0]
-times = t0+np.arange(files[0].shape[0])*datetime.timedelta(seconds=60*10)
+times = t0+(200+np.arange(files[0].shape[0]))*datetime.timedelta(seconds=60*10)
 #df.reindex(times)
 #df2.reindex(times)
 plt.subplot(2,1,1)
 for f in files[1:]:
     plt.plot(times,f[:,2],c="blue",alpha=0.1)
-df.altitude_barometer.plot(c="red") 
-df.altitude_gps.plot(c="orange")  
+plt.plot(df.altitude_barometer.index, df.altitude_barometer.values, color='red')# df.altitude_barometer.plot(c="red") 
 plt.grid()
 plt.xlabel("time")
 plt.ylabel("altitude")
 plt.subplot(2,1,2)
 
 m = Basemap(projection='merc',llcrnrlat=20,urcrnrlat=60,\
-            llcrnrlon=-80,urcrnrlon=0,resolution='i')
+            llcrnrlon=-180,urcrnrlon=10,resolution='i')
 m.drawcoastlines()
 m.drawcountries()
 m.drawstates()

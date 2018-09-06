@@ -5,6 +5,7 @@
 
 #include "../ignored/proc/gfs_anl_0deg5/gfs_anl_0deg5.h"
 //#include "../ignored/proc/euro_anl/euro_anl.h"
+//#include "../ignored/proc/euro_fc/euro_fc.h"
 #include "config.h"
 
 typedef struct __attribute__((packed)) {

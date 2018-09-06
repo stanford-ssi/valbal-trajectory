@@ -12,7 +12,7 @@ import pandas as pd
 def fetchWindData(start,end,db='gfs_anl_1deg'):
     raise ValueError("lol good luck son")
 
-def procWindData(src,db='euro_anl',overwrite=False):
+def procWindData(src,db='euro_fc',overwrite=False):
     dstpath = "../ignored/proc/"+ db + "/"
     srcpath = "../ignored/raw/" + db + "/"
     if not os.path.exists(dstpath):
@@ -34,9 +34,16 @@ def procWindData(src,db='euro_anl',overwrite=False):
     arr = None
     for x in grb:
         if x.level < last:
+            """print(x)
+            print(dir(x))
+            for k in dir(x):
+                if not k.startswith("_"): print(k, getattr(x,k))
+            print(x.has_key("fcst time"))
+            print(x.stepRange)"""
             if arr is not None:
                 arr.flatten().tofile(dstpath+str(tgt)+'.bin')
-            tgt = int((x.validDate-dt(1970,1,1)).total_seconds())
+            date = x.validDate + timedelta(hours = int(x.stepRange))
+            tgt = int((date-dt(1970,1,1)).total_seconds())
             i = 0.
             print("NEW FILE", tgt)
             arr = np.zeros((lats.size, lons.size, levels.size, 2), dtype=np.int16)
@@ -105,4 +112,5 @@ def genWindHeader(dataset,lons,lats,levels):
     filetext += "#endif \n\r"
     return filetext;
 
-procWindData("test2.grib",db="euro_anl",overwrite=not False)
+#procWindData("63fc.grib",db="euro_fc",overwrite=not False)
+procWindData("fc67.grib",db="euro_fc",overwrite=not False)

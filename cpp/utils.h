@@ -18,10 +18,13 @@ using namespace std;
 	#define debugf(format, etc...)
 #endif
 
-// Allows for composite variable names in macros
+/* Allows for composite variable names in macros. */
 #define _JOIN(X,Y) X##Y
 #define JOIN(X,Y) _JOIN(X,Y)
 
+/* Timing utilities. TIMEIT(name, block) can wrap around a block and give timing information for
+ * it. walltime and cputime return wall and CPU time, respectively, in microseconds from an
+ * arbitrary and irrelevant origin. */
 inline long walltime() {
     struct timespec ts;
     if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
@@ -50,6 +53,10 @@ inline long cputime() {
 		exit(1); \
 	} \
 }
+
+/* Returns the full path to the ignored data folder. Implemented as a macro to avoid having to
+ * allocate a string in the heap and keep track of it at runtime. */
+#define get_data_path(x) ("../ignored/" x)
 
 template<class ReturnType>
 class Scheduler {

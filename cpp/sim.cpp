@@ -4,6 +4,7 @@
 #include <math.h>
 #include <time.h>
 #include <limits.h>
+#include <random>
 
 #include "sim.h"
 #include "utils.h"
@@ -97,7 +98,11 @@ wind_vector<Float> Simulation<Float>::get_wind(int t, Float lat, Float lon, Floa
 	data_file *f = files + cur_file;
 	Float us[2];
 	Float vs[2];
+	#ifdef INTERPOLATE_IN_TIME
 	for (int j=0; j<2; j++) {
+	#else
+	{ int j = 0;
+	#endif
 		wind_data *p11 = get_data_at_point(f+j, {pt.lat, pt.lon});
 		wind_data *p12 = get_data_at_point(f+j, {pt.lat, pt.lon + 1});
 		wind_data *p21 = get_data_at_point(f+j, {pt.lat + 1, pt.lon});
@@ -139,14 +144,24 @@ wind_vector<Float> Simulation<Float>::get_wind(int t, Float lat, Float lon, Floa
 	 * sqrt(E[X^2] - E[X]^2) = es. tee. dee */
 
 	wind_vector<Float> w;
-	w.u = (us[0] + theta_t * (us[1] - us[0])) / 100.;
-	w.v = (vs[0] + theta_t * (vs[1] - vs[0])) / 100.; 
+	#ifdef INTERPOLATE_IN_TIME
+		w.u = (us[0] + theta_t * (us[1] - us[0])) / 100.;
+		w.v = (vs[0] + theta_t * (vs[1] - vs[0])) / 100.;
+	#else
+		w.u = us[0];
+		w.v = vs[0];
+	#endif
+	if (sigma != 0) {
+		w.u += sigma * normal(random_gen);
+		w.v += sigma * normal(random_gen);
+	}
 
 	return w;
 }
 
 template<class Float>
-Simulation<Float>::Simulation(PressureSource<Float>& s, int i) : pressure(s) {
+Simulation<Float>::Simulation(PressureSource<Float>& s, int i)
+		: pressure(s), random_gen((std::random_device())()), normal(0,1) {
 	save_to_file = i >= 0;
 	if (save_to_file) {
 		char path[PATH_MAX];

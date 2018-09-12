@@ -3,4 +3,4 @@ ignored/*
 */__pycache__/*
 *.h5
 *.swp
-/cpp/traj
+/sim/traj

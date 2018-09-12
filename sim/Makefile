@@ -3,8 +3,8 @@ LIBS = -lm -ladept -lpthread
 CC = g++
 CXXFLAGS = -g -Werror -Ofast -march=native -fno-strict-aliasing -Wall -ffast-math
 
-PATHS = -I ../ignored/balloons-VALBAL/lib/spa
-PATHS += -I ../ignored/balloons-VALBAL/src
+PATHS = -I ../balloons-VALBAL/lib/spa
+PATHS += -I ../balloons-VALBAL/src
 PATHS += -I /usr/local/include
 
 
@@ -17,14 +17,14 @@ OBJECTS = $(patsubst %.cpp, %.o, $(wildcard *.cpp))
 HEADERS = $(wildcard *.h)
 
 #Jank additions to compile lasagna and Pastasim. Must run utils/flight_code.sh first
-OBJECTS += ../ignored/balloons-VALBAL/src/LasagnaController.cpp
-HEADERS += ../ignored/balloons-VALBAL/src/LasagnaController.h
-OBJECTS += ../ignored/balloons-VALBAL/src/Utils.cpp
-HEADERS += ../ignored/balloons-VALBAL/src/Utils.h
-OBJECTS += ../ignored/balloons-VALBAL/lib/spa/spa.cpp
-HEADERS += ../ignored/balloons-VALBAL/lib/spa/spa.h
-OBJECTS += ../ignored/balloons-VALBAL/hootl/lasagna/PastaSim.cpp
-HEADERS += ../ignored/balloons-VALBAL/hootl/lasagna/PastaSim.h
+OBJECTS += ../balloons-VALBAL/src/LasagnaController.cpp
+HEADERS += ../balloons-VALBAL/src/LasagnaController.h
+OBJECTS += ../balloons-VALBAL/src/Utils.cpp
+HEADERS += ../balloons-VALBAL/src/Utils.h
+OBJECTS += ../balloons-VALBAL/lib/spa/spa.cpp
+HEADERS += ../balloons-VALBAL/lib/spa/spa.h
+OBJECTS += ../balloons-VALBAL/hootl/lasagna/PastaSim.cpp
+HEADERS += ../balloons-VALBAL/hootl/lasagna/PastaSim.h
 
 
 

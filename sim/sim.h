@@ -10,8 +10,8 @@ using adept::adouble;
 #include "data.h"
 #include "utils.h"
 
-#include "../ignored/balloons-VALBAL/src/LasagnaController.h"
-#include "../ignored/balloons-VALBAL/hootl/lasagna/PastaSim.h"
+#include "../balloons-VALBAL/src/LasagnaController.h"
+#include "../balloons-VALBAL/hootl/lasagna/PastaSim.h"
 
 inline float VAL(float f) { return f; }
 inline float VAL(adouble f) { return f.value(); }

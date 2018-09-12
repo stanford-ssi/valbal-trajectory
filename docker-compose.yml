@@ -1,0 +1,14 @@
+version: '3'
+services:
+  sim:
+    build: sim
+    volumes:
+      - /data
+    depends_on:
+      - data
+  data:
+    build: data
+    volumes:
+      - /data
+    command: python3 atmotools.py /data /ssi71_location.h5
+

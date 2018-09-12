@@ -80,7 +80,9 @@ while it < (landing_time + timedelta(hours=3)):
     # 
     sp = times[it.hour].split('_')
     t = datetime(it.year, it.month, it.day, int(int(sp[0])/100+int(sp[1])))
-    if url not in done:
+    if url in done:
+        print('Already downloaded', t)
+    else:
         dt = int((t-datetime(1970,1,1)).total_seconds())
         fname = "../ignored/raw/GFS_anl_0deg5"+str(dt)+".grb2"
         if not os.path.exists(fname):
@@ -89,5 +91,5 @@ while it < (landing_time + timedelta(hours=3)):
             with urllib.request.urlopen(url) as u:
                 with open(fname,"wb") as f:
                     f.write(u.read())
-            
+
     it += timedelta(hours=1)

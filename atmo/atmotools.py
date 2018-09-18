@@ -9,21 +9,21 @@ import os
 import pickle
 import pandas as pd
 
-def fetchWindData(start,end,db='gfs_anl_1deg'):
+def fetchWindData(start,end,db='gfs_anl_0deg5'):
 	""" Fetch data from gfs database for times inbetween start and end
 	"""
 	if db == 'gfs_anl_1deg':
 		remote="https://nomads.ncdc.noaa.gov/data/gfsanl/"
-		local="../ignored/raw/gfs_anl_1deg0/"
+		local="../ignored/raw/gfs_anl_1deg/"
 		fstartname = "gfsanl_3_"
 	if db == 'gfs_anl_0deg5':
 		remote="https://nomads.ncdc.noaa.gov/data/gfsanl/"
 		local="../ignored/raw/gfs_anl_0deg5/"
 		fstartname = "gfsanl_4_"
-	start -= timedelta(hours=1)
 	if not os.path.exists(local):
 		os.makedirs(local)
 	if not type(start) == type("boop"):
+		start -= timedelta(hours=1)
 		start = "%04d-%02d-%02d_%02d"%(start.year,start.month,start.day,start.hour)
 		end = "%04d-%02d-%02d_%02d"%(end.year,end.month,end.day,end.hour)		
 	print(start)
@@ -53,7 +53,7 @@ def fetchWindData(start,end,db='gfs_anl_1deg'):
 		t +=  timedelta(1/4)
 	return filelist,times,start,end
 
-def procWindData(start,end,db='gfs_anl_1deg',overwrite=False):
+def procWindData(start,end,db='gfs_anl_0deg5',overwrite=False):
 	dstpath = "../ignored/proc/" + db + "/"
 	srcpath = "../ignored/raw/" + db + "/"
 	ret = fetchWindData(start,end,db)
@@ -69,10 +69,14 @@ def procWindData(start,end,db='gfs_anl_1deg',overwrite=False):
 	levels = getGRIBlevels(grb)
 	headertext = genWindHeader(db,lons,lats,levels)
 	headerfile = dstpath + db + ".h"
+	procfiles=[]
 	with open(headerfile,"w") as f:
 		f.write(headertext)
+	keys = {"lons":lons, "lats":lats, "levels": levels, "alts": p2a(levels)}
+	pickle.dump(keys,open(dstpath + "keys.pickle",'wb'))
 	for k,file in enumerate(files):
 		outpath = dstpath +times[k].strftime("%s") + '.bin'
+		procfiles.append(outpath)
 		if os.path.exists(outpath) and not overwrite:
 			print("Local file "+outpath+" found, skipping (%d / %d)" % (k+1, len(files)))
 		else:	
@@ -89,6 +93,7 @@ def procWindData(start,end,db='gfs_anl_1deg',overwrite=False):
 						i += 0.5
 			data.flatten().tofile(outpath)
 			print("   done (%d / %d)" % (k+1, len(files)))
+	return procfiles,times
 
 
 
@@ -192,10 +197,17 @@ def p2a(x):
 	"""
 	return (1-(x/1013.25)**0.190284)*145366.45*0.3048
 
+def getKeysForBin(filepath):
+	keypath = "/".join(filepath.split("/")[:-1])+"/keys.pickle"
+	return pickle.load(open(keypath,'rb'))
 
+def getArrayFromBin(filepath,keys):
+	return np.fromfile(filepath,dtype=np.int16).reshape(keys["lats"].size,keys["lons"].size,keys["levels"].size,2)
 
+'''
 df = pd.read_hdf('../ignored/flights/ssi71_location.h5')
 print(df.long_gps.values[1000])
 print(df.lat_gps.values[1000])
 print(df.index[0])
 procWindData(df.index[0],df.index[-1] + timedelta(2),db="gfs_anl_0deg5",overwrite=False)
+'''

@@ -7,16 +7,23 @@ import matplotlib.pyplot as plt
 import matplotlib
 
 
-def plotWindOverMap(region,alts,times,windobj,traj=None):
+def plotWindOverMap(region,alts,times,db='gfs_anl_0deg5',traj=None):
 	""" Region is a list of format [lon min, lon max, lat min, lat max]
 		alts is a list of format [alt min, alt max]
-		Windobj is an dict of wind data of the format output by makeWindArray in atmotools
+		times a list where of time strings of format "YYYY-MM-DD_HH" or 
+		db is the database used
 	"""
 	N = len(times)
 	fig, axes = plt.subplots(nrows=N, ncols=1)
-	hrs = windobj["times"]
-	gti = lambda t : (int(round((hrs[0] - t)/(hrs[0] - hrs[-1])*(hrs.size-1))),int(round((hrs[0] - t)/(hrs[0] - hrs[-1])*(hrs.size-1)*2)) % 2)
+	if N ==1:
+		axes = [axes]
 	for t in range(N):
+		ret = at.procWindData(times[t],times[t])
+		time = ret[1][0]
+		file = ret[0][0]
+		windobj = at.getKeysForBin(file)
+		data = at.getArrayFromBin(file,windobj)
+
 		m = Basemap(projection='merc',llcrnrlat=region[2],urcrnrlat=region[3],
 	            llcrnrlon=region[0],urcrnrlon=region[1],resolution='l',ax=axes[t])
 		loninds = np.where(np.logical_and(region[0]<=(windobj["lons"]+180)%360-180,(windobj["lons"]+180)%360-180<=region[1]))[0][:,np.newaxis]
@@ -34,28 +41,26 @@ def plotWindOverMap(region,alts,times,windobj,traj=None):
 		norm.autoscale(alts_)
 		sm = matplotlib.cm.ScalarMappable(cmap=cmap, norm=norm)
 		sm.set_array([])
-		ti1,ti2 = gti(times[t])
 		for i in range(altinds.size):
-			U = windobj["data"][loninds,latinds,altinds[i],ti1,ti2,0]*1e7
-			V = windobj["data"][loninds,latinds,altinds[i],ti1,ti2,1]*1e7
+			U = data[latinds,loninds,altinds[i],0]
+			V = data[latinds,loninds,altinds[i],1]
 			axes[t].quiver(x,y,U,V,units="xy",color=cmap((i / (altinds.size-1))*0.8 + 0.2),headlength=1, headwidth=1,width=10000,pivot='mid',alpha=0.7)
 		if traj:
 			x,y = m(traj[0,:],traj[1,:])
 			axes[t].plot(x,y)
 
-		axes[t].set_title("%04d-%02d-%02d %02d hr + %02d hrs"%(windobj["start_time"].year,windobj["start_time"].month,windobj["start_time"].day,windobj["start_time"].hour,times[t]))
+		axes[t].set_title(time)
 	fig.subplots_adjust(right=0.85)
 	cbar_ax = fig.add_axes([0.85, 0.15, 0.02, 0.7])
 	fig.colorbar(sm, ticks=alts_, cax=cbar_ax)
 	plt.show()
 
+np.set_printoptions(edgeitems=1000,linewidth=1000)
+ret = at.procWindData("2018-09-09_00","2018-09-09_00",overwrite=True)
+time = ret[1][0]
+file = ret[0][0]
+windobj = at.getKeysForBin(file)
+data = at.getArrayFromBin(file,windobj)
 
 
-
-windobj = "../ignored/GFS_anl_0deg5_objs/2017-12-09_18_to_2017-12-15_05.pickle"
-winddata = "../ignored/GFS_anl_0deg5_objs/2017-12-09_18_to_2017-12-15_05.npy"
-data = np.load(winddata)
-windobj = pickle.load(open(windobj,'rb'))
-windobj["data"] = data
-
-plotWindOverMap([-130,-100,30,45],[10,16],[0,24],windobj)
+plotWindOverMap([-60,-40,15,30],[1,15],["2018-09-09_00"])

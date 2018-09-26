@@ -15,15 +15,15 @@ using namespace std;
 void simpleSim(){
 	//PressureTable<float> pres(get_data_path("flights/ssi71_inp.bin"));
 	TIMEIT("Running simple sims",
-		const int N = 100;
+		const int N = 10000;
     	Scheduler<float> sched(-2, N);
 		for (int i=0; i<N; i++) {
 			sched.add([i]() {
-				LasSim<float> pres(12000);
+				LasSim<float> pres(std::time(0)+i,1000,0.1);
 				Simulation<float> sim(pres, i);
 				sim.sigma = 2;
-				sim.tmax = 60*60*63;
-				vec2<float> f = sim.run(1529007840, 42.46636, -68.021255+360);
+				sim.tmax = 60*60*100;
+				vec2<float> f = sim.run(1536994800, 36.849014, -121.432913+360);
 				return f.a;
 			});
 		}
@@ -102,34 +102,36 @@ void ssi71Sims(){
 }
 
 void gradientsStuff(){
-	int t0 = 1512871200;
-	int dt = 3600;
-	const int N_W = 101;
+	int t0 = 1536994800;
+	int dt = 3600*5;
+	const int N_W = 21;
 	const float LR = 10; (void)LR;
-	double waypoints_val[N_W]; for (int i=0; i<N_W; i++) waypoints_val[i] = 15000;
+	double waypoints_val[N_W]; for (int i=0; i<N_W; i++) waypoints_val[i] = alt2p(15000);
 
 	adept::Stack stack;
-	for (int it=0; it<100; it++) {
+	for (int it=0; it<1000; it++) {
 		clock_t timer0 = clock();
 		adouble waypoints[N_W];
 		for (int i=0; i<N_W; i++) {
-			waypoints[i] = min(23000., max(10000., waypoints_val[i]));
+			waypoints[i] = min(double(alt2p(10000.)), max(double(alt2p(18000.)), waypoints_val[i]));
 		}
 		stack.new_recording();
 	
 		WaypointController<adouble> pres(t0, dt, waypoints);
-		Simulation<adouble> sim(pres, it);
+		Simulation<adouble> sim(pres, it+1);
+		sim.tmax=60*60*100;
 		float lon0 = -121.84505463+360;
 		vec2<adouble> end = sim.run(pres.t0, 36.95854187, lon0);
-		adouble cost = (end.b-lon0)*111195;
+		adouble cost = -(end.b-lon0)*111195;
 		cost.set_gradient(1.0);
 		stack.compute_adjoint();
 		for (int i=0; i<N_W; i++) {
-			//waypoints_val[i] += LR * waypoints[i].get_gradient();
-			//printf("Update at %d: %f\n", i, LR * waypoints[i].get_gradient());
-		}
+			waypoints_val[i] += LR * waypoints[i].get_gradient();
+			printf("%.1f, ",p2alt(waypoints_val[i])/1000);
+		} 
+		printf("\n");
 		float dt = (clock() - timer0)/((double)CLOCKS_PER_SEC)*1000;
-		printf("Took %.2f ms, got %f, first grad %f\n", dt, VAL(cost)/1e6, waypoints[0].get_gradient());
+		printf("Took %.2f ms, got %f\n", dt, VAL(cost)/1e6);
 	}
 }
 
@@ -149,7 +151,7 @@ int main() {
 	point near = get_nearest_neighbor(69.5, 60.9);
 	printf("(%d,%d) (%d, %d)\n", base.lat, base.lon, near.lat, near.lon);
 	*/
-	simpleSim();
+	gradientsStuff();
 	//ssi71Sims();
 	//gradientsStuff();
 	//MLestimation();

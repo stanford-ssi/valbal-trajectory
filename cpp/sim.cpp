@@ -66,8 +66,20 @@ Float LasSim<Float>::get_pressure(int t, float lat, float lon){
 }
 
 template<class Float>
-LasSim<Float>::LasSim(float start_h) : las(this->freq), sim(1) {
-	sim.h = start_h;
+LasSim<Float>::LasSim(int seed, float h, float l) : las(this->freq), sim(seed) {
+	sim.h = h;
+	sim.l = l;
+	sim.conf.freq = freq;
+}
+
+template<class Float>
+LasSim<Float>::LasSim(int seed,float h) : las(this->freq), sim(seed) {
+	sim.h = h;
+	sim.conf.freq = freq;
+}
+
+template<class Float>
+LasSim<Float>::LasSim(int seed) : las(this->freq), sim(seed) {
 	sim.conf.freq = freq;
 }
 

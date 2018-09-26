@@ -47,22 +47,28 @@ Float PressureTable<Float>::get_pressure(int t, float lat, float lon) {
 
 template<class Float>
 Float LasSim<Float>::get_pressure(int t, float lat, float lon){
-	//Currently slow AF cause it sims lasagna at 20hz RIP
 	if(is_first_run){
 		is_first_run = false;
 	} else {
-		const int N = (t-t_last)*20;
+		const int N = int((t-t_last)*freq);
 		sim.conf.lat = lat;
 		sim.conf.lon = lon;
 		LasagnaController::Input input;
 		for(int i = 0; i < N; i++){
 			input.h_abs = sim.evolve(double(las.getAction()));
-			input.h_rel =input.h_abs;
+			input.h_rel = input.h_abs;
+			input.dldt_ext = sim.sunset_dldt*3;
 			las.update(input);
 		}
 	}
 	t_last = t;
 	return alt2p(sim.h);
+}
+
+template<class Float>
+LasSim<Float>::LasSim(float start_h) : las(this->freq), sim(1) {
+	sim.h = start_h;
+	sim.conf.freq = freq;
 }
 
 template<class Float>

@@ -77,8 +77,9 @@ public:
 template <class Float>
 class LasSim : public PressureSource<Float> {
 public: 
-	LasSim(float start_h) {sim.h = start_h;}; 
+	LasSim(float start_h);
 	Float get_pressure(int, float, float);
+	const float freq = 1/60.;
 	LasagnaController las;
 	PastaSim sim;
 	int t_last;

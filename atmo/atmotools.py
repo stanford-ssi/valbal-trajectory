@@ -20,6 +20,9 @@ def fetchWindData(start,end,db='gfs_anl_0deg5'):
 		remote="https://nomads.ncdc.noaa.gov/data/gfsanl/"
 		local="../ignored/raw/gfs_anl_0deg5/"
 		fstartname = "gfsanl_4_"
+	if db == "euro_fc":
+		raise ValueWarning("lol good luck son, this data is not easy to get")
+		return 
 	if not os.path.exists(local):
 		os.makedirs(local)
 	if not type(start) == type("boop"):

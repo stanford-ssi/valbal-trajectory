@@ -13,12 +13,13 @@ using adept::adouble;
 using namespace std;
 
 void simpleSim(){
-	PressureTable<float> pres(get_data_path("flights/ssi71_inp.bin"));
+	//PressureTable<float> pres(get_data_path("flights/ssi71_inp.bin"));
 	TIMEIT("Running simple sims",
-		const int N = 2000;
+		const int N = 100;
     	Scheduler<float> sched(-2, N);
 		for (int i=0; i<N; i++) {
-			sched.add([&pres, i]() {
+			sched.add([i]() {
+				LasSim<float> pres(12000);
 				Simulation<float> sim(pres, i);
 				sim.sigma = 2;
 				sim.tmax = 60*60*63;
@@ -34,6 +35,7 @@ void simpleSim(){
 }
 
 /* Lol ignore these functions it's joan being lazy */
+/* lol gdi joan --john */
 void simpleSim63(){
 	PressureTable<float> pres(get_data_path("flights/ssi63_inp.bin"));
 	TIMEIT("Running simple sims",

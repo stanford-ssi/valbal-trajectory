@@ -12,6 +12,12 @@
 
 using namespace std;
 
+inline float VAL(float f) { return f; }
+inline float VAL(adouble f) { return f.value(); }
+inline adouble cosf(adouble f) { return cos(f); }
+inline float fastcos(float f) { return __builtin_cos(f); }
+inline adouble fastcos(adouble f) { return cos(f); }
+
 #ifdef DEBUG_PRINT
 	#define debugf(format, etc...) printf(format, ##etc);	
 #else

@@ -7,17 +7,12 @@
 #include <adept.h>
 using adept::adouble;
 
-#include "data.h"
+#include "data.h"	
 #include "utils.h"
+#include "opt.h"
 
 #include "../ignored/balloons-VALBAL/src/LasagnaController.h"
 #include "../ignored/balloons-VALBAL/hootl/lasagna/PastaSim.h"
-
-inline float VAL(float f) { return f; }
-inline float VAL(adouble f) { return f.value(); }
-inline adouble cosf(adouble f) { return cos(f); }
-inline float fastcos(float f) { return __builtin_cos(f); }
-inline adouble fastcos(adouble f) { return cos(f); }
 
 template <class Float>
 class PressureSource {
@@ -29,7 +24,12 @@ template <class Float>
 class Simulation {
 public:
 	Simulation(PressureSource<Float>& s, int i=-1);
+	Simulation(PressureSource<Float>& s, ObjectiveFn<Float>& o, int i=-1);
 	PressureSource<Float>& pressure;
+
+	NoOp<Float> noop;
+	ObjectiveFn<Float>& objfn;
+	bool calc_obj = false;
 
 	vec2<Float> run(int, Float, Float);
 	wind_vector<Float> get_wind(int t, Float lat, Float lon, Float pres);

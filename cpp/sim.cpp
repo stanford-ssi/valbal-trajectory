@@ -179,7 +179,21 @@ wind_vector<Float> Simulation<Float>::get_wind(int t, Float lat, Float lon, Floa
 
 template<class Float>
 Simulation<Float>::Simulation(PressureSource<Float>& s, int i)
-		: pressure(s), random_gen((std::random_device())()), normal(0,1) {
+		: pressure(s), noop(), objfn(noop), random_gen((std::random_device())()), normal(0,1) {
+	save_to_file = i >= 0;
+	if (save_to_file) {
+		char path[PATH_MAX];
+		snprintf(path, PATH_MAX, "../ignored/sim/output.%03d.bin", i);
+		file = fopen(path, "wb");
+		ensure(file != 0);
+		ensure(setvbuf(file, 0, _IOFBF, 16384) == 0);
+	}
+}
+
+template<class Float>
+Simulation<Float>::Simulation(PressureSource<Float>& s, ObjectiveFn<Float>& o, int i)
+		: pressure(s), objfn(o), random_gen((std::random_device())()), normal(0,1) {
+	calc_obj = true;
 	save_to_file = i >= 0;
 	if (save_to_file) {
 		char path[PATH_MAX];
@@ -217,6 +231,8 @@ vec2<Float> Simulation<Float>::run(int t, Float lat, Float lon) {
 		lat += w.v * idlat;
 		lon += w.u * idlat / fastcos(lat * M_PI / 180.);
 		t += dt;
+		if(calc_obj) objfn.update(lat,lon,p);
+		//printf("%f\n",VAL(objfn.getTotal()));
 	}
 	debugf("Ended up at (%f, %f)\n", VAL(lat), VAL(lon));
 	vec2<Float> ret = {lat, lon};
@@ -234,13 +250,15 @@ float alt2p(float alt){
 	return pow(-((alt/145366.45/0.3048)-1.0),1.0/0.190284)*101350.0;
 }
 
-#define INIT(type) \
+#define INIT_SIM(type) \
 		template class PressureTable<type>; \
 		template class WaypointController<type>; \
 		template class LasSim<type>; \
-		template class Simulation<type>;
+		template class Simulation<type>; \
+		template class NoOp<type>;\
+		template class FinalLongitude<type>;
 
 #include <adept.h>
-INIT(adept::adouble)
-INIT(float)
+INIT_SIM(adept::adouble)
+INIT_SIM(float)
 

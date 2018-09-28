@@ -19,7 +19,7 @@ plt.plot(times,files[0][:,2],color='red')
 plt.plot(times,files[-1][:,2],color='green')
 
 plt.subplot(2,1,2)
-m = Basemap(projection='merc',llcrnrlat=20,urcrnrlat=70,\
+m = Basemap(projection='merc',llcrnrlat=20,urcrnrlat=70,
             llcrnrlon=-180,urcrnrlon=80,resolution='c')
 m.drawcoastlines()
 m.drawcountries()
@@ -36,6 +36,9 @@ xpred,ypred = m(files[0][:,1]-360, files[0][:,0])
 plt.plot(xpred,ypred,c="red")
 xpred,ypred = m(files[-1][:,1]-360, files[-1][:,0])
 plt.plot(xpred,ypred,c="green")
+
+xt,yt = m( 13.405491, 52.516655)
+plt.plot(xt,yt,"r*")
 plt.show()
 
 

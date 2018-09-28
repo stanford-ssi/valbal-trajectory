@@ -106,7 +106,7 @@ void gradientsStuff(){
 	int dt = 3600*5;
 	const int N_W = 21;
 	const float LR = 10; (void)LR;
-	double waypoints_val[N_W]; for (int i=0; i<N_W; i++) waypoints_val[i] = alt2p(15000);
+	double waypoints_val[N_W]; for (int i=0; i<N_W; i++) waypoints_val[i] = alt2p(19000);
 
 	adept::Stack stack;
 	for (int it=0; it<1000; it++) {
@@ -118,11 +118,15 @@ void gradientsStuff(){
 		stack.new_recording();
 	
 		WaypointController<adouble> pres(t0, dt, waypoints);
-		Simulation<adouble> sim(pres, it+1);
+		//FinalLongitude<adouble> obj;
+
+		MinDistanceToPoint<adouble> obj(52.516655, 13.405491+360);
+		Simulation<adouble> sim(pres, obj, it+1);
 		sim.tmax=60*60*100;
 		float lon0 = -121.84505463+360;
 		vec2<adouble> end = sim.run(pres.t0, 36.95854187, lon0);
-		adouble cost = -(end.b-lon0)*111195;
+		adouble cost = -obj.getObjective()*111195;
+
 		cost.set_gradient(1.0);
 		stack.compute_adjoint();
 		for (int i=0; i<N_W; i++) {

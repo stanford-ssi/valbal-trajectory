@@ -35,6 +35,14 @@ struct vec2 {
 	Float b;
 };
 
+template<class Float>
+struct sim_state {
+	Float lat;
+	Float lon;
+	Float p;
+	int t;
+};
+
 void load_data(const char *dname, uint64_t start, uint64_t end);
 wind_data *get_data_at_point(data_file*, point);
 point get_base_neighbor(float, float);

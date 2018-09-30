@@ -1,8 +1,9 @@
 #include "opt.h"
 
 template<class Float>
-void FinalLongitude<Float>::update(Float& lat, Float& lon, Float& p) {
-	this->lon = lon;
+Float FinalLongitude<Float>::update(sim_state<Float>& state, bool save) {
+	this->lon = state.lon;
+	return lon;
 }
 
 template<class Float>
@@ -12,9 +13,10 @@ Float FinalLongitude<Float>::getObjective() {
 
 
 template<class Float>
-void MinDistanceToPoint<Float>::update(Float& lat, Float& lon, Float& p) {
-	Float dist = sqrt(pow(loc[0]-lat,2.) + pow(loc[1]-lon,2.));
-	min_dist = min(min_dist,dist);
+Float MinDistanceToPoint<Float>::update(sim_state<Float>& state, bool save) {
+	Float dist = sqrt(pow(loc[0]-state.lat,2.) + pow(loc[1]-state.lon,2.));
+	if(save) min_dist = min(min_dist,dist);
+	return dist;
 	//printf("%f,%f : %f,%f\n",VAL(lat),VAL(lon),VAL(loc[0]),VAL(loc[1]));
 }
 

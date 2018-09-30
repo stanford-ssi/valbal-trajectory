@@ -9,7 +9,7 @@ def load_file(i):
     output = np.fromfile('../ignored/sim/output.%03d.bin' % int(i), dtype=np.float32)
     output.shape = (len(output)//3, 3)
     return output
-files = list(map(load_file, range(1,1000)))
+files = list(map(load_file, range(0,1)))
 times = np.arange(files[0].shape[0])*10/60
 plt.subplot(2,1,1)
 for file in files:
@@ -37,7 +37,8 @@ plt.plot(xpred,ypred,c="red")
 xpred,ypred = m(files[-1][:,1]-360, files[-1][:,0])
 plt.plot(xpred,ypred,c="green")
 
-xt,yt = m( 13.405491, 52.516655)
+ll = [59.916193, 30.325234]
+xt,yt = m(ll[1],ll[0])
 plt.plot(xt,yt,"r*")
 plt.show()
 

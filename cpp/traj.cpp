@@ -21,7 +21,7 @@ void simpleSim(){
 			sched.add([i]() {
 				LasSim<float> pres(std::time(0)+i,1000,0.1);
 				Simulation<float> sim(pres, i);
-				sim.sigma = 2;
+				sim.wind_default.sigma = 2;
 				sim.tmax = 60*60*100;
 				vec2<float> f = sim.run(1536994800, 36.849014, -121.432913+360);
 				return f.a;
@@ -44,7 +44,7 @@ void simpleSim63(){
 		for (int i=0; i<N; i++) {
 			sched.add([&pres, i]() {
 				Simulation<float> sim(pres, i);
-				sim.sigma = 1;
+				sim.wind_default.sigma = 1;
 				vec2<float> f = sim.run(1512889140, 37.251022, -122.03919+360);
 				return f.a;
 			});
@@ -64,7 +64,7 @@ void simpleSim67(){
 		for (int i=0; i<N; i++) {
 			sched.add([&pres, i]() {
 				Simulation<float> sim(pres, i+1);
-				if (i != 0) sim.sigma = 1;
+				if (i != 0) sim.wind_default.sigma = 1;
 				vec2<float> f = sim.run(1526169840, 35.714558, -119.94677+360);
 				return f.a;
 			});
@@ -106,7 +106,7 @@ void gradientsStuff(){
 	int dt = 3600*5;
 	const int N_W = 21;
 	const float LR = 10; (void)LR;
-	double waypoints_val[N_W]; for (int i=0; i<N_W; i++) waypoints_val[i] = alt2p(19000);
+	double waypoints_val[N_W]; for (int i=0; i<N_W; i++) waypoints_val[i] = alt2p(14000);
 
 	adept::Stack stack;
 	for (int it=0; it<1000; it++) {
@@ -118,10 +118,11 @@ void gradientsStuff(){
 		stack.new_recording();
 	
 		WaypointController<adouble> pres(t0, dt, waypoints);
+		LinInterpWind<adouble> wind;
 		//FinalLongitude<adouble> obj;
 
 		MinDistanceToPoint<adouble> obj(52.516655, 13.405491+360);
-		Simulation<adouble> sim(pres, obj, it+1);
+		Simulation<adouble> sim(pres, wind, obj,it+1);
 		sim.tmax=60*60*100;
 		float lon0 = -121.84505463+360;
 		vec2<adouble> end = sim.run(pres.t0, 36.95854187, lon0);
@@ -139,6 +140,21 @@ void gradientsStuff(){
 	}
 }
 
+void searchStuff(){
+	clock_t timer0 = clock();
+	//MinDistanceToPoint<float> obj(59.916193, 30.325234+360);
+	FinalLongitude<float> obj;
+	LinInterpWind<float> wind;
+	EulerInt<float> intg;
+	GreedySearch<float> pres(wind,intg,obj,vec2<float>{10000,18000});
+	Simulation<float> sim(pres, wind, obj,0);
+	sim.tmax=60*60*100;
+	sim.run(1536994800, 36.95854187, -121.84505463+360);
+	float dt = (clock() - timer0)/((double)CLOCKS_PER_SEC)*1000;
+	printf("Took %.2f ms, got %f\n", dt, obj.getObjective()/1e6);
+}
+
+
 int main() {
 	printf("ValBal trajectory optimization.\n");
 	printf("This program is highly cunning and, on the face of it, not entirely wrong.\n");
@@ -155,7 +171,7 @@ int main() {
 	point near = get_nearest_neighbor(69.5, 60.9);
 	printf("(%d,%d) (%d, %d)\n", base.lat, base.lon, near.lat, near.lon);
 	*/
-	gradientsStuff();
+	searchStuff();
 	//ssi71Sims();
 	//gradientsStuff();
 	//MLestimation();

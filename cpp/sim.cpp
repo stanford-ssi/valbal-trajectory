@@ -11,6 +11,13 @@
 
 #define STORE_ALTITUDE
 
+template <class Float>
+void EulerInt<Float>::integrate(sim_state<Float>& loc, wind_vector<Float>& w){
+	loc.lat += w.v * idlat;
+	loc.lon += w.u * idlat / fastcos(loc.lat * M_PI / 180.);
+	loc.t += dt;
+}
+
 template<class Float>
 WaypointController<Float>::WaypointController(int t0_, int dt_, Float *alts_)
 		: t0(t0_), dt(dt_), alts(alts_) {}
@@ -84,7 +91,25 @@ LasSim<Float>::LasSim(int seed) : las(this->freq), sim(seed) {
 }
 
 template<class Float>
-wind_vector<Float> Simulation<Float>::get_wind(int t, Float lat, Float lon, Float pres) {
+Float GreedySearch<Float>::get_pressure(int t, Float lat, Float lon){
+	float min=1000000;
+	Float argmin = (range.b + range.a)/2;
+	for(int i=0; i < N_levels; i++){
+		sim_state<Float> state = {lat,lon,argmin,t};
+		state.p = range.a + (range.b - range.a)*(i+0.5)/N_levels;
+		wind_vector<Float> w = wind.get_wind(state.t, state.lat, state.lon, state.p);
+		intg.integrate(state,w);
+		Float cost = objfn.update(state,false);
+		if(VAL(cost) < min){
+			argmin = state.p;
+			min = VAL(cost);
+		}
+	}
+	return argmin;
+}
+
+template<class Float>
+wind_vector<Float> LinInterpWind<Float>::get_wind(int t, Float lat, Float lon, Float pres) {
 	while (files[cur_file+1].time < t) {
 		cur_file++;
 	}
@@ -177,10 +202,23 @@ wind_vector<Float> Simulation<Float>::get_wind(int t, Float lat, Float lon, Floa
 	return w;
 }
 
+
+template<class Float>
+Simulation<Float>::Simulation(PressureSource<Float>& s, WindSource<Float>& w, ObjectiveFn<Float>& o, int i)
+		: intg_default(), pressure(s), wind(w), intg(intg_default), objfn(o) {
+	init(i);
+}
+
 template<class Float>
 Simulation<Float>::Simulation(PressureSource<Float>& s, int i)
-		: pressure(s), noop(), objfn(noop), random_gen((std::random_device())()), normal(0,1) {
+		: wind_default(), obj_default(), intg_default(), pressure(s), wind(wind_default), intg(intg_default), objfn(obj_default) {
+	init(i);
+}
+
+template<class Float>
+void Simulation<Float>::init(int i){
 	save_to_file = i >= 0;
+	calc_obj = (dynamic_cast<NoOp<Float>*> (&objfn) == NULL);
 	if (save_to_file) {
 		char path[PATH_MAX];
 		snprintf(path, PATH_MAX, "../ignored/sim/output.%03d.bin", i);
@@ -190,52 +228,41 @@ Simulation<Float>::Simulation(PressureSource<Float>& s, int i)
 	}
 }
 
-template<class Float>
-Simulation<Float>::Simulation(PressureSource<Float>& s, ObjectiveFn<Float>& o, int i)
-		: pressure(s), objfn(o), random_gen((std::random_device())()), normal(0,1) {
-	calc_obj = true;
-	save_to_file = i >= 0;
-	if (save_to_file) {
-		char path[PATH_MAX];
-		snprintf(path, PATH_MAX, "../ignored/sim/output.%03d.bin", i);
-		file = fopen(path, "wb");
-		ensure(file != 0);
-		ensure(setvbuf(file, 0, _IOFBF, 16384) == 0);
-	}
-}
 
 template<class Float>
 vec2<Float> Simulation<Float>::run(int t, Float lat, Float lon) {
 	int Tmax = tmax + t;
-	const float idlat = dt / (2 * M_PI * 6371008 / 360.);
+	sim_state<Float> state;
+	state.lat = lat;
+	state.lon = lon;
+	state.t = t;
 	debugf("Starting from (%f, %f)\n", VAL(lat), VAL(lon));
-	while (t < Tmax) {
-		Float p = pressure.get_pressure(t, VAL(lat), VAL(lon));
+	while (state.t < Tmax) {
+		state.p = pressure.get_pressure(state.t, VAL(state.lat), VAL(state.lon));
 		if (save_to_file) {
-			float actual_lat = VAL(lat);
-			float actual_lon = VAL(lon);
+			float actual_lat = VAL(state.lat);
+			float actual_lon = VAL(state.lon);
 			fwrite(&actual_lat, sizeof(float), 1, file);
 			fwrite(&actual_lon, sizeof(float), 1, file);
 
-			float actual_p = VAL(p);
+			float actual_p = VAL(state.p);
 
 			/* Computing pressure -> altitude makes the simulation ~16% slower, so
 			 * it's optional. */
 			#ifdef STORE_ALTITUDE
 				actual_p = p2alt(actual_p);
 			#endif
+			debugf("[sim state] time:%d lat:%.4f lon:%.4f alt:%.1f\n",state.t, actual_lat, actual_lon, actual_p);
 
 			fwrite(&actual_p, sizeof(float), 1, file);
 		}
-		wind_vector<Float> w = get_wind(t, lat, lon, p);
-		lat += w.v * idlat;
-		lon += w.u * idlat / fastcos(lat * M_PI / 180.);
-		t += dt;
-		if(calc_obj) objfn.update(lat,lon,p);
+		wind_vector<Float> w = wind.get_wind(state.t, state.lat, state.lon, state.p);
+		intg.integrate(state,w);
+		if(calc_obj) objfn.update(state);
 		//printf("%f\n",VAL(objfn.getTotal()));
 	}
-	debugf("Ended up at (%f, %f)\n", VAL(lat), VAL(lon));
-	vec2<Float> ret = {lat, lon};
+	debugf("Ended up at (%f, %f)\n", VAL(state.lat), VAL(state.lon));
+	vec2<Float> ret = {state.lat, state.lon};
 	if (save_to_file) {
 		fclose(file);
 	}
@@ -255,7 +282,10 @@ float alt2p(float alt){
 		template class WaypointController<type>; \
 		template class LasSim<type>; \
 		template class Simulation<type>; \
+		template class LinInterpWind<type>; \
 		template class NoOp<type>;\
+		template class EulerInt<type>;\
+		template class GreedySearch<type>;\
 		template class FinalLongitude<type>;
 
 #include <adept.h>

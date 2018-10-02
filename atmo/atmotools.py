@@ -1,5 +1,6 @@
-profrom datetime import datetime as dt 
+from datetime import datetime as dt 
 from datetime import timedelta
+import pandas as pd
 import pygrib as gb
 import numpy as np 
 import matplotlib.pyplot as plt
@@ -7,7 +8,6 @@ import math
 from urllib.request import urlretrieve
 import os
 import pickle
-import pandas as pd
 
 def fetchWindData(start,end,db='gfs_anl_0deg5'):
 	""" Fetch data from gfs database for times inbetween start and end
@@ -78,7 +78,9 @@ def procWindData(start,end,db='gfs_anl_0deg5',overwrite=False):
 	keys = {"lons":lons, "lats":lats, "levels": levels, "alts": p2a(levels)}
 	pickle.dump(keys,open(dstpath + "keys.pickle",'wb'))
 	for k,file in enumerate(files):
-		outpath = dstpath +times[k].strftime("%s") + '.bin'
+		outpath = dstpath + '%d.bin' % (times[k]-dt(1970,1,1)).total_seconds()
+		#print(times[k]) 
+		#exit()
 		procfiles.append(outpath)
 		if os.path.exists(outpath) and not overwrite:
 			print("Local file "+outpath+" found, skipping (%d / %d)" % (k+1, len(files)))
@@ -207,10 +209,12 @@ def getKeysForBin(filepath):
 def getArrayFromBin(filepath,keys):
 	return np.fromfile(filepath,dtype=np.int16).reshape(keys["lats"].size,keys["lons"].size,keys["levels"].size,2)
 
-'''
-df = pd.read_hdf('../ignored/flights/ssi71_location.h5')
+
+df = pd.read_hdf('../ignored/flights/ssi63_position.h5')
 print(df.long_gps.values[1000])
 print(df.lat_gps.values[1000])
 print(df.index[0])
 procWindData(df.index[0],df.index[-1] + timedelta(2),db="gfs_anl_0deg5",overwrite=False)
-'''
+
+
+#procWindData("2017-12-10_07","2017-12-10_07")

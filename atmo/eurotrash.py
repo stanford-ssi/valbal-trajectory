@@ -56,7 +56,7 @@ def procWindData(src,db='euro_fc',overwrite=False):
     lats,lons = grb.select(shortName="u",typeOfLevel='isobaricInhPa',level=250)[0].latlons() #arbitrary data, doing this for latlons
     levels = getGRIBlevels(grb)
     for k,file in enumerate(files):
-        outpath = dstpath +times[k].strftime("%s") + '.bin'
+        outpath = dstpath + '%d.bin' % (times[k]-dt(1970,1,1)).total_seconds()
         ss = times[k].strftime("%s") == "1529002800"
         print("ss", ss)
         if not ss: continue
@@ -113,4 +113,4 @@ def genWindHeader(dataset,lons,lats,levels):
     return filetext;
 
 #procWindData("63fc.grib",db="euro_fc",overwrite=not False)
-procWindData("fc67.grib",db="euro_fc",overwrite=not False)
+#procWindData("fc67.grib",db="euro_fc",overwrite=not False)

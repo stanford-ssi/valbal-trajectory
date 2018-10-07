@@ -209,12 +209,12 @@ def getKeysForBin(filepath):
 def getArrayFromBin(filepath,keys):
 	return np.fromfile(filepath,dtype=np.int16).reshape(keys["lats"].size,keys["lons"].size,keys["levels"].size,2)
 
-
-df = pd.read_hdf('../ignored/flights/ssi63_position.h5')
+'''
+df = pd.read_hdf('../../valbal-controller/ssi67-analysis/ssi67.h5')
 print(df.long_gps.values[1000])
 print(df.lat_gps.values[1000])
 print(df.index[0])
 procWindData(df.index[0],df.index[-1] + timedelta(2),db="gfs_anl_0deg5",overwrite=False)
+'''
 
-
-#procWindData("2017-12-10_07","2017-12-10_07")
+#procWindData("2018-09-01_00","2018-09-25_00",db="gfs_anl_0deg5",overwrite=False)

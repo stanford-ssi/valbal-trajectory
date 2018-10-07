@@ -23,10 +23,10 @@ WaypointController<Float>::WaypointController(int t0_, int dt_, Float *alts_)
 		: t0(t0_), dt(dt_), alts(alts_) {}
 
 template<class Float>
-Float WaypointController<Float>::get_pressure(int t, float lat, float lon) {
-	unsigned int idx = (t-t0)/dt;
-	float theta = (t - (t0 + dt*idx))/((float)dt);
-	return alts[idx] + theta * (alts[idx+1] - alts[idx]);
+void WaypointController<Float>::get_pressure(sim_state<Float>& state) {
+	unsigned int idx = (state.t-t0)/dt;
+	float theta = (state.t - (t0 + dt*idx))/((float)dt);
+	state.p = alts[idx] + theta * (alts[idx+1] - alts[idx]);
 }
 
 template<class Float>
@@ -46,20 +46,32 @@ PressureTable<Float>::PressureTable(const char *fname) {
 }
 
 template<class Float>
-Float PressureTable<Float>::get_pressure(int t, float lat, float lon) {
-	unsigned int idx = (t-t0)/dt;
+void PressureTable<Float>::get_pressure(sim_state<Float>& state) {
+	unsigned int idx = (state.t-t0)/dt;
 	assert(idx >= 0 && idx < n);
-	return alts[idx];
+	state.p = alts[idx];
 }
 
 template<class Float>
-Float LasSim<Float>::get_pressure(int t, float lat, float lon){
+void LasSim<Float>::get_pressure(sim_state<Float>& state){
+	evolve(state);
+	state.p = alt2p(sim.h);
+}
+
+template<class Float>
+void LasSim<Float>::get_altitude(sim_state<Float>& state){
+	evolve(state);
+	state.p = sim.h;
+}
+
+template<class Float>
+void LasSim<Float>::evolve(sim_state<Float>& state){
 	if(is_first_run){
 		is_first_run = false;
 	} else {
-		const int N = int((t-t_last)*freq);
-		sim.conf.lat = lat;
-		sim.conf.lon = lon;
+		const int N = int((state.t-t_last)*freq);
+		sim.conf.lat = VAL(state.lat);
+		sim.conf.lon = VAL(state.lon);
 		LasagnaController::Input input;
 		for(int i = 0; i < N; i++){
 			input.h_abs = sim.evolve(double(las.getAction()));
@@ -68,8 +80,7 @@ Float LasSim<Float>::get_pressure(int t, float lat, float lon){
 			las.update(input);
 		}
 	}
-	t_last = t;
-	return alt2p(sim.h);
+	t_last = state.t;
 }
 
 template<class Float>
@@ -91,13 +102,37 @@ LasSim<Float>::LasSim(int seed) : las(this->freq), sim(seed) {
 }
 
 template<class Float>
-Float GreedySearch<Float>::get_pressure(int t, Float lat, Float lon){
+StocasticControllerApprox<Float>::StocasticControllerApprox(int t0_, int dt_, ctrl_cmd<Float> *cmds_, int seed) : 
+las_sim(seed), t0(t0_), dt(dt_), cmds(cmds_) 
+{ 
+	h_mid = las_sim.las.getConstants().h_cmd;
+	tol0 = las_sim.las.getConstants().ss_error_thresh;
+}
+
+template<class Float>
+void StocasticControllerApprox<Float>::get_pressure(sim_state<Float>& state){
+	unsigned int idx = (state.t-t0)/dt;
+	float theta = (state.t - (t0 + dt*idx))/((float)dt);
+	Float cmd_h = cmds[idx].h + theta * (cmds[idx+1].h - cmds[idx].h);
+	Float cmd_tol = cmds[idx].tol + theta * (cmds[idx+1].tol - cmds[idx].tol);
+	sim_state<float> state_val;
+	state_val.lat = VAL(state.lat);
+	state_val.lon = VAL(state.lon);
+	state_val.t = state.t;
+	las_sim.get_altitude(state_val);
+	float las_h = state_val.p;
+	Float alt = cmd_h + (las_h - h_mid)*cmd_tol/tol0;
+	state.p = alt2p(alt);
+}
+
+
+template<class Float>
+void GreedySearch<Float>::get_pressure(sim_state<Float>& state){
 	float min=1000000;
 	Float argmin = (range.b + range.a)/2;
 	for(int i=0; i < N_levels; i++){
-		sim_state<Float> state = {lat,lon,argmin,t};
 		state.p = range.a + (range.b - range.a)*(i+0.5)/N_levels;
-		wind_vector<Float> w = wind.get_wind(state.t, state.lat, state.lon, state.p);
+		wind_vector<Float> w = wind.get_wind(state);
 		intg.integrate(state,w);
 		Float cost = objfn.update(state,false);
 		if(VAL(cost) < min){
@@ -105,35 +140,35 @@ Float GreedySearch<Float>::get_pressure(int t, Float lat, Float lon){
 			min = VAL(cost);
 		}
 	}
-	return argmin;
+	state.p = argmin;
 }
 
 template<class Float>
-wind_vector<Float> LinInterpWind<Float>::get_wind(int t, Float lat, Float lon, Float pres) {
-	while (files[cur_file+1].time < t) {
+wind_vector<Float> LinInterpWind<Float>::get_wind(sim_state<Float>& s) {
+	while (files[cur_file+1].time < s.t) {
 		cur_file++;
 	}
 	assert(cur_file < num_files && "file requested out of range");
-	debugf("%d cur file %d %d %d pres %f\n", t, cur_file, ((int)(t-files[cur_file].time)), (int)(files[cur_file].time), VAL(pres));
+	debugf("%d cur file %d %d %d pres %f\n", s.t, cur_file, ((int)(s.t-files[cur_file].time)), (int)(files[cur_file].time), VAL(s.p));
 
 	/* Get pressure level. Here a simple linear search is faster, although it
 	 * can probably be vectorized. */
 	int i;
 	for (i=0; i<NUM_LEVELS; i++) {
-		if (pres <= LEVELS[i]) break;
+		if (s.p <= LEVELS[i]) break;
 	}
 	assert(i > 0 && i < NUM_LEVELS);
-	Float theta_pr = (pres-LEVELS[i-1])/(LEVELS[i] - LEVELS[i-1]);
+	Float theta_pr = (s.p-LEVELS[i-1])/(LEVELS[i] - LEVELS[i-1]);
 
 	#define INTERP_ALT(dst, src, idx) \
 		Float dst = src->data[i-1][idx] + theta_pr*(src->data[i][idx] - src->data[i-1][idx]);
 	#define LAT(x) (LAT_MIN + LAT_D * (x))
 	#define LON(x) (LON_MIN + LON_D * (x))
 
-	point pt = get_base_neighbor(VAL(lat), VAL(lon));
-	Float theta_lat = (lat - LAT(pt.lat))/LAT_D;
-	Float theta_lon = (lon - LON(pt.lon))/LON_D;
-	float theta_t = t-files[cur_file].time;
+	point pt = get_base_neighbor(VAL(s.lat), VAL(s.lon));
+	Float theta_lat = (s.lat - LAT(pt.lat))/LAT_D;
+	Float theta_lon = (s.lon - LON(pt.lon))/LON_D;
+	float theta_t = s.t-files[cur_file].time;
 	theta_t /= (files[cur_file+1].time-files[cur_file].time);
 	debugf("theta t %f\n", theta_t);
 	assert(theta_t >= 0 && theta_t <= 1);
@@ -154,7 +189,7 @@ wind_vector<Float> LinInterpWind<Float>::get_wind(int t, Float lat, Float lon, F
 		INTERP_ALT(u11, p11, 0);
 		INTERP_ALT(u21, p21, 0);
 		Float ulat1 = u11 + theta_lat * (u21 - u11);
-		debugf("v11! @ %f %d %d %f %f\n", VAL(pres), pt.lat, pt.lon, LAT(pt.lat), LON(pt.lon));
+		debugf("v11! @ %f %d %d %f %f\n", VAL(s.pres), pt.lat, pt.lon, LAT(pt.lat), LON(pt.lon));
 		for (int k=0; k<NUM_LEVELS; k++) {
 			debugf("%f: %d\n", LEVELS[k], p11->data[k][1]);
 		}
@@ -238,7 +273,7 @@ vec2<Float> Simulation<Float>::run(int t, Float lat, Float lon) {
 	state.t = t;
 	debugf("Starting from (%f, %f)\n", VAL(lat), VAL(lon));
 	while (state.t < Tmax) {
-		state.p = pressure.get_pressure(state.t, VAL(state.lat), VAL(state.lon));
+		pressure.get_pressure(state);
 		if (save_to_file) {
 			float actual_lat = VAL(state.lat);
 			float actual_lon = VAL(state.lon);
@@ -256,7 +291,7 @@ vec2<Float> Simulation<Float>::run(int t, Float lat, Float lon) {
 
 			fwrite(&actual_p, sizeof(float), 1, file);
 		}
-		wind_vector<Float> w = wind.get_wind(state.t, state.lat, state.lon, state.p);
+		wind_vector<Float> w = wind.get_wind(state);
 		intg.integrate(state,w);
 		if(calc_obj) objfn.update(state);
 		//printf("%f\n",VAL(objfn.getTotal()));
@@ -269,14 +304,6 @@ vec2<Float> Simulation<Float>::run(int t, Float lat, Float lon) {
 	return ret;
 }
 
-float p2alt(float p){
-	return (1.0-(pow((p/101350.0),0.190284)))*145366.45*0.3048;
-}
-
-float alt2p(float alt){
-	return pow(-((alt/145366.45/0.3048)-1.0),1.0/0.190284)*101350.0;
-}
-
 #define INIT_SIM(type) \
 		template class PressureTable<type>; \
 		template class WaypointController<type>; \
@@ -286,7 +313,8 @@ float alt2p(float alt){
 		template class NoOp<type>;\
 		template class EulerInt<type>;\
 		template class GreedySearch<type>;\
-		template class FinalLongitude<type>;
+		template class FinalLongitude<type>; \
+		template class StocasticControllerApprox<type>;
 
 #include <adept.h>
 INIT_SIM(adept::adouble)

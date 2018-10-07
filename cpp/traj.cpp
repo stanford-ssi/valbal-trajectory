@@ -45,7 +45,7 @@ void simpleSim63(){
 			sched.add([&pres, i]() {
 				Simulation<float> sim(pres, i);
 				sim.wind_default.sigma = 1;
-				vec2<float> f = sim.run(1512889140, 37.251022, -122.03919+360);
+				vec2<float> f = sim.run(1512889140+7*60*60, 37.251022, -122.03919+360);
 				return f.a;
 			});
 		}
@@ -102,18 +102,18 @@ void ssi71Sims(){
 }
 
 void gradientsStuff(){
-	int t0 = 1536994800;
+	int t0 = 1536562800;
 	int dt = 3600*5;
 	const int N_W = 21;
 	const float LR = 10; (void)LR;
-	double waypoints_val[N_W]; for (int i=0; i<N_W; i++) waypoints_val[i] = alt2p(14000);
+	double waypoints_val[N_W]; for (int i=0; i<N_W; i++) waypoints_val[i] = alt2p(18000);
 
 	adept::Stack stack;
 	for (int it=0; it<1000; it++) {
 		clock_t timer0 = clock();
 		adouble waypoints[N_W];
 		for (int i=0; i<N_W; i++) {
-			waypoints[i] = min(double(alt2p(10000.)), max(double(alt2p(18000.)), waypoints_val[i]));
+			waypoints[i] = min(double(alt2p(5000.)), max(double(alt2p(19000.)), waypoints_val[i]));
 		}
 		stack.new_recording();
 	
@@ -121,11 +121,10 @@ void gradientsStuff(){
 		LinInterpWind<adouble> wind;
 		//FinalLongitude<adouble> obj;
 
-		MinDistanceToPoint<adouble> obj(52.516655, 13.405491+360);
+		MinDistanceToPoint<adouble> obj(31.753952, -77.081033+360);
 		Simulation<adouble> sim(pres, wind, obj,it+1);
 		sim.tmax=60*60*100;
-		float lon0 = -121.84505463+360;
-		vec2<adouble> end = sim.run(pres.t0, 36.95854187, lon0);
+		vec2<adouble> end = sim.run(pres.t0, 40.785741, -73.410338+360);
 		adouble cost = -obj.getObjective()*111195;
 
 		cost.set_gradient(1.0);
@@ -155,6 +154,43 @@ void searchStuff(){
 }
 
 
+void stocasticGradients(){
+	int t0 = 1536562800;
+	int dt = 3600*5;
+	const int N_W = 21;
+	const float LR = 10; (void)LR;
+	ctrl_cmd<float> cmd;
+	cmd.h = 13000;
+	cmd.tol = 750; 
+	ctrl_cmd<float> cmds[N_W]; 
+	for (int i=0; i<N_W/4; i++) cmds[i] = cmd;
+	cmd.h = 14000;
+	cmd.tol = 350;
+	for (int i=N_W/4; i<N_W/2; i++) cmds[i] = cmd;
+	cmd.h = 12000;
+	cmd.tol = 1000;
+	for (int i=N_W/2; i<3*N_W/4; i++) cmds[i] = cmd;
+	cmd.h = 14500;
+	cmd.tol = 500;
+	cmds[3*N_W/4] = cmd;
+	cmd.h = 17000;
+	cmd.tol = 500;
+	for (int i=3*N_W/4+1; i<N_W; i++) cmds[i] = cmd;
+
+
+	for (int it=0; it<500; it++) {
+		clock_t timer0 = clock();
+		StocasticControllerApprox<float> controller(t0, dt, cmds, std::time(0)+it*1000);
+		LinInterpWind<float> wind;
+		NoOp<float> obj;
+		Simulation<float> sim(controller, wind, obj, it);
+		sim.tmax=60*60*100;
+		sim.run(controller.t0, 40.785741, -73.410338+360);
+		float dt = (clock() - timer0)/((double)CLOCKS_PER_SEC)*1000;
+		printf("Took %.2f ms\n",dt);
+	}
+}
+
 int main() {
 	printf("ValBal trajectory optimization.\n");
 	printf("This program is highly cunning and, on the face of it, not entirely wrong.\n");
@@ -171,8 +207,9 @@ int main() {
 	point near = get_nearest_neighbor(69.5, 60.9);
 	printf("(%d,%d) (%d, %d)\n", base.lat, base.lon, near.lat, near.lon);
 	*/
-	searchStuff();
+	//simpleSim67();
 	//ssi71Sims();
 	//gradientsStuff();
 	//MLestimation();
+	stocasticGradients();
 }

@@ -53,14 +53,14 @@ def plotWindOverMap(region,alts,times,db='gfs_anl_0deg5',traj=None):
 	fig.subplots_adjust(right=0.85)
 	cbar_ax = fig.add_axes([0.85, 0.15, 0.02, 0.7])
 	fig.colorbar(sm, ticks=alts_, cax=cbar_ax)
-	plt.show()
-
+	return axes,fig,m
+	#plt.show()
+'''
 np.set_printoptions(edgeitems=1000,linewidth=1000)
 ret = at.procWindData("2018-09-09_00","2018-09-09_00",overwrite=True)
 time = ret[1][0]
 file = ret[0][0]
 windobj = at.getKeysForBin(file)
 data = at.getArrayFromBin(file,windobj)
-
-
-plotWindOverMap([-60,-40,15,30],[1,15],["2018-09-09_00"])
+#plotWindOverMap([-100,-40,0,50],[1,20],["2018-09-10_00"])
+'''

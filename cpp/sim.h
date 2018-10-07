@@ -18,10 +18,21 @@ using adept::adouble;
  * Basic pressure to altitude conversion and back
  * Meters, Pascals
  */
-float p2alt(float p);
-float alt2p(float alt);
+template<class Float>
+Float p2alt(Float p){
+	return (1.0-(pow((p/101350.0),0.190284)))*145366.45*0.3048;
+}
+
+template<class Float>
+Float alt2p(Float alt){
+	return pow(-((alt/145366.45/0.3048)-1.0),1.0/0.190284)*101350.0;
+}
 
 
+/**
+ * Integrator object base class, which takes in the state and the wind, and propagates 
+ * the simulation forward in time.
+ */
 template <class Float>
 class Integrator {
 public: 
@@ -38,31 +49,44 @@ public:
 	float idlat;
 };
 
+/**
+ * Pressure source base class. Takes in the state of the simulation and returns a pressure 
+ * (which corrisponds to an altitude). The simulation runs in pressure and not altitude because
+ * wind data is given in terms of pressure.
+ */
 template <class Float>
 class PressureSource {
 public:
-	virtual Float get_pressure(int, float, float) = 0;
+	virtual void get_pressure(sim_state<Float>&) = 0;
 };
 
+/**
+ * Wind source base class. Takes in the state of the simulation loads wind data, interpolates it, and
+ * returns the wind vector for the given state
+ */
 template <class Float>
 class WindSource {
 public:
-	virtual wind_vector<Float> get_wind(int, Float, Float, Float) = 0;
+	virtual wind_vector<Float> get_wind(sim_state<Float>&) = 0;
 };
 
-
+/**
+ * Basic wind source, uses simple linear interpolation of the data to return a wind
+ */
 template <class Float>
 class LinInterpWind : public WindSource<Float> {
 public:
 	LinInterpWind() : random_gen((std::random_device())()), normal(0,1) {};
-	wind_vector<Float> get_wind(int, Float, Float, Float);
+	wind_vector<Float> get_wind(sim_state<Float>&);
 	int cur_file = 0;
 	float sigma = 0;
     std::mt19937 random_gen;
     std::normal_distribution<> normal;
 };
 
-
+/**
+ * Simulation base 
+ */
 template <class Float>
 class Simulation {
 public:
@@ -81,7 +105,7 @@ public:
 
 	int cur_file = 0;
 	//const int tmax = 60*60*103;
-	int tmax = 60*60*50;
+	int tmax = 60*60*40;
 
 	bool save_to_file = false;
 	FILE *file;
@@ -93,7 +117,7 @@ template <class Float>
 class PressureTable : public PressureSource<Float> {
 public:
 	PressureTable(const char *);
-	Float get_pressure(int, float, float);
+	void get_pressure(sim_state<Float>&);
 
 	uint32_t t0;
 	uint32_t dt;
@@ -105,7 +129,7 @@ template <class Float>
 class WaypointController : public PressureSource<Float> {
 public:
 	WaypointController(int, int, Float *);
-	Float get_pressure(int, float, float);
+	void get_pressure(sim_state<Float>&);
 
 	int t0;
 	int dt;
@@ -117,7 +141,7 @@ template <class Float>
 class GreedySearch : public PressureSource<float> {
 public:
 	GreedySearch(WindSource<Float>& w, Integrator<Float>& i, ObjectiveFn<Float>& o, vec2<float>r) : wind(w), intg(i), objfn(o), range{alt2p(r.a),alt2p(r.b)} {};
-	Float get_pressure(int, Float, Float);
+	void get_pressure(sim_state<Float>&);
 	WindSource<Float>& wind;
 	Integrator<Float>& intg;
 	ObjectiveFn<Float>& objfn;
@@ -125,7 +149,6 @@ public:
 	bool is_first_run = true;
 
 	int N_levels = 100;
-
 };
 
 /**
@@ -137,12 +160,35 @@ public:
 	LasSim(int seed);
 	LasSim(int seed, float h);
 	LasSim(int seed, float h, float l);
-	Float get_pressure(int, float, float);
+	void get_pressure(sim_state<Float>& state);
+	void get_altitude(sim_state<Float>& state);
 	const float freq = 1/60.;
 	LasagnaController las;
 	PastaSim sim;
 	int t_last;
 	bool is_first_run = true;
+private: 
+	void evolve(sim_state<Float>& state); 
 };
+
+template<class Float>
+struct ctrl_cmd {
+	Float h;
+	Float tol;
+};
+
+template <class Float>
+class StocasticControllerApprox : public PressureSource<Float> {
+public: 
+	StocasticControllerApprox(int t0_, int dt_, ctrl_cmd<Float> *cmds_, int seed);
+	void get_pressure(sim_state<Float>&);
+	LasSim<float> las_sim;
+	int t0;
+	int dt;
+	ctrl_cmd<Float> *cmds;
+	float h_mid;
+	float tol0;
+};
+
 
 #endif

@@ -40,6 +40,8 @@ struct sim_state {
 	Float lat;
 	Float lon;
 	Float p;
+	Float bal;
+	Float bal_rate;
 	int t;
 };
 

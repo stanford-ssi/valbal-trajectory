@@ -23,8 +23,8 @@ void simpleSim(){
 				Simulation<float> sim(pres, i);
 				sim.wind_default.sigma = 2;
 				sim.tmax = 60*60*100;
-				vec2<float> f = sim.run(1536994800, 36.849014, -121.432913+360);
-				return f.a;
+				sim.run(1536994800, 36.849014, -121.432913+360);
+				return 0.;
 			});
 		}
 		sched.finish();
@@ -45,8 +45,8 @@ void simpleSim63(){
 			sched.add([&pres, i]() {
 				Simulation<float> sim(pres, i);
 				sim.wind_default.sigma = 1;
-				vec2<float> f = sim.run(1512889140+7*60*60, 37.251022, -122.03919+360);
-				return f.a;
+				sim.run(1512889140+7*60*60, 37.251022, -122.03919+360);
+				return 0.;
 			});
 		}
 		sched.finish();
@@ -65,8 +65,8 @@ void simpleSim67(){
 			sched.add([&pres, i]() {
 				Simulation<float> sim(pres, i+1);
 				if (i != 0) sim.wind_default.sigma = 1;
-				vec2<float> f = sim.run(1526169840, 35.714558, -119.94677+360);
-				return f.a;
+				sim.run(1526169840, 35.714558, -119.94677+360);
+				return 0.;
 			});
 		}
 		sched.finish();
@@ -81,8 +81,8 @@ void ssi71Sims(){
 	// for playing around with ssi71 data
 	PressureTable<float> pres1(get_data_path("flights/ssi71_inp.bin"));
 	Simulation<float> sim(pres1, 1);
-	vec2<float> f = sim.run(1529007840, 42.46636, -68.021255+360);
-	printf("SIMDONE %f %f\n", f.a, f.b);
+	sim.run(1529007840, 42.46636, -68.021255+360);
+	printf("SIMDONE");
 	for(int i = 2; i < 50; i++){
 		LasSim<float> pres2(13500.);
 		pres2.sim.l = 0.0;
@@ -95,8 +95,8 @@ void ssi71Sims(){
 		//LasagnaController::Constants con; con.h_cmd = 
 		//pres2.las.update
 		Simulation<float> sim(pres2, i);
-		vec2<float> f = sim.run(1529007840, 42.46636, -68.021255+360);
-		printf("SIMDONE %f %f\n", f.a, f.b);
+		sim.run(1529007840, 42.46636, -68.021255+360);
+		printf("SIMDONE\n");
 	}
 
 }
@@ -124,7 +124,7 @@ void gradientsStuff(){
 		MinDistanceToPoint<adouble> obj(31.753952, -77.081033+360);
 		Simulation<adouble> sim(pres, wind, obj,it+1);
 		sim.tmax=60*60*100;
-		vec2<adouble> end = sim.run(pres.t0, 40.785741, -73.410338+360);
+		sim.run(pres.t0, 40.785741, -73.410338+360);
 		adouble cost = -obj.getObjective()*111195;
 
 		cost.set_gradient(1.0);
@@ -155,39 +155,60 @@ void searchStuff(){
 
 
 void stocasticGradients(){
-	int t0 = 1536562800;
-	int dt = 3600*5;
+	int t0 = 1536994800;
+	int dt = 3600*6;
 	const int N_W = 21;
-	const float LR = 10; (void)LR;
-	ctrl_cmd<float> cmd;
-	cmd.h = 13000;
-	cmd.tol = 750; 
-	ctrl_cmd<float> cmds[N_W]; 
-	for (int i=0; i<N_W/4; i++) cmds[i] = cmd;
-	cmd.h = 14000;
-	cmd.tol = 350;
-	for (int i=N_W/4; i<N_W/2; i++) cmds[i] = cmd;
-	cmd.h = 12000;
-	cmd.tol = 1000;
-	for (int i=N_W/2; i<3*N_W/4; i++) cmds[i] = cmd;
-	cmd.h = 14500;
-	cmd.tol = 500;
-	cmds[3*N_W/4] = cmd;
-	cmd.h = 17000;
-	cmd.tol = 500;
-	for (int i=3*N_W/4+1; i<N_W; i++) cmds[i] = cmd;
+	const int N_RUNS = 50;
+	const float LR_H = 500000;
+	const float LR_TOL = 10000;
+	ctrl_cmd<double> cmd;
+	cmd.h = 15000;
+	cmd.tol = 1000; 
+	ctrl_cmd<double> cmds_val[N_W]; 
+	for (int i=0; i<N_W; i++) cmds_val[i] = cmd;
 
-
-	for (int it=0; it<500; it++) {
+	adept::Stack stack;
+	for (int it=0; it<300; it++){
 		clock_t timer0 = clock();
-		StocasticControllerApprox<float> controller(t0, dt, cmds, std::time(0)+it*1000);
-		LinInterpWind<float> wind;
-		NoOp<float> obj;
-		Simulation<float> sim(controller, wind, obj, it);
-		sim.tmax=60*60*100;
-		sim.run(controller.t0, 40.785741, -73.410338+360);
+		ctrl_cmd<adouble> cmds[N_W];
+		for (int i=0; i<N_W; i++){
+			cmds[i].h = cmds_val[i].h;
+			cmds[i].tol = cmds_val[i].tol;	
+		};
+		adouble obj_sum = 0;
+		stack.new_recording();
+		int tf;
+		for (int run=0; run<N_RUNS; run++) {
+			StocasticControllerApprox<adouble> controller(t0, dt, cmds,run*1010);
+			LinInterpWind<adouble> wind;
+			FinalLongitude<adouble> obj;
+			//MinDistanceToPoint<adouble> obj(59.943771, 10.717605+360); //oslo
+			//MinDistanceToPoint<adouble> obj(64.728059, -18.631122+360); //icland
+			//MinDistanceToPoint<adouble> obj(19.100031, -71.522052 +360);
+
+			EulerIntBal<adouble> in;
+			Simulation<adouble> sim(controller, wind, obj, in, run + N_RUNS*(it==0));
+			sim.tmax=60*60*120;
+
+			tf = sim.run(controller.t0, 36.95854187, -121.84505463+360).t;
+			obj_sum += obj.getObjective();
+		}
+		obj_sum = obj_sum/((float)N_RUNS);
+		obj_sum.set_gradient(1.0);
+		stack.compute_adjoint();
+
+		for (int i=0; i<N_W; i++) {
+			cmds_val[i].h += LR_H * cmds[i].h.get_gradient();
+			cmds_val[i].h = min(16000., max(10000., cmds_val[i].h));
+			cmds_val[i].tol += LR_TOL * cmds[i].tol.get_gradient();
+			cmds_val[i].tol = min(2000., max(200., cmds_val[i].tol));
+			printf("%.1f, ",cmds_val[i].h/1000);
+		} printf("\n");
+		for (int i=0; i<N_W; i++){printf("%.2f, ",LR_H * cmds[i].h.get_gradient());} printf("\n");
+		for (int i=0; i<N_W; i++){printf("%.2f, ",cmds_val[i].tol/1000);} printf("\n");
+		for (int i=0; i<N_W; i++){printf("%.2f, ",LR_TOL*cmds[i].tol.get_gradient());} printf("\n");	
 		float dt = (clock() - timer0)/((double)CLOCKS_PER_SEC)*1000;
-		printf("Took %.2f ms\n",dt);
+		printf("Took %.2f ms, obj: %f, duration: %f \n",dt,VAL(obj_sum),(tf-t0)/60./60.);
 	}
 }
 

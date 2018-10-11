@@ -217,4 +217,4 @@ print(df.index[0])
 procWindData(df.index[0],df.index[-1] + timedelta(2),db="gfs_anl_0deg5",overwrite=False)
 '''
 
-#procWindData("2018-09-01_00","2018-09-25_00",db="gfs_anl_0deg5",overwrite=False)
+#procWindData("2018-09-05_00","2018-09-21_00",db="gfs_anl_0deg5",overwrite=False)

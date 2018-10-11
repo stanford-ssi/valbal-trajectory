@@ -18,6 +18,26 @@ void EulerInt<Float>::integrate(sim_state<Float>& loc, wind_vector<Float>& w){
 	loc.t += dt;
 }
 
+template <class Float>
+void EulerIntBal<Float>::integrate(sim_state<Float>& s, wind_vector<Float>& w){
+	if(s.bal <= 0){
+		s.t += dt;
+		return;
+	}
+	Float bal = s.bal - s.bal_rate*(float)dt ;
+	if(bal <= 0){
+		Float dts = s.bal/s.bal_rate;
+		s.lat += w.v * dts/(float)dt * idlat;
+		s.lon += w.u * dts/(float)dt * idlat / fastcos(s.lat * M_PI / 180.);
+	} else {
+		s.lat += w.v * idlat;
+		s.lon += w.u * idlat / fastcos(s.lat * M_PI / 180.);
+	}
+	s.bal = bal;
+	s.t += dt;
+
+}
+
 template<class Float>
 WaypointController<Float>::WaypointController(int t0_, int dt_, Float *alts_)
 		: t0(t0_), dt(dt_), alts(alts_) {}
@@ -115,6 +135,7 @@ void StocasticControllerApprox<Float>::get_pressure(sim_state<Float>& state){
 	float theta = (state.t - (t0 + dt*idx))/((float)dt);
 	Float cmd_h = cmds[idx].h + theta * (cmds[idx+1].h - cmds[idx].h);
 	Float cmd_tol = cmds[idx].tol + theta * (cmds[idx+1].tol - cmds[idx].tol);
+	state.bal_rate = 0.03/60./60.*750/cmd_tol + 0.03/60./60.;  
 	sim_state<float> state_val;
 	state_val.lat = VAL(state.lat);
 	state_val.lon = VAL(state.lon);
@@ -189,7 +210,7 @@ wind_vector<Float> LinInterpWind<Float>::get_wind(sim_state<Float>& s) {
 		INTERP_ALT(u11, p11, 0);
 		INTERP_ALT(u21, p21, 0);
 		Float ulat1 = u11 + theta_lat * (u21 - u11);
-		debugf("v11! @ %f %d %d %f %f\n", VAL(s.pres), pt.lat, pt.lon, LAT(pt.lat), LON(pt.lon));
+		debugf("v11! @ %f %d %d %f %f\n", VAL(s.p), pt.lat, pt.lon, LAT(pt.lat), LON(pt.lon));
 		for (int k=0; k<NUM_LEVELS; k++) {
 			debugf("%f: %d\n", LEVELS[k], p11->data[k][1]);
 		}
@@ -237,6 +258,11 @@ wind_vector<Float> LinInterpWind<Float>::get_wind(sim_state<Float>& s) {
 	return w;
 }
 
+template<class Float>
+Simulation<Float>::Simulation(PressureSource<Float>& s, WindSource<Float>& w, ObjectiveFn<Float>& o, Integrator<Float>& in, int i)
+		: pressure(s), wind(w), intg(in), objfn(o) {
+	init(i);
+}
 
 template<class Float>
 Simulation<Float>::Simulation(PressureSource<Float>& s, WindSource<Float>& w, ObjectiveFn<Float>& o, int i)
@@ -265,12 +291,13 @@ void Simulation<Float>::init(int i){
 
 
 template<class Float>
-vec2<Float> Simulation<Float>::run(int t, Float lat, Float lon) {
+sim_state<Float> Simulation<Float>::run(int t, Float lat, Float lon) {
 	int Tmax = tmax + t;
 	sim_state<Float> state;
 	state.lat = lat;
 	state.lon = lon;
 	state.t = t;
+	state.bal = 7;
 	debugf("Starting from (%f, %f)\n", VAL(lat), VAL(lon));
 	while (state.t < Tmax) {
 		pressure.get_pressure(state);
@@ -287,21 +314,20 @@ vec2<Float> Simulation<Float>::run(int t, Float lat, Float lon) {
 			#ifdef STORE_ALTITUDE
 				actual_p = p2alt(actual_p);
 			#endif
-			debugf("[sim state] time:%d lat:%.4f lon:%.4f alt:%.1f\n",state.t, actual_lat, actual_lon, actual_p);
+			debugf("[sim state] time:%d lat:%.4f lon:%.4f alt:%.1f bal:%.2f\n",state.t, actual_lat, actual_lon, actual_p, VAL(state.bal));
 
 			fwrite(&actual_p, sizeof(float), 1, file);
 		}
 		wind_vector<Float> w = wind.get_wind(state);
 		intg.integrate(state,w);
 		if(calc_obj) objfn.update(state);
-		//printf("%f\n",VAL(objfn.getTotal()));
+		if(state.bal < 0) break;
 	}
 	debugf("Ended up at (%f, %f)\n", VAL(state.lat), VAL(state.lon));
-	vec2<Float> ret = {state.lat, state.lon};
 	if (save_to_file) {
 		fclose(file);
 	}
-	return ret;
+	return state;
 }
 
 #define INIT_SIM(type) \
@@ -312,6 +338,7 @@ vec2<Float> Simulation<Float>::run(int t, Float lat, Float lon) {
 		template class LinInterpWind<type>; \
 		template class NoOp<type>;\
 		template class EulerInt<type>;\
+		template class EulerIntBal<type>;\
 		template class GreedySearch<type>;\
 		template class FinalLongitude<type>; \
 		template class StocasticControllerApprox<type>;

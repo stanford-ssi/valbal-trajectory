@@ -49,6 +49,16 @@ public:
 	float idlat;
 };
 
+template <class Float>
+class EulerIntBal : public Integrator<Float> {
+public: 
+	EulerIntBal(int dt) : dt(dt) {idlat = dt / (2 * M_PI * 6371008 / 360.);};
+	EulerIntBal(){idlat = dt / (2 * M_PI * 6371008 / 360.);};
+	void integrate(sim_state<Float>&, wind_vector<Float>&);
+	int dt = 60*10;
+	float idlat;
+};
+
 /**
  * Pressure source base class. Takes in the state of the simulation and returns a pressure 
  * (which corrisponds to an altitude). The simulation runs in pressure and not altitude because
@@ -93,6 +103,7 @@ public:
 	LinInterpWind<Float> wind_default;
 	NoOp<Float> obj_default;
 	EulerInt<Float> intg_default;
+	Simulation(PressureSource<Float>& s, WindSource<Float>& w, ObjectiveFn<Float>& o, Integrator<Float>& in, int i=-1);
 	Simulation(PressureSource<Float>& s, WindSource<Float>& w, ObjectiveFn<Float>& o, int i=-1);
 	Simulation(PressureSource<Float>& s, int i=-1);
 	PressureSource<Float>& pressure;
@@ -101,7 +112,7 @@ public:
 	ObjectiveFn<Float>& objfn;
 	bool calc_obj = false;
 
-	vec2<Float> run(int, Float, Float);
+	sim_state<Float> run(int, Float, Float);
 
 	int cur_file = 0;
 	//const int tmax = 60*60*103;

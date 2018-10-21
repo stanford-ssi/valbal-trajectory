@@ -155,7 +155,7 @@ void searchStuff(){
 
 
 void stocasticGradients(){
-	int t0 = 1536994800;
+	int t0 = 1540746000;
 	int dt = 3600*6;
 	const int N_W = 21;
 	const int N_RUNS = 50;
@@ -163,7 +163,7 @@ void stocasticGradients(){
 	const float LR_TOL = 10000;
 	ctrl_cmd<double> cmd;
 	cmd.h = 15000;
-	cmd.tol = 1000; 
+	cmd.tol = 750; 
 	ctrl_cmd<double> cmds_val[N_W]; 
 	for (int i=0; i<N_W; i++) cmds_val[i] = cmd;
 
@@ -188,7 +188,7 @@ void stocasticGradients(){
 
 			EulerIntBal<adouble> in;
 			Simulation<adouble> sim(controller, wind, obj, in, run + N_RUNS*(it==0));
-			sim.tmax=60*60*120;
+			sim.tmax=60*60*100;
 
 			tf = sim.run(controller.t0, 36.95854187, -121.84505463+360).t;
 			obj_sum += obj.getObjective();
@@ -199,9 +199,9 @@ void stocasticGradients(){
 
 		for (int i=0; i<N_W; i++) {
 			cmds_val[i].h += LR_H * cmds[i].h.get_gradient();
-			cmds_val[i].h = min(16000., max(10000., cmds_val[i].h));
-			cmds_val[i].tol += LR_TOL * cmds[i].tol.get_gradient();
-			cmds_val[i].tol = min(2000., max(200., cmds_val[i].tol));
+			cmds_val[i].h = min(18000., max(10000., cmds_val[i].h));
+			//cmds_val[i].tol += LR_TOL * cmds[i].tol.get_gradient();
+			//cmds_val[i].tol = min(2000., max(200., cmds_val[i].tol));
 			printf("%.1f, ",cmds_val[i].h/1000);
 		} printf("\n");
 		for (int i=0; i<N_W; i++){printf("%.2f, ",LR_H * cmds[i].h.get_gradient());} printf("\n");
@@ -216,7 +216,7 @@ int main() {
 	printf("ValBal trajectory optimization.\n");
 	printf("This program is highly cunning and, on the face of it, not entirely wrong.\n");
 
-	load_data(get_data_path("proc/gfs_anl_0deg5"), 1500000000,1600000000);
+	load_data(get_data_path("/proc/gfs_pred_0deg5/20181021_00"), 1500000000,1600000000);
 	//load_data("../ignored/proc/euro_anl", 1500000000,1600000000);
 	//load_data("../ignored/proc/euro_fc", 1500000000,1600000000);
 	//load_data("../proc", 1500000000,1600000000);

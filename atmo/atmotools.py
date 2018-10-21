@@ -1,4 +1,4 @@
-from datetime import datetime as dt 
+from datetime import datetime  
 from datetime import timedelta
 import pandas as pd
 import pygrib as gb
@@ -9,9 +9,28 @@ from urllib.request import urlretrieve
 import os
 import pickle
 
-def fetchWindData(start,end,db='gfs_anl_0deg5'):
+def getFile(src,dst):
+	if os.path.exists(dst):
+		print("Local file "+dst+" found, skipping")
+	else:	
+		print("Fetching from",src+"...",end='',flush=True)
+		urlretrieve(src,dst)
+		print("   done")
+
+def fetchWindData(start,end,db='gfs_anl_0deg5',pred_time=None):
 	""" Fetch data from gfs database for times inbetween start and end
 	"""
+	if not type(start) == type("boop"):
+		start -= timedelta(hours=1)
+		start = "%04d-%02d-%02d_%02d"%(start.year,start.month,start.day,start.hour)
+		end = "%04d-%02d-%02d_%02d"%(end.year,end.month,end.day,end.hour)		
+	print(start)
+	t = datetime.strptime(start,"%Y-%m-%d_%H");
+	t = t.replace(hour=math.floor(t.hour/6)*6,minute=0,second=0)
+	end_t = datetime.strptime(end,"%Y-%m-%d_%H") + timedelta(1/4);
+	start = "%04d-%02d-%02d_%02d"%(t.year,t.month,t.day,t.hour)
+	end = "%04d-%02d-%02d_%02d"%(end_t.year,end_t.month,end_t.day,end_t.hour)
+
 	if db == 'gfs_anl_1deg':
 		remote="https://nomads.ncdc.noaa.gov/data/gfsanl/"
 		local="../ignored/raw/gfs_anl_1deg/"
@@ -23,43 +42,61 @@ def fetchWindData(start,end,db='gfs_anl_0deg5'):
 	if db == "euro_fc":
 		raise ValueWarning("lol good luck son, this data is not easy to get")
 		return 
+	if db == "gfs_pred_0deg5":
+		# If no pred time is passed, we use the current time. If the start time, t, is less than the 
+		# the predition time, we use that instead
+		if pred_time == None:
+			pred_time = datetime.utcnow()-timedelta(1/24)
+		pred_time = pred_time.replace(microsecond=0,second=0,minute=0,hour=pred_time.hour-(pred_time.hour % 6))
+		if t<pred_time:
+			pred_time = t
+		remote = "http://www.ftp.ncep.noaa.gov/data/nccf/com/gfs/prod/gfs.%04d%02d%02d%02d/"%(pred_time.year,pred_time.month,pred_time.day,pred_time.hour)
+		db = "gfs_pred_0deg5/%04d%02d%02d_%02d"%(pred_time.year,pred_time.month,pred_time.day,pred_time.hour)
+		local = "../ignored/raw/"+db+"/"
+		fstartname = "gfs.t%02dz.pgrb2.0p50.f"%pred_time.hour
 	if not os.path.exists(local):
 		os.makedirs(local)
-	if not type(start) == type("boop"):
-		start -= timedelta(hours=1)
-		start = "%04d-%02d-%02d_%02d"%(start.year,start.month,start.day,start.hour)
-		end = "%04d-%02d-%02d_%02d"%(end.year,end.month,end.day,end.hour)		
-	print(start)
-	t = dt.strptime(start,"%Y-%m-%d_%H");
-	t = t.replace(hour=math.floor(t.hour/6)*6,minute=0,second=0)
-	end_t = dt.strptime(end,"%Y-%m-%d_%H") + timedelta(1/4);
-	start = "%04d-%02d-%02d_%02d"%(t.year,t.month,t.day,t.hour)
-	end = "%04d-%02d-%02d_%02d"%(end_t.year,end_t.month,end_t.day,end_t.hour)
-	print("Downloading files")
+	
+	print("Downloading files from " + remote)
 	filelist = []
 	times = []
-	while t < end_t:
-		datestr = "%04d%02d%02d" % (t.year, t.month, t.day) 
-		dpath = "%04d%02d/"% (t.year, t.month) + datestr + "/"
-		fpath = fstartname + datestr + "_%02d00"%t.hour
-		for i in [0,3]:
-			fulfpath = fpath + "_00%d"%i + ".grb2"
-			path = dpath + fulfpath;
-			if os.path.exists(local+fulfpath):
-				print("Local file "+local+fulfpath+" found, skipping")
-			else:	
-				print("Fetching from",remote+path+"...",end='',flush=True)
-				urlretrieve(remote+path,local+fulfpath)
-				print("   done")
-			filelist.append(fulfpath)
-			times.append(t + i*timedelta(1/24))
-		t +=  timedelta(1/4)
-	return filelist,times,start,end
+
+	if 'gfs_anl_' in db:
+		while t < end_t:
+			datestr = "%04d%02d%02d" % (t.year, t.month, t.day) 
+			dpath = "%04d%02d/"% (t.year, t.month) + datestr + "/"
+			fpath = fstartname + datestr + "_%02d00"%t.hour
+			for i in [0,3]:
+				fulfpath = fpath + "_00%d"%i + ".grb2"
+				path = dpath + fulfpath;
+				getFile(remote+fulfpath,local+fulfpath)
+				filelist.append(fulfpath)
+				times.append(t + i*timedelta(1/24))
+			t +=  timedelta(1/4)
+
+	if 'gfs_pred_' in db:
+		while t < end_t:
+			dhours = int(((t - pred_time).total_seconds()/60/60))
+			if dhours > 372:
+				break
+			fpath = fstartname + "%03d"%dhours
+			getFile(remote+fpath,local+fpath)
+			if dhours < 240:
+				t += timedelta(1/8)
+			else:
+				t += timedelta(1/2)
+			filelist.append(fpath)
+			times.append(t)
+
+
+	return filelist,times,start,end,db
+
 
 def procWindData(start,end,db='gfs_anl_0deg5',overwrite=False):
+	ret = fetchWindData(start,end,db)
+	db = ret[4]
 	dstpath = "../ignored/proc/" + db + "/"
 	srcpath = "../ignored/raw/" + db + "/"
-	ret = fetchWindData(start,end,db)
 	times = ret[1]
 	files = ret[0]
 	if not os.path.exists(dstpath):
@@ -70,15 +107,15 @@ def procWindData(start,end,db='gfs_anl_0deg5',overwrite=False):
 	lats = lats[:,0]
 	lons = lons[0,:]
 	levels = getGRIBlevels(grb)
-	headertext = genWindHeader(db,lons,lats,levels)
-	headerfile = dstpath + db + ".h"
+	headertext = genWindHeader(db.replace("/","_"),lons,lats,levels)
+	headerfile = dstpath + db.replace("/","_") + ".h"
 	procfiles=[]
 	with open(headerfile,"w") as f:
 		f.write(headertext)
 	keys = {"lons":lons, "lats":lats, "levels": levels, "alts": p2a(levels)}
 	pickle.dump(keys,open(dstpath + "keys.pickle",'wb'))
 	for k,file in enumerate(files):
-		outpath = dstpath + '%d.bin' % (times[k]-dt(1970,1,1)).total_seconds()
+		outpath = dstpath + '%d.bin' % (times[k]-datetime(1970,1,1)).total_seconds()
 		#print(times[k]) 
 		#exit()
 		procfiles.append(outpath)
@@ -91,11 +128,15 @@ def procWindData(start,end,db='gfs_anl_0deg5',overwrite=False):
 			grb = gb.open(path)
 			i = 0.
 			for row in grb:
+				last_level = 0
 				if row.shortName == 'u' or row.shortName == 'v':
 					if row['typeOfLevel'] == 'isobaricInhPa' and row.level >= levels[0] and row.level <= levels[-1]:
 						j = 0 if row.name.startswith('U') else 1
 						data[:,:,int(i),j] = row.values*100
 						i += 0.5
+						assert row.level > last_level , "Levels in grib not increasing"
+						assert (j) or (i % 1), "U, V order mismatch in grib"
+						last_level = row.level
 			data.flatten().tofile(outpath)
 			print("   done (%d / %d)" % (k+1, len(files)))
 	return procfiles,times
@@ -218,3 +259,5 @@ procWindData(df.index[0],df.index[-1] + timedelta(2),db="gfs_anl_0deg5",overwrit
 '''
 
 #procWindData("2018-09-05_00","2018-09-21_00",db="gfs_anl_0deg5",overwrite=False)
+#fetchWindData("2018-10-20_00","2018-10-22_00",db="gfs_pred_0deg5")
+procWindData("2018-10-28_12","2018-11-02_00",db="gfs_pred_0deg5",overwrite=True)

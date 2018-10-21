@@ -12,6 +12,16 @@ import pickle
 def fetchWindData(start,end,db='gfs_anl_0deg5'):
 	""" Fetch data from gfs database for times inbetween start and end
 	"""
+	if not type(start) == type("boop"):
+		start -= timedelta(hours=1)
+		start = "%04d-%02d-%02d_%02d"%(start.year,start.month,start.day,start.hour)
+		end = "%04d-%02d-%02d_%02d"%(end.year,end.month,end.day,end.hour)
+	print(start)
+	t = dt.strptime(start,"%Y-%m-%d_%H");
+	t = t.replace(hour=math.floor(t.hour/6)*6,minute=0,second=0)
+	end_t = dt.strptime(end,"%Y-%m-%d_%H") + timedelta(1/4);
+	start = "%04d-%02d-%02d_%02d"%(t.year,t.month,t.day,t.hour)
+	end = "%04d-%02d-%02d_%02d"%(end_t.year,end_t.month,end_t.day,end_t.hour)
 	if db == 'gfs_anl_1deg':
 		remote="https://nomads.ncdc.noaa.gov/data/gfsanl/"
 		local="../ignored/raw/gfs_anl_1deg/"
@@ -23,18 +33,12 @@ def fetchWindData(start,end,db='gfs_anl_0deg5'):
 	if db == "euro_fc":
 		raise ValueWarning("lol good luck son, this data is not easy to get")
 		return 
+	if db == "gfs_pred_0deg25":
+		remote="http://www.ftp.ncep.noaa.gov/data/nccf/com/gfs/prod/gfs.2018102018/"
+		local="../ignored/raw/gfs_pred_0deg25/2018102018/"
+		fstartname = "gfs.t18z.pgrb2.0p25.f"
 	if not os.path.exists(local):
 		os.makedirs(local)
-	if not type(start) == type("boop"):
-		start -= timedelta(hours=1)
-		start = "%04d-%02d-%02d_%02d"%(start.year,start.month,start.day,start.hour)
-		end = "%04d-%02d-%02d_%02d"%(end.year,end.month,end.day,end.hour)		
-	print(start)
-	t = dt.strptime(start,"%Y-%m-%d_%H");
-	t = t.replace(hour=math.floor(t.hour/6)*6,minute=0,second=0)
-	end_t = dt.strptime(end,"%Y-%m-%d_%H") + timedelta(1/4);
-	start = "%04d-%02d-%02d_%02d"%(t.year,t.month,t.day,t.hour)
-	end = "%04d-%02d-%02d_%02d"%(end_t.year,end_t.month,end_t.day,end_t.hour)
 	print("Downloading files")
 	filelist = []
 	times = []

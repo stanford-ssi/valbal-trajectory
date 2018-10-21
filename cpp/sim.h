@@ -45,7 +45,7 @@ public:
 	EulerInt(int dt) : dt(dt) {idlat = dt / (2 * M_PI * 6371008 / 360.);};
 	EulerInt(){idlat = dt / (2 * M_PI * 6371008 / 360.);};
 	void integrate(sim_state<Float>&, wind_vector<Float>&);
-	int dt = 60*10;
+	int dt = 60*1;
 	float idlat;
 };
 

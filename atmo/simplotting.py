@@ -7,6 +7,7 @@ import pandas as pd
 import datetime
 from windvistools import *
 import itertools as it
+import gmplot
 def load_file(i):
     output = np.fromfile('../ignored/sim/output.%03d.bin' % int(i), dtype=np.float32)
     output.shape = (len(output)//3, 3)
@@ -38,7 +39,10 @@ def plot1():
 	axes[0].plot(xt,yt,"r*")
 	plt.show()
 
-def plotruns():
+def plot2():
+	# This function generates a nice plot of optimized montecarlo trajectories.
+	# It was used to make the fig that's in the vb data sheet on Oct. 12th 2018.
+
 	files = list(map(load_file, range(50)))
 	files2 = list(map(load_file, range(50,100)))
 	fig, ax = plt.subplots(2,2,gridspec_kw = {'height_ratios':[1,.63], "hspace":0,},figsize=(8,5))
@@ -78,6 +82,54 @@ def plotruns():
 		ax0.plot(xpred[-1],ypred[-1],"*",c="blue")
 	plt.savefig("../ignored/figs/plot1.png")
 
+
+def plot3():
+	# this function actually has nothing to do with simulation, but rather 
+	# gerates a nice figure of ssi63 for the valbal datasheet
+	data = np.load('../ignored/flights/ssi63_latlons.npy')
+	lat=36.845679
+	lon=-121.402538
+	m = Basemap(projection='merc',llcrnrlat=lat-0.3,urcrnrlat=lat+.7,
+            llcrnrlon=lon-1,urcrnrlon=lon+1,resolution='i')
+	m.drawcoastlines(color="grey")
+	m.drawcountries(color="grey")
+	m.drawstates(color="grey")
+	m.shadedrelief()
+	x,y =m(data[:,1],data[:,0])
+	plt.plot(x,y)
+	plt.plot(x[0],y[0],"*")
+	plt.show()
+	
+def plotsingle():
+	#used for plotting and comparing with real flights
+	files = list(map(load_file, [1]))
+	print(files)
+	f = files[0]
+	plt.subplot(211)
+	plt.plot(np.arange(f.shape[0]),f[:,2])
+	plt.title("t=0 is at unix time 1540060749")
+	plt.xlabel("time (m)")
+	plt.ylabel("alt (m)")
+	plt.grid()
+	plt.subplot(212)
+	all_vals = np.concatenate(files)
+	s = .1
+	'''
+	m = Basemap(projection='merc',llcrnrlat=np.min(all_vals[:,0])-s,urcrnrlat=np.max(all_vals[:,0])+s,
+            llcrnrlon=np.min(all_vals[:,1])-s,urcrnrlon=np.max(all_vals[:,1])+s,resolution='l')
+	m.drawcoastlines()
+	m.drawcountries()
+	m.drawstates()
+	'''
+	gmap3 = gmplot.GoogleMapPlotter(f[0,0],f[0,1], 10) 
+	gmap3.plot(f[:,0],f[:,1],'# FF0000',size = 40, marker = False ) 
+	gmap3.draw("map.html")
+	plt.plot(f[:,1],f[:,0],c="blue")
+	plt.plot(f[0,1],f[0,0],"r*")
+	plt.title("red dot is start")
+	plt.grid()
+	#plt.show()
+
 def plotflights():
 	#used for plotting and comparing with real flights
 	files = list(map(load_file, range(1,200)))
@@ -97,4 +149,4 @@ def plotflights():
 
 
 
-plotruns()
+plotsingle()

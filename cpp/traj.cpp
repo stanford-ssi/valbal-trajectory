@@ -162,7 +162,7 @@ void stocasticGradients(){
 	const float LR_H = 500000;
 	const float LR_TOL = 10000;
 	ctrl_cmd<double> cmd;
-	cmd.h = 15000;
+	cmd.h = 14000;
 	cmd.tol = 1000; 
 	ctrl_cmd<double> cmds_val[N_W]; 
 	for (int i=0; i<N_W; i++) cmds_val[i] = cmd;
@@ -212,11 +212,27 @@ void stocasticGradients(){
 	}
 }
 
+void saveSpaceshot() {
+	int t0 = 1540060749;
+	float waypoints[7] = {
+		(float)alt2p(5966.),
+		(float)alt2p(5966+1*30*60*3.71),
+		(float)alt2p(5966+2*30*60*3.71),
+		(float)alt2p(5966+3*30*60*3.71),
+		(float)alt2p(5966+3*30*60*3.71),
+		(float)alt2p(200+2*30*60*3.71),
+		(float)alt2p(200)};
+	WaypointController<float> pres(t0, 60*30, waypoints);
+	Simulation<float> sim(pres, 1);
+	sim.tmax = 3*60*60;
+	sim.run(t0, 36.89262,-121.45095+360);
+}
+
 int main() {
 	printf("ValBal trajectory optimization.\n");
 	printf("This program is highly cunning and, on the face of it, not entirely wrong.\n");
 
-	load_data(get_data_path("proc/gfs_anl_0deg5"), 1500000000,1600000000);
+	load_data(get_data_path("proc/pred/"), 1500000000,1600000000);
 	//load_data("../ignored/proc/euro_anl", 1500000000,1600000000);
 	//load_data("../ignored/proc/euro_fc", 1500000000,1600000000);
 	//load_data("../proc", 1500000000,1600000000);
@@ -232,5 +248,6 @@ int main() {
 	//ssi71Sims();
 	//gradientsStuff();
 	//MLestimation();
-	stocasticGradients();
+	//stocasticGradients();
+	saveSpaceshot();
 }

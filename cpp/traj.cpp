@@ -7,7 +7,7 @@ using adept::adouble;
 #include "data.h"
 #include "sim.h"
 #include "utils.h"
-
+#include <random>
 #define STORE_ALTITUDE
 
 using namespace std;
@@ -102,40 +102,53 @@ void ssi71Sims(){
 }
 
 void gradientsStuff(){
-	int t0 = 1536562800;
+	load_data(get_data_path("/proc/gfs_pred_0deg5/20181029_12"), 1500000000,1600000000);
+	int t0 = 1540834728;
 	int dt = 3600*5;
-	const int N_W = 21;
-	const float LR = 10; (void)LR;
-	double waypoints_val[N_W]; for (int i=0; i<N_W; i++) waypoints_val[i] = alt2p(18000);
+	const int N_W = 41;
+	const float LR = 500000; (void)LR;
+	const int N_ITER = 700;
+  	std::default_random_engine gen(1);
+  	std::uniform_real_distribution<float> init_alt(12500,19000);
 
-	adept::Stack stack;
-	for (int it=0; it<1000; it++) {
-		clock_t timer0 = clock();
-		adouble waypoints[N_W];
-		for (int i=0; i<N_W; i++) {
-			waypoints[i] = min(double(alt2p(5000.)), max(double(alt2p(19000.)), waypoints_val[i]));
+	for(int j=0; j<100;j++){
+		char path[100];
+		snprintf(path, 100, "../ignored/sim/opt.%03d.bin", j);
+		FILE* file = fopen(path, "wb");
+		ensure(file != 0);
+		ensure(setvbuf(file, 0, _IOFBF, 16384) == 0);
+		double waypoints_val[N_W]; for (int i=0; i<N_W; i++) waypoints_val[i] = alt2p(init_alt(gen));
+		adept::Stack stack;
+		float cost_actual;
+		for (int it=0; it<N_ITER; it++) {
+			clock_t timer0 = clock();
+			adouble waypoints[N_W];
+			for (int i=0; i<N_W; i++) {
+				waypoints[i] = min(double(alt2p(12500.)), max(double(alt2p(19000.)), waypoints_val[i]));
+				//printf("%.1f, ",p2alt(VAL(waypoints[i]))/1000);
+			}
+			stack.new_recording();
+		
+			WaypointController<adouble> pres(t0, dt, waypoints);
+			LinInterpWind<adouble> wind;
+			FinalLongitude<adouble> obj;
+			//MinDistanceToPoint<adouble> obj(31.753952, -77.081033+360);
+			Simulation<adouble> sim(pres, wind, obj,N_ITER*j + it);
+			sim.tmax=60*60*100;
+			sim.run(pres.t0, 39.0152, -91.1433+360);
+			adouble cost = obj.getObjective();
+
+			cost.set_gradient(1.0);
+			stack.compute_adjoint();
+			for (int i=0; i<N_W; i++) {
+				waypoints_val[i] += LR * waypoints[i].get_gradient();
+			} 
+			float dt = (clock() - timer0)/((double)CLOCKS_PER_SEC)*1000; (void)dt;
+			cost_actual = VAL(cost);
+			fwrite(&cost_actual, sizeof(float), 1, file);
 		}
-		stack.new_recording();
-	
-		WaypointController<adouble> pres(t0, dt, waypoints);
-		LinInterpWind<adouble> wind;
-		//FinalLongitude<adouble> obj;
-
-		MinDistanceToPoint<adouble> obj(31.753952, -77.081033+360);
-		Simulation<adouble> sim(pres, wind, obj,it+1);
-		sim.tmax=60*60*100;
-		sim.run(pres.t0, 40.785741, -73.410338+360);
-		adouble cost = -obj.getObjective()*111195;
-
-		cost.set_gradient(1.0);
-		stack.compute_adjoint();
-		for (int i=0; i<N_W; i++) {
-			waypoints_val[i] += LR * waypoints[i].get_gradient();
-			printf("%.1f, ",p2alt(waypoints_val[i])/1000);
-		} 
-		printf("\n");
-		float dt = (clock() - timer0)/((double)CLOCKS_PER_SEC)*1000;
-		printf("Took %.2f ms, got %f\n", dt, VAL(cost)/1e6);
+		printf("Final Cost: %f\n", cost_actual);
+		fclose(file);
 	}
 }
 
@@ -155,20 +168,24 @@ void searchStuff(){
 
 
 void stocasticGradients(){
-	int t0 = 1540746000;
+	load_data(get_data_path("/proc/gfs_pred_0deg5/20181101_00"), 1500000000,1600000000);
+	int t0 = 1541045606;
 	int dt = 3600*6;
-	const int N_W = 21;
+	const int N_W = 26;
 	const int N_RUNS = 50;
-	const float LR_H = 500000;
 	const float LR_TOL = 10000;
+	float LR_H = 2000000;
+	const float alpha = 0.98;
 	ctrl_cmd<double> cmd;
-	cmd.h = 15000;
-	cmd.tol = 750; 
+	cmd.h = 16000;
+	cmd.tol = 1000; 
 	ctrl_cmd<double> cmds_val[N_W]; 
 	for (int i=0; i<N_W; i++) cmds_val[i] = cmd;
-
+	//cmd.h = 13000;
+	//for (int i=0; i<N_W/8; i++) cmds_val[i] = cmd;	
 	adept::Stack stack;
 	for (int it=0; it<300; it++){
+		LR_H = LR_H*alpha;
 		clock_t timer0 = clock();
 		ctrl_cmd<adouble> cmds[N_W];
 		for (int i=0; i<N_W; i++){
@@ -179,19 +196,16 @@ void stocasticGradients(){
 		stack.new_recording();
 		int tf;
 		for (int run=0; run<N_RUNS; run++) {
-			StocasticControllerApprox<adouble> controller(t0, dt, cmds,run*1010);
+			StocasticControllerApprox<adouble> controller(t0, dt, cmds,run*1019);
 			LinInterpWind<adouble> wind;
 			FinalLongitude<adouble> obj;
-			//MinDistanceToPoint<adouble> obj(59.943771, 10.717605+360); //oslo
-			//MinDistanceToPoint<adouble> obj(64.728059, -18.631122+360); //icland
-			//MinDistanceToPoint<adouble> obj(19.100031, -71.522052 +360);
+			//MinDistanceToPoint<adouble> obj(40.378182, -3.958676+360);
 
 			EulerIntBal<adouble> in;
 			Simulation<adouble> sim(controller, wind, obj, in, run + N_RUNS*(it==0));
 			sim.tmax=60*60*100;
-
-			tf = sim.run(controller.t0, 36.95854187, -121.84505463+360).t;
-			obj_sum += obj.getObjective();
+			tf = sim.run(controller.t0,47.4289, -19.6931+360).t;
+			obj_sum = obj.getObjective();
 		}
 		obj_sum = obj_sum/((float)N_RUNS);
 		obj_sum.set_gradient(1.0);
@@ -199,7 +213,7 @@ void stocasticGradients(){
 
 		for (int i=0; i<N_W; i++) {
 			cmds_val[i].h += LR_H * cmds[i].h.get_gradient();
-			cmds_val[i].h = min(18000., max(10000., cmds_val[i].h));
+			cmds_val[i].h = min(16500., max(10000., cmds_val[i].h));
 			//cmds_val[i].tol += LR_TOL * cmds[i].tol.get_gradient();
 			//cmds_val[i].tol = min(2000., max(200., cmds_val[i].tol));
 			printf("%.1f, ",cmds_val[i].h/1000);
@@ -212,11 +226,58 @@ void stocasticGradients(){
 	}
 }
 
+void saveSpaceshot() {
+	std::default_random_engine gen;
+	gen.seed(1);
+	std::normal_distribution<float> init_altitude_N(5966,10);
+	std::normal_distribution<float> decent_rate_N(-22.5,5);
+	std::normal_distribution<float> equil_alt_N(28700,300);
+	std::normal_distribution<float> ascent_rate_N(3.7,0.05);
+	std::normal_distribution<float> cutdown_time_N(2.5*60*60,60*2);
+	load_data(get_data_path("/proc/gfs_pred_0deg5/20181020_18"), 1500000000,1600000000);
+	int t0 = 1540060749;
+	int dt_wp = 60*1;
+	int tmax = 48*60*60;
+	int N_wp = tmax/dt_wp;
+	
+
+	for(int j = 0; j < 10000; j++){
+	float init_altitude = init_altitude_N(gen);  //m 
+	float ascent_rate = ascent_rate_N(gen);		// m/s
+	float decent_rate = decent_rate_N(gen); 	// m/s
+	float equil_alt = equil_alt_N(gen); 		// meters
+	int cutdown_time = cutdown_time_N(gen); 	// seconds
+	if(equil_alt > 29000) equil_alt = 29000;
+	if(decent_rate > -0.1) decent_rate = -0.1;
+
+	int start_time = -init_altitude/ascent_rate;
+	float waypoints[N_wp];
+	for(int i = 0; i < N_wp; i++){
+		float alt = init_altitude + ascent_rate*i*dt_wp;
+		if(alt > equil_alt) alt = equil_alt;
+		if((i*dt_wp - start_time) > cutdown_time){
+			alt =  equil_alt + ((i*dt_wp- start_time) - cutdown_time)*decent_rate;
+			if(alt<400){
+				tmax = (i-1)*dt_wp;
+		//		printf("flight time: %f\n",(tmax-start_time)/60./60.);
+				break;
+			}
+		}
+		//printf("%f\n",alt);
+		waypoints[i] = float(alt2p(alt));
+	}
+	WaypointController<float> pres(t0, dt_wp, waypoints);
+	Simulation<float> sim(pres, j);
+	sim.tmax = tmax;
+	sim.run(t0, 36.89262,-121.45095+360);
+	}
+}
+
 int main() {
 	printf("ValBal trajectory optimization.\n");
 	printf("This program is highly cunning and, on the face of it, not entirely wrong.\n");
 
-	load_data(get_data_path("/proc/gfs_pred_0deg5/20181021_00"), 1500000000,1600000000);
+	//load_data(get_data_path("/proc/gfs_pred_0deg5/20181021_12"), 1500000000,1600000000);
 	//load_data("../ignored/proc/euro_anl", 1500000000,1600000000);
 	//load_data("../ignored/proc/euro_fc", 1500000000,1600000000);
 	//load_data("../proc", 1500000000,1600000000);
@@ -233,4 +294,6 @@ int main() {
 	//gradientsStuff();
 	//MLestimation();
 	stocasticGradients();
+	//saveSpaceshot();
+	//stocasticGradients();
 }

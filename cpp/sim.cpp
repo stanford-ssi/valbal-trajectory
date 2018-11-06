@@ -297,7 +297,7 @@ sim_state<Float> Simulation<Float>::run(int t, Float lat, Float lon) {
 	state.lat = lat;
 	state.lon = lon;
 	state.t = t;
-	state.bal = 7;
+	state.bal = 10;
 	debugf("Starting from (%f, %f)\n", VAL(lat), VAL(lon));
 	while (state.t < Tmax) {
 		pressure.get_pressure(state);

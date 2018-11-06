@@ -6,31 +6,60 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 from urllib.request import urlretrieve
+import urllib.request as url
 import os
 import pickle
+import sys
+import argparse
+import re
+
+def getRecentGFS():
+	index = str(url.urlopen("http://www.ftp.ncep.noaa.gov/data/nccf/com/gfs/prod/").read()).split("\\n")
+	times = []
+	for row in index:
+		timestr = re.findall('(?<=href\=\"gfs\.).*(?=/\")',row)
+		if timestr:
+			times.append(timestr[0])
+	list.sort(times,key=int)
+	recent=times[-1]
+	pred_time = datetime.strptime(recent,"%Y%m%d%H")
+	return pred_time
 
 def getFile(src,dst):
 	if os.path.exists(dst):
-		print("Local file "+dst+" found, skipping")
+		size = os.path.getsize(dst)
+		print("Local file "+dst+" found and is %.2fMB, skipping"%(size/1000000))
+		if size < 50000000:
+			raise Warning("file size smaller than expected: %.2fMB "%(size/1000000))
 	else:	
 		print("Fetching from",src+"...",end='',flush=True)
 		urlretrieve(src,dst)
-		print("   done")
+		size = os.path.getsize(dst)
+		print("   done, %.2fMB"%(size/1000000))
 
-def fetchWindData(start,end,db='gfs_anl_0deg5',pred_time=None):
-	""" Fetch data from gfs database for times inbetween start and end
-	"""
+def setupAtmoData(start,end,db='gfs_anl_0deg5',pred_time=None):
 	if not type(start) == type("boop"):
+		if start == None:
+			start = datetime.utcnow();
+		if end == None:
+			end = datetime.utcnow() + timedelta(hours=100);
 		start -= timedelta(hours=1)
 		start = "%04d-%02d-%02d_%02d"%(start.year,start.month,start.day,start.hour)
-		end = "%04d-%02d-%02d_%02d"%(end.year,end.month,end.day,end.hour)		
-	print(start)
+		end = "%04d-%02d-%02d_%02d"%(end.year,end.month,end.day,end.hour)
+	if "hr" in start:
+		if end == None:
+			end = datetime.utcnow() + timedelta(hours=100);
+		start = datetime.utcnow() + timedelta(hours=int(start.split("hr")[0]))
+		start = "%04d-%02d-%02d_%02d"%(start.year,start.month,start.day,start.hour)
+		end = "%04d-%02d-%02d_%02d"%(end.year,end.month,end.day,end.hour)
+		print(start)
 	t = datetime.strptime(start,"%Y-%m-%d_%H");
-	t = t.replace(hour=math.floor(t.hour/6)*6,minute=0,second=0)
+	if int(np.round(t.hour/6)*6) > 23:
+		t += timedelta(hours=24)
+	t = t.replace(hour=int(np.round(t.hour/6)*6)%24,minute=0,second=0)
 	end_t = datetime.strptime(end,"%Y-%m-%d_%H") + timedelta(1/4);
 	start = "%04d-%02d-%02d_%02d"%(t.year,t.month,t.day,t.hour)
 	end = "%04d-%02d-%02d_%02d"%(end_t.year,end_t.month,end_t.day,end_t.hour)
-
 	if db == 'gfs_anl_1deg':
 		remote="https://nomads.ncdc.noaa.gov/data/gfsanl/"
 		local="../ignored/raw/gfs_anl_1deg/"
@@ -40,13 +69,15 @@ def fetchWindData(start,end,db='gfs_anl_0deg5',pred_time=None):
 		local="../ignored/raw/gfs_anl_0deg5/"
 		fstartname = "gfsanl_4_"
 	if db == "euro_fc":
-		raise ValueWarning("lol good luck son, this data is not easy to get")
+		raise Warning("lol good luck son, this data is not easy to get")
 		return 
 	if db == "gfs_pred_0deg5":
-		# If no pred time is passed, we use the current time. If the start time, t, is less than the 
+		# If no pred time is passed, we use the most recent data. If the start time, t, is less than the 
 		# the predition time, we use that instead
 		if pred_time == None:
-			pred_time = datetime.utcnow()-timedelta(1/24)
+			pred_time = getRecentGFS()
+		else:
+			pred_time = datetime.strptime(pred_time,"%Y-%m-%d_%H")
 		pred_time = pred_time.replace(microsecond=0,second=0,minute=0,hour=pred_time.hour-(pred_time.hour % 6))
 		if t<pred_time:
 			pred_time = t
@@ -54,10 +85,18 @@ def fetchWindData(start,end,db='gfs_anl_0deg5',pred_time=None):
 		db = "gfs_pred_0deg5/%04d%02d%02d_%02d"%(pred_time.year,pred_time.month,pred_time.day,pred_time.hour)
 		local = "../ignored/raw/"+db+"/"
 		fstartname = "gfs.t%02dz.pgrb2.0p50.f"%pred_time.hour
+	return 	start,end,t,end_t,db,local,remote,fstartname,pred_time
+
+
+
+def fetchWindData(start,end,db='gfs_anl_0deg5',pred_time=None):
+	""" Fetch data from gfs database for times inbetween start and end
+	"""
+	start,end,t,end_t,db,local,remote,fstartname,pred_time = setupAtmoData(start,end,db=db,pred_time=pred_time)
 	if not os.path.exists(local):
 		os.makedirs(local)
-	
 	print("Downloading files from " + remote)
+	print("Saving to "+local)
 	filelist = []
 	times = []
 
@@ -81,19 +120,19 @@ def fetchWindData(start,end,db='gfs_anl_0deg5',pred_time=None):
 				break
 			fpath = fstartname + "%03d"%dhours
 			getFile(remote+fpath,local+fpath)
+			times.append(t)
+			filelist.append(fpath)
 			if dhours < 240:
 				t += timedelta(1/8)
 			else:
 				t += timedelta(1/2)
-			filelist.append(fpath)
-			times.append(t)
 
 
 	return filelist,times,start,end,db
 
 
-def procWindData(start,end,db='gfs_anl_0deg5',overwrite=False):
-	ret = fetchWindData(start,end,db)
+def procWindData(start,end,db='gfs_anl_0deg5',overwrite=False,pred_time=None,altitude_range = [0,20000]):
+	ret = fetchWindData(start,end,db,pred_time=pred_time)
 	db = ret[4]
 	dstpath = "../ignored/proc/" + db + "/"
 	srcpath = "../ignored/raw/" + db + "/"
@@ -101,12 +140,11 @@ def procWindData(start,end,db='gfs_anl_0deg5',overwrite=False):
 	files = ret[0]
 	if not os.path.exists(dstpath):
 		os.makedirs(dstpath)
-
 	grb = gb.open(srcpath+files[0])
 	lats,lons = grb.select(shortName="u",typeOfLevel='isobaricInhPa',level=250)[0].latlons() #arbitrary data, doing this for latlons
 	lats = lats[:,0]
 	lons = lons[0,:]
-	levels = getGRIBlevels(grb)
+	levels = getGRIBlevels(grb,altitude_range=altitude_range)
 	headertext = genWindHeader(db.replace("/","_"),lons,lats,levels)
 	headerfile = dstpath + db.replace("/","_") + ".h"
 	procfiles=[]
@@ -115,30 +153,37 @@ def procWindData(start,end,db='gfs_anl_0deg5',overwrite=False):
 	keys = {"lons":lons, "lats":lats, "levels": levels, "alts": p2a(levels)}
 	pickle.dump(keys,open(dstpath + "keys.pickle",'wb'))
 	for k,file in enumerate(files):
+		if db.split("/")[0]=="gfs_pred_0deg5":
+			# check file timestamps
+			timestr = db.split("/")[1]
+			ftime = datetime.strptime(timestr,"%Y%m%d_%H")
+			assert(ftime+timedelta(hours=int(file[-3:]))==times[k])
 		outpath = dstpath + '%d.bin' % (times[k]-datetime(1970,1,1)).total_seconds()
 		#print(times[k]) 
 		#exit()
 		procfiles.append(outpath)
 		if os.path.exists(outpath) and not overwrite:
-			print("Local file "+outpath+" found, skipping (%d / %d)" % (k+1, len(files)))
-		else:	
-			print("Saving to",outpath+"...",end='',flush=True)
-			data = np.zeros((lats.size,lons.size,levels.size,2),dtype=np.int16)
-			path = srcpath+file
-			grb = gb.open(path)
-			i = 0.
-			for row in grb:
-				last_level = 0
-				if row.shortName == 'u' or row.shortName == 'v':
-					if row['typeOfLevel'] == 'isobaricInhPa' and row.level >= levels[0] and row.level <= levels[-1]:
-						j = 0 if row.name.startswith('U') else 1
-						data[:,:,int(i),j] = row.values*100
-						i += 0.5
-						assert row.level > last_level , "Levels in grib not increasing"
-						assert (j) or (i % 1), "U, V order mismatch in grib"
-						last_level = row.level
-			data.flatten().tofile(outpath)
-			print("   done (%d / %d)" % (k+1, len(files)))
+			size = os.path.getsize(outpath)
+			if np.zeros((lats.size,lons.size,levels.size,2),dtype=np.int16).size*2==size:
+				print("Local file "+outpath+" found and is %.2fMB"%(size/10**6)+", skipping (%d / %d)" % (k+1, len(files)))
+				continue
+		print("Saving to",outpath+"...",end='',flush=True)
+		data = np.zeros((lats.size,lons.size,levels.size,2),dtype=np.int16)
+		path = srcpath+file
+		grb = gb.open(path)
+		i = 0.
+		for row in grb:
+			last_level = 0
+			if row.shortName == 'u' or row.shortName == 'v':
+				if row['typeOfLevel'] == 'isobaricInhPa' and row.level >= levels[0] and row.level <= levels[-1]:
+					j = 0 if row.name.startswith('U') else 1
+					data[:,:,int(i),j] = row.values*100
+					i += 0.5
+					assert row.level > last_level , "Levels in grib not increasing"
+					assert (j) or (i % 1), "U, V order mismatch in grib"
+					last_level = row.level
+		data.flatten().tofile(outpath)
+		print("   done (%d / %d)" % (k+1, len(files)))
 	return procfiles,times
 
 
@@ -260,4 +305,19 @@ procWindData(df.index[0],df.index[-1] + timedelta(2),db="gfs_anl_0deg5",overwrit
 
 #procWindData("2018-09-05_00","2018-09-21_00",db="gfs_anl_0deg5",overwrite=False)
 #fetchWindData("2018-10-20_00","2018-10-22_00",db="gfs_pred_0deg5")
-procWindData("2018-10-28_12","2018-11-02_00",db="gfs_pred_0deg5",overwrite=True)
+#procWindData("2018-10-28_12","2018-11-02_00",db="gfs_pred_0deg5",overwrite=True)
+#procWindData("2018-10-20_18","2018-10-23_18",db="gfs_pred_0deg5",overwrite=True,altitude_range = [0,30000])
+#procWindData("2018-10-28_12","2020-11-01_00",db="gfs_pred_0deg5",overwrite=False)
+
+
+if __name__== "__main__":
+	parser = argparse.ArgumentParser(description="Tools for handling atmosphere data")
+	parser.add_argument("activity",type=str,help="activity to perform")
+	parser.add_argument("--start",type=str,help="start time for wind files")
+	parser.add_argument("--end",type=str,help="start time for wind files")
+	parser.add_argument("--db",type=str,help="wind database name",default="gfs_anl_0deg5")
+	parser.add_argument("--pred_time",type=str,help="time predictions were made on",default=None)
+	parser.add_argument("-o","--overwrite",help="if processed files should be over written",action='store_true')
+	args = parser.parse_args()
+	if args.activity=="proc":
+		procWindData(args.start,args.end,db=args.db,pred_time=args.pred_time,overwrite=args.overwrite)

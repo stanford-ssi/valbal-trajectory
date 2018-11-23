@@ -99,7 +99,6 @@ def fetchWindData(start,end,db='gfs_anl_0deg5',pred_time=None):
 	print("Saving to "+local)
 	filelist = []
 	times = []
-
 	if 'gfs_anl_' in db:
 		while t < end_t:
 			datestr = "%04d%02d%02d" % (t.year, t.month, t.day) 
@@ -108,7 +107,7 @@ def fetchWindData(start,end,db='gfs_anl_0deg5',pred_time=None):
 			for i in [0,3]:
 				fulfpath = fpath + "_00%d"%i + ".grb2"
 				path = dpath + fulfpath;
-				getFile(remote+fulfpath,local+fulfpath)
+				getFile(remote+path,local+fulfpath)
 				filelist.append(fulfpath)
 				times.append(t + i*timedelta(1/24))
 			t +=  timedelta(1/4)
@@ -131,15 +130,18 @@ def fetchWindData(start,end,db='gfs_anl_0deg5',pred_time=None):
 	return filelist,times,start,end,db
 
 
-def procWindData(start,end,db='gfs_anl_0deg5',overwrite=False,pred_time=None,altitude_range = [0,20000]):
+def procWindData(start,end,db='gfs_anl_0deg5',overwrite=False,pred_time=None,altitude_range = [0,20000],aux_data=False):
 	ret = fetchWindData(start,end,db,pred_time=pred_time)
 	db = ret[4]
 	dstpath = "../ignored/proc/" + db + "/"
+	auxpath = "../ignored/proc/" + db + "_aux/"
 	srcpath = "../ignored/raw/" + db + "/"
 	times = ret[1]
 	files = ret[0]
 	if not os.path.exists(dstpath):
 		os.makedirs(dstpath)
+	if aux_data and not os.path.exists(auxpath):
+		os.makedirs(auxpath)
 	grb = gb.open(srcpath+files[0])
 	lats,lons = grb.select(shortName="u",typeOfLevel='isobaricInhPa',level=250)[0].latlons() #arbitrary data, doing this for latlons
 	lats = lats[:,0]
@@ -159,6 +161,7 @@ def procWindData(start,end,db='gfs_anl_0deg5',overwrite=False,pred_time=None,alt
 			ftime = datetime.strptime(timestr,"%Y%m%d_%H")
 			assert(ftime+timedelta(hours=int(file[-3:]))==times[k])
 		outpath = dstpath + '%d.bin' % (times[k]-datetime(1970,1,1)).total_seconds()
+		auxoutpath = auxpath + '%d.bin' % (times[k]-datetime(1970,1,1)).total_seconds()
 		#print(times[k]) 
 		#exit()
 		procfiles.append(outpath)
@@ -169,6 +172,8 @@ def procWindData(start,end,db='gfs_anl_0deg5',overwrite=False,pred_time=None,alt
 				continue
 		print("Saving to",outpath+"...",end='',flush=True)
 		data = np.zeros((lats.size,lons.size,levels.size,2),dtype=np.int16)
+		if aux_data:
+			aux = np.zeros((lats.size,lons.size,levels.size,1),dtype=np.int16)
 		path = srcpath+file
 		grb = gb.open(path)
 		i = 0.
@@ -182,9 +187,20 @@ def procWindData(start,end,db='gfs_anl_0deg5',overwrite=False,pred_time=None,alt
 					assert row.level > last_level , "Levels in grib not increasing"
 					assert (j) or (i % 1), "U, V order mismatch in grib"
 					last_level = row.level
+			if aux_data:
+				if row.shortName == "t" and row.level >= levels[0] and row.level <= levels[-1]:
+					data[:,:,levels.searchsorted(row.level),0] = row.values
 		data.flatten().tofile(outpath)
+		aux.flatten().tofile(auxoutpath)
 		print("   done (%d / %d)" % (k+1, len(files)))
 	return procfiles,times
+
+def getDataValue(data,time,db):
+	srcpath = "../ignored/proc/" + db + "/"	
+	keys = pickle.load(open(srcpath+'keys.pickle','rb'))
+	ftimes = np.array(list(map(lambda x : int(x.split('.bin')[0]) if len(x.split('.bin'))==2 else 0 ,os.listdir(srcpath))))
+	nearest = ftimes[np.argmin(np.abs(ftimes-time))]
+	print(time,nearest)
 
 
 

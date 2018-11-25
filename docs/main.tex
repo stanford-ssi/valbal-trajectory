@@ -1,0 +1,57 @@
+\documentclass[11pt]{scrartcl} % justified tufte-handout
+%Gummi|065|=)
+\title{\bfseries Differentiable Trajectory Optimization\\ Under Uncertainty}
+
+%\usepackage{classico}
+\usepackage{microtype}
+\author{}
+\date{}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\begin{document}
+
+\maketitle
+
+\def\States{\mathcal{S}}
+\def\Altitudes{\mathcal{H}}
+\def\Velocities{\mathcal{V}}
+\def\Lifts{\mathcal{L}}
+
+%\tableofcontents
+
+\section{Motivation}
+
+\section{Formulation}
+The physical system is represented by discrete states $s_k\in\States$ defined at times $t_k=t_s + k \Delta t$, for $k=0,1,\dots$ In the case of ValBal, we can let $\States=\Altitudes\times\Velocities\times\Lambda\times\Phi$, or $\States=\Altitudes\times\Lifts\times\Lambda\times\Phi$, if we're considering altitudes, velocities, lifts, latitudes, and longitudes.
+
+We will need functions that define the transition between states, and the value function, while guaranteeing differentiability on both. 
+
+\subsection{Differentiable altitude trajectory}
+The transition function needs to generate a state $s'$ from a state $s$, and take into account the optimization variables $\theta$. These parameters can, for instance, be a set of altitude waypoints defined at various points of the flight, or altitude tolerances at each of those points. So a simple transition function could be $f(s, t; \theta) \to s'$. If our state consisted only of altitudes, and we were to simply linearly interpolate between altitude waypoints $\theta_0, \theta_1, \dots$ (defined at $t^w_0, t^w_1, \dots$) we would find the parameters relevant to the current timestep $t_k$ such that $t^w_i < t_k < t^w_{i+1}$. Then we simply give:
+\[f(h_k, t_k; \theta) = \theta_i + (t_k - t_i^w) \frac{\theta_{i+1}-\theta_i}{t_{i+1}^w - t^w_i}\]
+which has a very simple derivative with respect to the optimization variables $\theta$.
+
+However, due to the uncertainties in the prediction of the transitions, we would like to ideally output a \emph{distribution} of states $s'$ we might end up on---each rollout of a trajectory would follow then a unique path. In order to preserve differentiability, we introduce a parameter $\lambda$ that can be interpreted as a percentile of the distribution that we select. At the beginning of a rollout, a sequence $\lambda_0, \lambda_1, \dots$ is randomly generated such that the variation results in a noise level consistent with flight data. In the limit where all $\lambda$ are 0.5, the median trajectory is selected; in a more realistic simulation, the percentile would slowly fluctuate between smaller and larger numbers such that a particular rollout would be flying low or high respectively with respect to a noise-free simulation. While we note that this only has an analytical expression for very simple distributions, a numerical derivative can easily be taken by keeping $\lambda$ fixed and varying $\theta$.
+
+\subsection{Differentiable horizontal trajectory} \label{sec:horizontal}
+The horizontal integration needs to preserve differentiability to be able to compute a full gradient with respect to every optimization parameter. We use atmospheric data provided by \textsc{noaa} which, in particular, includes the velocity field $w(h, \lambda, \phi, t)\to(u, v)$, where $h$ is the altitude defined on a set of forecast altitudes;\footnote{The data from \textsc{noaa} is defined at barometric pressures, which can be mapped monotonically to altitude.} $\lambda$ and $\phi$ are the coordinates defined on a (not necessarily regular) grid of latitudes and longitudes;\footnote{Some models are more regular than others; for instance, NAM is defined on a rather annoying Lambert conformal grid.} $t$ is a forecast time (usually separated by 1 to 3 hours) and $(u, v)$ are the two horizontal components of wind.
+
+For completely regular grids, bilinear interpolation will suffice. For irregular grids, a scheme such interpolation weighted by inverse distance $(\sum^K \alpha_i w_i)/(\sum^K \alpha_i)$ for the closest $K$ points would do the job. So given a function $g(s_k, t_k)$ (which has no explicit dependence with respect to the optimization variables) we find $(u_k, v_k) = g(s_k, t_k)$. We subsequently perform an Euler step to get the coordinates of the next state:
+\[x_{k+1} = x_k + u_k\Delta t\quad y_{k+1} = y_k + v_k\Delta t\]
+and the conversion to $(\lambda, \phi)$ follows from a simple computation of spherical coordinates.
+
+\subsection{Differentiable value function}
+In this case, our value function can be extracted directly from the (differentiable) computations in Section~\ref{sec:horizontal}. For a rollout of length $K$, the total value is the horizontal distance:
+\begin{equation}
+V = \sum_{k=0}^{K-1} u_k \Delta t\label{eqn:value}
+\end{equation}
+where $\Delta t$ is a constant that does not affect the result. Other valid objective functions could include the distance to a particular point:
+\[V = \sum_{k=0}^{K-1} \lVert r_k - r_\text{target}\rVert\]
+
+\section{Gradient optimization}
+We consider the objective function given in Eq. \ref{eqn:value}. We seek the gradient with respect to the optimization variables $\theta$. Since the sum is trivially separable, we consider the gradient of one of the horizontal velocities with respect to the one of variables, $\partial u_k/\partial \theta_i$. Then:
+\[\frac{\partial u_k}{\partial \theta_i} = \frac{\partial u_k}{\partial s_{k,j}}\frac{\partial s_{k,j}}{\partial \theta_i}\]
+Repeated indices implicitly imply summation. We note that, in the case from above, the only relevant component of the state is altitude, and the first term is simply:
+\[\frac{\partial u_k}{\partial h_k} = \frac{\partial g(h_k, \lambda_k, \phi_k, t)}{\partial h_k}\]
+
+\end{document}

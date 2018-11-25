@@ -1,0 +1,66 @@
+\documentclass[11pt]{article} 
+
+\usepackage[margin=1.5in]{geometry}
+\usepackage{multicol}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{booktabs}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{sectsty}
+\allsectionsfont{\normalfont\sffamily\bfseries}
+
+\usepackage{siunitx}
+\usepackage[font=sf]{caption}
+\usepackage[font=sf]{floatrow}
+\usepackage{titlesec}
+\usepackage{lipsum}
+\usepackage{etoolbox}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{wrapfig}
+\usepackage{listings}
+%\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{tikz}
+\usetikzlibrary{calc}
+\usepackage{pgfplots}
+\usepackage{defs}
+
+\lstset{
+basicstyle=\small\ttfamily,
+columns=flexible,
+breaklines=true
+}
+
+\pagestyle{fancy}
+\rhead{\sffamily Valbal Trajectory Note and Stuff}
+\lhead{\sffamily SSI Balloons}
+%\rhead{\sffamily John Dean}
+\rfoot{\footnotesize \sffamily \today}
+%\setlength\parindent{0in}
+\usepackage[utf8]{inputenc}
+
+\def\sc{\begin{quote}\begin{lstlisting}}
+\def\ec{\end{lstlisting}\end{quote}}
+\def\tt#1{{\ttfamily #1}}
+\linespread{1}
+\begin{document}
+
+\subsubsection*{Particle MPC with chance constraints \cite{blackmore2010probabilistic}}
+Problem setup is is precisely along the lines of what we originally intended, albeit on a convex problem. However, it goes not allow for the control input to be a function of state as well as time. AFAIK, there is no mention of this limitation or possible solutions for it.
+
+\subsubsection*{Particle Methods for Change Detection, System
+Identification, and Control \cite{andrieu2004particle}}
+Particle methods for maximum likelyhood estimation. Some involve computing gradients from said samples.
+
+\subsection*{Altitude Control System}
+
+The high altitude balloon platform uses a valve system to vent lifting gas and a ballast system to drop small bb pellets to change the net lift of the balloon.
+
+\bibliographystyle{unsrt}
+\bibliography{traj}
+
+\end{document}
+

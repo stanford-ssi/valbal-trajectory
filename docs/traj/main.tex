@@ -2,10 +2,11 @@
 %Gummi|065|=)
 \title{\bfseries Differentiable Trajectory Optimization\\ Under Uncertainty}
 
+
 %\usepackage{classico}
 \usepackage{microtype}
-\author{}
-\date{}
+\author{Joan Creus-Costa\and John Dean}
+%\date{}
 \usepackage{amsmath}
 \usepackage{amssymb}
 \begin{document}
@@ -17,18 +18,19 @@
 \def\Velocities{\mathcal{V}}
 \def\Lifts{\mathcal{L}}
 \newcommand{\mx}[2]{\left[ \begin{array}{#1} #2 \end{array} \right]}
-%\tableofcontents
 
-\section{Nomenclature}
+\tableofcontents
+
+\section*{Nomenclature}
 \begin{tabular}{rl}
 $h$ & altitude  \\
 $v$ & vertical velocity\\
-$l$ & net lift \\
+$\ell$ & net lift \\
 $w_{\dot \ell}$ & disturbance on lift \\
 $w_{v}$ & disturbance on the vertical velocity of the balloon (wind) \\
 \end{tabular}
 
-\section{Altitude Control}
+\section{Altitude control}
 \subsection{System dynamics}
 
 High Altitude Balloons utilize a lifting gas that is lighter than air to produce a buoyant force to counteract the force of gravity on the balloon membrane and the payload. The buoyant force on the balloon minus the force of gravity on the balloon is refereed to as net lift, $\ell$. ValBal uses a valve system to vent lifting gas and a ballast system to drop small mass pellets, to change the net lift of the balloon. This net lift produces an acceleration on the system, causing the balloon to accelerate upwards or downwards until the force of drag on the system equals the net lift, at terminal velocity. Because the balloon accelerates to terminal velocity quickly after a change in net lift, the balloon's vertical velocity, $v$, can be approximately modeled as always traveling at terminal velocity.
@@ -50,40 +52,51 @@ Using the following substitution we can write the a state-space representation o
 
 I'll do this shit later
 
-\section{Trajectory Planning}
+\section{Trajectory planning}
 \subsection{Introduction}
 
 \subsection{Formulation}
-The physical system is represented by discrete states $s_k\in\States$ defined at times $t_k=t_s + k \Delta t$, for $k=0,1,\dots$ In the case of ValBal, we can let $\States=\Altitudes\times\Velocities\times\Lambda\times\Phi$, or $\States=\Altitudes\times\Lifts\times\Lambda\times\Phi$, if we're considering altitudes, velocities, lifts, latitudes, and longitudes.
+The physical system is represented by continuous states $s\in\States$ defined at discrete times $t_k=t_s + k \Delta t$, for $k=0,1,\dots$ In the case of ValBal, we can let $\States=\Altitudes\times\Lambda\times\Phi$, if we're considering altitudes, latitudes, and longitudes; we could extend this to include the ballast levels $\mathcal{B}$, or lifts $\Lifts$.
 
-We will need functions that define the transition between states, and the value function, while guaranteeing differentiability on both. 
+While traditional methods of finding a policy to optimize a physical system rely on discretizing the state space, we note that this is highly intractable to do in this situation, for various reasons:
+\begin{itemize}
+\item The state space is extremely large, even if we restrict ourselves to the bare minimum and discretize coarsely. Methods such as policy iteration would likely take unbearably long.
+\item The underlying dynamics are continuous, and in fact very easy to integrate. If we discretize the state space, we would lose resolution in the integration. Furthermore, the noise between discretized time steps is correlated; therefore, unless we take very large time steps, or increase the size of the state space, the Markov assumption will not hold, and the policy will not properly handle uncertainty.
+\end{itemize}
+While clearly keeping the state space continuous (only discretizing time) makes integration a lot easier, it makes finding a policy harder: the optimal policy is highly nonlinear due to the characteristics of atmospheric wind patterns, and our desired map $(t,h,\phi,\lambda)\to (h_s, \Delta_s)$ (from time, altitude, and coordinates, to a setpoint altitude and a tolerance around it) is high dimensional. A key realization is that, while the map is highly nonlinear, it is generally smooth, and doesn't have many local minima: wind patterns are generally spatially large and temporally slow moving.
 
-\subsection{Differentiable altitude trajectory}
-The transition function needs to generate a state $s'$ from a state $s$, and take into account the optimization variables $\theta$. These parameters can, for instance, be a set of altitude waypoints defined at various points of the flight, or altitude tolerances at each of those points. So a simple transition function could be $f(s, t; \theta) \to s'$. If our state consisted only of altitudes, and we were to simply linearly interpolate between altitude waypoints $\theta_0, \theta_1, \dots$ (defined at $t^w_0, t^w_1, \dots$) we would find the parameters relevant to the current timestep $t_k$ such that $t^w_i < t_k < t^w_{i+1}$. Then we simply give:
-\[f(h_k, t_k; \theta) = \theta_i + (t_k - t_i^w) \frac{\theta_{i+1}-\theta_i}{t_{i+1}^w - t^w_i}\]
-which has a very simple derivative with respect to the optimization variables $\theta$.
+This results in another advantage that comes from keeping the state space continuous. By picking some fixed set of parameters $\theta$ (that might be the setpoint altitudes and tolerances at various points of the flight) and integrating the trajectory as a function of those parameters, we can take the gradient of the cost function (that is a function of the trajectory) with respect to the parameters, and optimize our objective. We expand upon a formulation in the following section.
 
-However, due to the uncertainties in the prediction of the transitions, we would like to ideally output a \emph{distribution} of states $s'$ we might end up on---each rollout of a trajectory would follow then a unique path. In order to preserve differentiability, we introduce a parameter $\lambda$ that can be interpreted as a percentile of the distribution that we select. At the beginning of a rollout, a sequence $\lambda_0, \lambda_1, \dots$ is randomly generated such that the variation results in a noise level consistent with flight data. In the limit where all $\lambda$ are 0.5, the median trajectory is selected; in a more realistic simulation, the percentile would slowly fluctuate between smaller and larger numbers such that a particular rollout would be flying low or high respectively with respect to a noise-free simulation. While we note that this only has an analytical expression for very simple distributions, a numerical derivative can easily be taken by keeping $\lambda$ fixed and varying $\theta$.
+\subsubsection{Differentiable altitude trajectory}
+Ultimately, our goal is to come up with some continuous and differentiable function $V(\theta)$ that gives the value of the objective function. However, in many instances, the value of the objective function will be related to the integration of the trajectory---e.g. distance travelled, or final longitude. This means that we need to come up with a formulation of the trajectory that depends on the optimization parameters and is differentiable with respect to them.
 
-\subsection{Differentiable horizontal trajectory} \label{sec:horizontal}
-The horizontal integration needs to preserve differentiability to be able to compute a full gradient with respect to every optimization parameter. We use atmospheric data provided by \textsc{noaa} which, in particular, includes the velocity field $w(h, \lambda, \phi, t)\to(u, v)$, where $h$ is the altitude defined on a set of forecast altitudes;\footnote{The data from \textsc{noaa} is defined at barometric pressures, which can be mapped monotonically to altitude.} $\lambda$ and $\phi$ are the coordinates defined on a (not necessarily regular) grid of latitudes and longitudes;\footnote{Some models are more regular than others; for instance, NAM is defined on a rather annoying Lambert conformal grid.} $t$ is a forecast time (usually separated by 1 to 3 hours) and $(u, v)$ are the two horizontal components of wind.
+The parameters that form $\theta$ can, for instance, be a set of altitude waypoints defined at various points of the flight, or altitude tolerances at each of those points. If our state consisted only of altitudes, and we were to simply linearly interpolate between altitude waypoints $\theta_0, \theta_1, \dots$ (defined at $t^w_0, t^w_1, \dots$) we would find the parameters relevant to the current timestep $t_k$ such that $t^w_i < t_k < t^w_{i+1}$. Then we simply give:
+\[f(t_k; \theta) = \theta_i + (t_k - t_i^w) \frac{\theta_{i+1}-\theta_i}{t_{i+1}^w - t^w_i}\]
+which has a very simple derivative with respect to the optimization variables $\theta$. However, this assumes that we follow \emph{exactly} the trajectory defined by the optimization parameters. In reality, the value function $V(\theta)$ will be taken over an expectation ensemble of possible trajectories under noise.
 
-For completely regular grids, bilinear interpolation will suffice. For irregular grids, a scheme such interpolation weighted by inverse distance $(\sum^K \alpha_i w_i)/(\sum^K \alpha_i)$ for the closest $K$ points would do the job. So given a function $g(s_k, t_k)$ (which has no explicit dependence with respect to the optimization variables) we find $(u_k, v_k) = g(s_k, t_k)$. We subsequently perform an Euler step to get the coordinates of the next state:
+In other words, our trajectory integration needs to output a distribution of possible states it might end up, while remaining differentiable. We introduce a parameter $\lambda$ that can be interpreted as a percentile of the noise distribution that a given trajectory is under. At the beginning of a rollout, a sequence $\lambda_0, \lambda_1, \dots$ is randomly generated such that the variation results in a noise level consistent with flight data. In the limit where all $\lambda$ are 0.5, the median trajectory is selected; in a more realistic simulation, the percentile would slowly fluctuate between smaller and larger numbers such that a particular rollout would be flying low or high respectively with respect to a noise-free simulation. For instance, in the scenario given above, we could introduce $\lambda(t)$ as a random walk bounded between $-500~\textrm{m}$ and $500~\textrm{m}$, defined between $t_0$ and $t_f$. Then our position is given by:
+\[f(t_k; \theta) = \theta_i + (t_k - t_i^w) \frac{\theta_{i+1}-\theta_i}{t_{i+1}^w - t^w_i} + \lambda(t_k)\]
+This allows us to consider a stochastic evaluation of our value function that remains differentiable.
+\[V(\theta)=\sum_{\textrm{random}~\lambda} f(t_f, \lambda; \theta)\]
+
+\subsubsection{Differentiable horizontal trajectory} \label{sec:horizontal}
+The section above only handled altitude; however, the objective function for ValBal relies on maximizing spatial parameters. The horizontal integration needs to preserve differentiability to be able to compute a full gradient with respect to every optimization parameter. We use atmospheric data provided by \textsc{noaa} which, in particular, includes the velocity field $w(h, \lambda, \phi, t)\to(u, v)$, where $h$ is the altitude defined on a set of forecast altitudes;\footnote{The data from \textsc{noaa} is defined at barometric pressures, which can be mapped monotonically to altitude.} $\lambda$ and $\phi$ are the coordinates defined on a (not necessarily regular) grid of latitudes and longitudes;\footnote{Some models are more regular than others; for instance, NAM is defined on a rather annoying Lambert conformal grid.} $t$ is a forecast time (usually separated by 1 to 3 hours) and $(u, v)$ are the two horizontal components of wind.
+
+For completely regular grids, bilinear interpolation will suffice. For irregular grids, a scheme such interpolation weighted by inverse distance $(\sum^K \alpha_i w_i)/(\sum^K \alpha_i)$ for the closest $K$ points would do the job. The weights of each nearby point are a function of altitude, latitude, and longitude; therefore, when we take the weighted sum, we preserve a differentiability path through the (differentiable) altitude. In other words, the final velocities $(u_k, v_k)$ are themselves a function of $\theta$, which we use to find the new coordinates:
 \[x_{k+1} = x_k + u_k\Delta t\quad y_{k+1} = y_k + v_k\Delta t\]
-and the conversion to $(\lambda, \phi)$ follows from a simple computation of spherical coordinates.
+and the conversion to $(\lambda_k, \phi_k)$ follows from a simple computation of spherical coordinates. 
 
-\subsection{Differentiable value function}
-In this case, our value function can be extracted directly from the (differentiable) computations in Section~\ref{sec:horizontal}. For a rollout of length $K$, the total value is the horizontal distance:
+\subsubsection{Differentiable value function}
+We can consider a variety of value functions. If we're trying to maximize the horizontal function, we can use the differentiable longitude computed in Section~\ref{sec:horizontal}. For a rollout of length $K$, the total value is the horizontal distance:
 \begin{equation}
 V = \sum_{k=0}^{K-1} u_k \Delta t\label{eqn:value}
 \end{equation}
 where $\Delta t$ is a constant that does not affect the result. Other valid objective functions could include the distance to a particular point:
 \[V = \sum_{k=0}^{K-1} \lVert r_k - r_\text{target}\rVert\]
 
-\section{Gradient optimization}
-We consider the objective function given in Eq. \ref{eqn:value}. We seek the gradient with respect to the optimization variables $\theta$. Since the sum is trivially separable, we consider the gradient of one of the horizontal velocities with respect to the one of variables, $\partial u_k/\partial \theta_i$. Then:
-\[\frac{\partial u_k}{\partial \theta_i} = \frac{\partial u_k}{\partial s_{k,j}}\frac{\partial s_{k,j}}{\partial \theta_i}\]
-Repeated indices implicitly imply summation. We note that, in the case from above, the only relevant component of the state is altitude, and the first term is simply:
-\[\frac{\partial u_k}{\partial h_k} = \frac{\partial g(h_k, \lambda_k, \phi_k, t)}{\partial h_k}\]
+\section{Architecture}
+In this section we describe the architecture behind the simulations and trajectory optimization. It involves a complex pipeline, that involves fetching atmospheric data, a modular and fast simulation engine, and provisions for simulating with real flight code. It is mostly written more than two thousand lines of C++ and Python.
+
+The core of the simulator is written in C++. This alllows for 
 
 \end{document}

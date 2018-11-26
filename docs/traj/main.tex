@@ -16,8 +16,37 @@
 \def\Altitudes{\mathcal{H}}
 \def\Velocities{\mathcal{V}}
 \def\Lifts{\mathcal{L}}
-
+\newcommand{\mx}[2]{\left[ \begin{array}{#1} #2 \end{array} \right]}
 %\tableofcontents
+
+\section{Nomenclature}
+\begin{tabular}{rl}
+$h$ & altitude  \\
+$v$ & vertical velocity\\
+$l$ & net lift \\
+$w_{\dot \ell}$ & disturbance on lift \\
+$w_{v}$ & disturbance on the vertical velocity of the balloon (wind) \\
+\end{tabular}
+
+\section{System Dynamics and Altitude Control}
+
+High Altitude Balloons utilize a lifting gas that is lighter than air to produce a buoyant force to counteract the force of gravity on the balloon membrane and the payload. The buoyant force on the balloon minus the force of gravity on the balloon is refereed to as net lift, $\ell$. ValBal uses a valve system to vent lifting gas and a ballast system to drop small mass pellets, to change the net lift of the balloon. This net lift produces an acceleration on the system, causing the balloon to accelerate upwards or downwards until the force of drag on the system equals the net lift, at terminal velocity. Because the balloon accelerates to terminal velocity quickly after a change in net lift, the balloon's vertical velocity, $v$, can be approximately modeled as always traveling at terminal velocity.
+
+While the force of drag on the balloon is nonlinear with respect to velocity, for the purposed of modeling and control, it can be linearized within a range of reasonable velocities. After doing so, the system dynamics can be simplified to:
+
+\[ v(t) = k_d \ell \qquad \dot h(t) = v(t)\]
+
+With $k_d$ being the linearized coefficient relating net lift to velocity. The valve and ballast system of can be seen as changes to the derivative of the net lift of the balloon, $\dot \ell$. For example, when the valve is open, $\dot \ell$ becomes negative as the balloon looses lift. In addition, the atmosphere is full of disturbances, so in the system dynamics we consider 2 other terms: $w_{\dot \ell}$ as the atmospheric disturbance on the lift rate, and $w_v$, as the atmospheric disturbance of velocity. For example, at night the balloon cools and looses lift, which is modeled as a negative $w_{\dot \ell}$, and vertical winds are modeled as a nonzero $w_v$. With these additions, the system dynamics become
+
+\[ \dot v(t) = k_d(\dot \ell(t) + w_{\dot \ell}(t)) \qquad \dot h(t) = v(t) + w_v(t) \]
+
+Using the following substitution we can write the a state-space representation of the system. 
+
+\[x = \mx{c}{h \\ v} \qquad u = \dot \ell\]
+\[\dot x = \mx{cc}{0 & 1 \\ 0 & 0}x + \mx{cc}{0 \\ k_d} u + \mx{c}{w_v \\ k_d w_{\dot \ell}}\]
+
+
+
 
 \section{Motivation}
 

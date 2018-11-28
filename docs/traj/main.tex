@@ -10,6 +10,8 @@
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{graphicx}
+\usepackage{wrapfig}
+\usepackage{xcolor}
 \begin{document}
 
 \maketitle
@@ -51,7 +53,14 @@ Using the following substitution we can write the a state-space representation o
 
 \subsection{Control system}
 
-I'll do this shit later
+
+\subsubitem{Simulations}
+
+
+\begin{figure}[h]
+\includegraphics[width=1\linewidth]{lsim.png}
+\label{lsim}
+\end{figure}
 
 
 \newpage
@@ -97,6 +106,16 @@ For completely regular grids, bilinear interpolation will suffice. For irregular
 \[x_{k+1} = x_k + u_k\Delta t\quad y_{k+1} = y_k + v_k\Delta t\]
 and the conversion to $(\lambda_k, \phi_k)$ follows from a simple computation of spherical coordinates. 
 
+The viability of this method, as well as the quality of \textsc{noaa} data can demonstrated by comparing the integration method and wind model to previous balloon flight data.
+
+{\color{red} Words to go here}
+
+\begin{figure}[h]
+\includegraphics[width=0.5\linewidth]{winds.png}
+\includegraphics[width=0.5\linewidth]{spain.png}
+\label{winds}
+\end{figure}
+
 \subsubsection{Differentiable value function}
 We can consider a variety of value functions. If we're trying to maximize the horizontal function, we can use the differentiable longitude computed in Section~\ref{sec:horizontal}. For a rollout of length $K$, the total value is the horizontal distance:
 \begin{equation}
@@ -105,7 +124,21 @@ V = \sum_{k=0}^{K-1} u_k \Delta t\label{eqn:value}
 where $\Delta t$ is a constant that does not affect the result. Other valid objective functions could include the distance to a particular point:
 \[V = \sum_{k=0}^{K-1} \lVert r_k - r_\text{target}\rVert\]
 
+\newpage
 \subsection{Preliminary Results}
+\subsubsection*{Certainty Equivalent}
+Before running the full stochastic gradient decent on the monte-carlo problem, we developed and tested the algorithm on certainty-equivalent simulation with no noise. In this experiment, we optimized a single starting trajectory, assuming that we had complete control over 20 altitude way points, with the balloon linearly interpolating between them. The results of such a test are shown in figure \ref{ce}. 
+
+\begin{wrapfigure}{l}{0.5\textwidth}
+\includegraphics[width=1\linewidth]{certaintyeq.png}
+\caption{Certainty equivalent optimization from a single trajectory of the total longitude traveled. Trajectories are depicted both in latitude vs longitude over a Mercator projection (top), and altitude vs time (middle). The launch site simulated was Hollister, California and flight endpoints are designated with a green star. Intermediate trajectories are show in blue, with the final optimized result in red. A convergence plot of the objective function vs iteration number is shown (bottom)}
+\label{ce}
+\end{wrapfigure}
+
+We can see from this figure, that the optimization behaves as expected. The final longitude slowly moves forward each iteration, until it is at reaches a local extremum. The path of green points over the map--the endpoints of each intermediate trajectory, always moves to the right as iteration number increases.  Running the 1000 iterations of certainty equivalent optimization on a 100 hour flight such as this take well under a second on our hardware.
+
+
+\subsubsection*{Monte-Carlo}
 
 To run our first test of this formulation, we we opted to utilize the traditional Model Predictive Control approach, in which we optimize an open-loop policy over a finite horizon. In flight, this optimization would be ran again and again as the balloon flies, using the most recently observed system state to optimize new trajectories, forming a feedback control law. 
 

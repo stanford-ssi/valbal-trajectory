@@ -58,7 +58,9 @@ void load_data(const char *dname, uint64_t start, uint64_t end) {
 		struct stat s;
 		fstat(files[i].fd, &s);
 		int mmap_flags = MAP_SHARED;
-		mmap_flags |= MAP_POPULATE; /* Possibly only if SHOULD_PRELOAD? */
+		#if __linux__
+			mmap_flags |= MAP_POPULATE; /* Possibly only if SHOULD_PRELOAD? */
+		#endif
 		files[i].data = (wind_data*)mmap(NULL, s.st_size, PROT_READ, mmap_flags, files[i].fd, 0);
 		assert(files[i].data != MAP_FAILED);
 		#ifdef SHOULD_PRELOAD
@@ -71,6 +73,10 @@ void load_data(const char *dname, uint64_t start, uint64_t end) {
 
 wind_data *get_data_at_point(data_file *file, point p) {
 	//printf("%d %d %lu %p\n", latidx, lonidx, sizeof(wind_data), file);
+	if (p.lon >= NUM_LONS) p.lon -= NUM_LONS;
+	if (p.lon < 0) p.lon += NUM_LONS;
+	if (p.lat >= NUM_LATS) p.lat -= NUM_LATS;
+	if (p.lat < 0) p.lat += NUM_LATS;
 	return &file->data[NUM_LONS * p.lat + p.lon];
 }
 

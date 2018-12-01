@@ -12,6 +12,11 @@
 \usepackage{graphicx}
 \usepackage{wrapfig}
 \usepackage{xcolor}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\usepackage{multicol}
+\usetikzlibrary{calc}
+\usetikzlibrary{shapes,arrows,positioning}
 \begin{document}
 
 \maketitle
@@ -20,7 +25,63 @@
 \def\Altitudes{\mathcal{H}}
 \def\Velocities{\mathcal{V}}
 \def\Lifts{\mathcal{L}}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand*{\vertbar}{\rule[-1ex]{0.5pt}{2.5ex}}
+\newcommand*{\horzbar}{\rule[.5ex]{2.5ex}{0.5pt}}
+\newcommand{\probs}[3]{\paragraph{Problem #1} \textit{#2}
+\begin{description}[labelwidth=.7cm,labelindent=0cm,leftmargin=0.9cm,align=left]
+#3
+\end{description}
+}
+\newcommand{\prob}[3]{\paragraph{Problem #1} \textit{#2}{#3}}
+\newcommand{\prt}[1]{\subsection*{(#1)}}
+\newcommand{\n}[1]{\mathrm{#1}}
+\newcommand{\nb}[1]{\mathrm{\textbf{#1}}}
 \newcommand{\mx}[2]{\left[ \begin{array}{#1} #2 \end{array} \right]}
+\newcommand{\ig}[2]{\begin{center}\includegraphics[width=#1\linewidth]{#2}\end{center}}
+\newcommand{\ls}[1]{\begin{lstlisting} #1 \end{lstlisting}} 
+\newcommand{\conv}[1]{\mathrm{\textbf{conv}}\{ #1 \}}
+\newcommand{\headfoot}[3]{
+\pagestyle{fancy}
+\lhead{#1}
+\chead{#2}
+\rhead{#3}
+\lfoot{}
+\cfoot{\thepage}
+\rfoot{}
+}
+
+\newcommand{\ones}{\mathbf 1}
+\newcommand{\reals}{{\mbox{\bf R}}}
+\newcommand{\integers}{{\mbox{\bf Z}}}
+\newcommand{\symm}{{\mbox{\bf S}}}  % symmetric matrices
+
+\newcommand{\nullspace}{{\mathcal N}}
+\newcommand{\range}{{\mathcal R}}
+\newcommand{\Rank}{\mathop{\bf Rank}}
+\newcommand{\Tr}{\mathop{\bf Tr}}
+\newcommand{\diag}{\mathop{\bf diag}}
+\newcommand{\card}{\mathop{\bf card}}
+\newcommand{\rank}{\mathop{\bf rank}}
+\newcommand{\prox}{\mathbf{prox}}
+
+\newcommand{\Expect}{\mathop{\bf E{}}}
+\newcommand{\Prob}{\mathop{\bf Prob}}
+\newcommand{\Co}{{\mathop {\bf Co}}} % convex hull
+\newcommand{\dist}{\mathop{\bf dist{}}}
+\newcommand{\argmin}{\mathop{\rm argmin}}
+\newcommand{\argmax}{\mathop{\rm argmax}}
+\newcommand{\epi}{\mathop{\bf epi}} % epigraph
+\newcommand{\Vol}{\mathop{\bf vol}}
+\newcommand{\dom}{\mathop{\bf dom}} % domain
+\newcommand{\intr}{\mathop{\bf int}}
+\newcommand{\sign}{\mathop{\bf sign}}
+
+\newcommand{\cf}{{\it cf.}}
+\newcommand{\eg}{{\it e.g.}}
+\newcommand{\ie}{{\it i.e.}}
+\newcommand{\etc}{{\it etc.}}
 
 \tableofcontents
 
@@ -50,11 +111,143 @@ Using the following substitution we can write the a state-space representation o
 
 \[x = \mx{c}{h \\ v} \qquad u = \dot \ell\]
 \[\dot x = \mx{cc}{0 & 1 \\ 0 & 0}x + \mx{cc}{0 \\ k_d} u + \mx{c}{w_v \\ k_d w_{\dot \ell}}\]
-
+\newpage
 \subsection{Control system}
+\subsubsection{Overview}
+The altitude control system has an unconventional objective for a feedback control system. On every ValBal flight, there is an essential trade-off between tracking closely to a target and system ballast use, as ballast is typically the endurance-limiting factor on a flight. Furthermore, this trade-off can not be usually be conveniently represented as a quadratic relationship between state errors and control inputs to allow for an LQG-style optimal control design. In addition, a more complex SMPC-based optimal control approach would not be feasible due to the constraints that the control law run on a low power embedded processor. Further more, the control objectives are typically given (or well-approximated by) a range of equally equally appealing altitudes, with a lower and upper bound. For instance, on an endurance flight with no location objectives, the lower bound is set by aircraft altitudes and the upper bound is set by latex degradation balloon latex degradation. 
+
+As such a linear control law that is of the form $u = K \hat x$ for some $K \in \mathbf{R}^{1 \times 2}$, and a state estimate $\hat x$, would not be sufficient. Instead, a nested feedback loop structure is used, where an altitude loop commands a velocity loop which commands a change in lift, which allows for the easy addition of two key nonlinearities. The full control system structure is show in figure \ref{bd}.
+\begin{figure}[h!]
+\caption{Altitude control system block diagram}
+\begin{center}
+\begin{tikzpicture}[scale=2,
+     block/.style = {draw, rectangle,node distance=1cm},
+     input/.style = {node distance=1cm},
+     output/.style = {node distance=1cm},
+     arrow/.style={draw, -latex,node distance=2cm},
+     pinstyle/.style = {pin edge={latex-, black,node distance=2cm}},
+     sum/.style = {draw, circle, node distance=1cm},
+     gain/.style = {regular polygon, regular polygon sides=3,draw, fill=white, text width=1em,
+      inner sep=0mm, outer sep=0mm,
+      shape border rotate=-90}
+    ]
+        
+    \node [input] (hcmd) {$h_c$};
+    \node [sum,right of=hcmd] (hsum) {};    
+    \node [gain,right of=hsum, node distance=0.75cm] (K1) {$k_h$};
+    \node [block, right of=K1] (N1) {$f_1$};
+    \node [sum,right of=N1, node distance=1.2cm] (vsum) {};
+    \node [input,above of=N1] (vlim) {$v_{\mathrm{lim}}$};
+    \node [gain, right of=vsum,node distance=0.75cm] (K2) {$k_v$};
+    \node [block, right of=K2] (N2) {$f_2$};
+    \node [sum, right of=N2, node distance=2cm] (dlift) {};
+    \node [input,above of=N2] (etol) {$\tau$};
+    \node [input, above of=dlift] (ldist) {$w_{\dot \ell}$};
+    \node [block, right of=dlift] (lint) {$\frac{k_d}{s}$};
+    \node [sum, right of=lint] (velocity) {};
+    \node [input, above of=velocity] (vdist) {$w_v$};
+    \node [block, right of=velocity] (vint) {$\frac{1}{s}$};
+    \node [output, right of=vint,node distance=1.4cm] (h) {$h$};
+    \node [block, below of=vint,node distance=1.7cm] (H1) {$sH(s)$};
+    \node [block, below right = .6 cm and -1.3 cm of dlift] (H2) {$k_d\left(\frac{1}{s}-H(s)\right)$};
+    \node [sum, left of=H1,node distance=1.2cm] (fsum) {};
+
+    \draw[->] (hcmd) -- (hsum) node [above left] {\scriptsize +};
+    \draw[->] (hsum) -- (K1);
+    \draw[->] (K1) -- (N1);
+    \draw[->] (N1) -- node [above] {$v_c$} (vsum) node [above left] {\scriptsize +};
+    \draw[->] (vsum) -- (K2);
+    \draw[->] (K2) -- (N2);
+    \draw[->,dashed] (etol) -- (N2);
+    \draw[->,dashed] (vlim) -- (N1);
+    \draw[->] (N2) -- node [above left] {$\dot \ell_c$} (dlift)  node [above left] {\scriptsize +};
+    \draw[->] (ldist) -- (dlift) node [above right] {\scriptsize +};
+    \draw[->] (dlift) -- (lint);
+    \draw[->] (lint) -- (velocity) node [above left] {\scriptsize +};
+    \draw[->] (vdist) -- (velocity) node [above right] {\scriptsize +};
+    \draw[->] (velocity) -- (vint) node [above right] {};
+    \draw[->] (vint) -- (h) node [above right] {};
+    \draw  (h) ++ (-.3,0) -- ++(0,-1.15) coordinate (fb);
+    \draw[->]  (h) ++ (-.3,0) |- (H1);
+    \draw[->] (K2) ++ (0.8,0) |- (H2);
+    \draw[->] (H1) -- (fsum) node [below right] {\scriptsize +};
+    \draw[->] (H2) -| (fsum) node [above right] {\scriptsize +}; 
+    \draw[->] (fsum) -| node [above left] {$\hat v$} (vsum) node [below left] {\scriptsize -};
+    \draw[->] (fb) -| (hsum) node [below left] {\scriptsize -};
+    \draw[thick,dotted] ($(dlift)+(-.3cm,.7cm)$) node [above right] {plant, $G(s)$} rectangle ($(vint)+(.3cm,-.3cm)$) ;
+\end{tikzpicture}\\
+
+\vspace{0.2cm}
+\begin{tabular}{r l}
+$H(s)$ &Lowpass filter\\
+$f_1(v\,;v_{\mathrm{lim}})$ & clamp on the velocity commanded by the altitude loop set by $v_{\mathrm{lim}}$ \\ 
+$f_2(\dot \ell \, ; \tau)$ & deadband on the controller effort set by $\tau$ \\
+$h_c$ & commanded altitude \footnotesize (set by Flight Controller) \\
+$v_c$ & commanded velocity \footnotesize (output of position loop) \\
+$\dot \ell_c$ & commanded change in lift per unit time  \footnotesize (output of velocity loop)\\
+$w_{\dot \ell}$ & atmospheric disturbances that change balloon lift  \footnotesize (heating/cooling)\\
+$w_v$ & atmospheric disturbances that change balloon velocity \footnotesize (turbulence)\\
+$h$ & balloon altitude\\
+$\hat v$ & estimate of velocity\\
+\end{tabular}
+\end{center}
+\label{bd}
+\end{figure}
+
+\subsubsection{Nonlinearities}
+
+The two non-linearities in the controller are given by $f_1$ and $f_2$. The first function $f_1(v\,;v_{\mathrm{lim}})$ is simply a clamping function that limits the velocity commanded by the altitude loop to $\pm v_{\mathrm{lim}}$. This prevents the controller fromm overreacting when it is far from it's command. The second non-linearity $f_2(\dot \ell \, ; \tau)$ is a deadband on the output of the controller. It is defined by 
+
+\begin{figure*}[h!]
+\begin{center}
+\begin{multicols}{2}
+\null \vfill
+\[
+f_2(\dot \ell \, ; \tau) = \left\{\begin{array}{cc}
+0 & |\dot \ell| < \tau \\ 
+\mathrm{\textbf{sign}}(\dot \ell)(|\dot \ell| - \tau) & |\dot \ell| > \tau \\ 
+\end{array}
+\right.\] 
+\vfill \null
+\begin{tikzpicture}
+\begin{axis}
+[
+width = 5cm,
+height = 4cm,
+scale = 1.4, 
+xtick = {-1,0,1}, 
+xticklabels = {$-\tau$,0,$\tau$}, 
+ytick = {0}, 
+ylabel = {\small $f_2$}, 
+xlabel = {\small $\dot \ell$}, 
+axis x line=middle, 
+axis y line=middle,
+xmin = -2.2, xmax = 2.2,
+ymin = -2, ymax = 2,
+every axis plot/.append style={thick}] 
+  \addplot[domain=-1:1, samples=10] {0};
+  \addplot[domain=1:2, samples=100] {x-1};
+  \addplot[domain=-2:-1, samples=100] {x+1};
+  \addplot[domain=-1.5:1.5, samples=100, style={very thin,dashed}] {x} node[above] {\tiny$f_2 =\dot \ell$};
+\end{axis}
+\end{tikzpicture}
+\end{multicols}
+\end{center}
+\vspace*{-1em}
+\end{figure*}
+The parameter $\tau$ is set by $\tau = k_hk_ve_{\mathrm{tol}}$, where $e_{\n{tol}}$ is the steady-state error in altitude allowable by the controller. This means, that with $v=0$, the system can be at an altitude anywhere in the range $h = h_{\n{cmd}} \pm e_{\n{tol}}$, without the controller acting. The controller can then be thought of as having two bounds, $h_{\n{lower}},h_{\n{upper}}$ that are given by $h_{\n{lower}} = h_{\n{cmd}} - e_{\n{tol}}$ and $h_{\n{upper}} = h_{\n{cmd}} + e_{\n{tol}}$. As such, controller input commands can either be given in the form $(h_{\n{cmd}}, e_{\n{tol}})$ or $(h_{\n{lower}},h_{\n{upper}})$. The values are either set by the human flight controller commanding the system, or a trajectory planning algorithm (described in section \ref{TP}).
+
+\subsubsection{Velocity Estimator}
+
+For control, it is important that we have a reasonable estimate of the vertical velocity of the balloon, $\hat v$. However, the atmosphere has a large amount of turbulence and waves, which have a dramatic impact on the short-term velocity of the balloon. For control on the altitude ranges that valbal flies in, we do not care about these effects. What we actually care about is the component the velocity of the balloon that is due to the net lift. For example, it is possible for the balloon to be rising at 1m/s, and still be neutrally buoyant, as it is simply floating atop a wave in the atmosphere. In this case, we would not want the controller to act to this in the same way it would to the balloon rising steadily at 1m/s due to a positive net lift.
+
+So, an estimator must be designed to calculate $\hat v$. A first order estimator such as a Kalman filter would suffice for this, if the noise on the velocity was Gaussian and uncorrelated in time. However, previous flight data and atmospheric literature {\color{red} cite} shows that this noise is dominated by large-amplitude waves at specific frequencies. So, a 2nd order lowpass filter, $H(s)$, is used to achieve better roll-off and reject the high frequency waves. In addition, actions of the controller are be integrated through the plan model to update the $\hat v$ estimate immediately after controller actions. The corner frequency of $H(s)$ is tpyically set around $($15 minutes$)^{-1}$ and is determined by looking at the spectral content of atmospheric waves in prior flight data.
+
+\subsubsection{Choosing Gains}
 
 
-\subsubitem{Simulations}
+
+\subsubsection{Simulations}
 
 
 \begin{figure}[h]
@@ -65,6 +258,7 @@ Using the following substitution we can write the a state-space representation o
 
 \newpage
 \section{Trajectory planning}
+\label{TP}
 \subsection{Introduction}
 
 ValBal has no direct control over it's lateral movement around the globe, but rather is always drifting with the air currents of earth's atmosphere. However, by changing the altitude that it flies at, it can choose different wind currents moving in a range of directions in a given column of air. The high-level goal of trajectory planning is to come up with these altitudes that the balloon should fly at in order to achieve some mission outcome in the lateral trajectory of the balloon.
@@ -170,3 +364,4 @@ We also built several Python scripts to fetch the data and process the results. 
 
 
 \end{document}
+

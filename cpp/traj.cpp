@@ -23,7 +23,7 @@ void demo() {
      * that can be optimized. */
 	float pressures[120];
 	for (int i=0; i<120; i++) pressures[i] = alt2p(14000);
-	WaypointController<float> controller(t0, 3600, altitudes);
+	WaypointController<float> controller(t0, 3600, pressures);
 
     TIMEIT("Running simple sims",
         const int N = 200;
@@ -32,7 +32,7 @@ void demo() {
         Scheduler<float> sched(-1, N);
         for (int i=0; i<N; i++) {
             sched.add([&controller, i, t0, lat0, lon0]() {
-                Simulation<float> sim(pres, i);
+                Simulation<float> sim(controller, i);
                 sim.wind_default.sigma = 1;
                 return sim.run(t0, lat0, lon0).lon;
             });

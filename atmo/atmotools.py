@@ -191,7 +191,8 @@ def procWindData(start,end,db='gfs_anl_0deg5',overwrite=False,pred_time=None,alt
 				if row.shortName == "t" and row.level >= levels[0] and row.level <= levels[-1]:
 					data[:,:,levels.searchsorted(row.level),0] = row.values
 		data.flatten().tofile(outpath)
-		aux.flatten().tofile(auxoutpath)
+		if aux_data:
+			aux.flatten().tofile(auxoutpath)
 		print("   done (%d / %d)" % (k+1, len(files)))
 	return procfiles,times
 

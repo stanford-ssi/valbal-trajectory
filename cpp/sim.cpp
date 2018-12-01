@@ -122,19 +122,18 @@ LasSim<Float>::LasSim(int seed) : las(this->freq), sim(seed) {
 }
 
 template<class Float>
-StocasticControllerApprox<Float>::StocasticControllerApprox(int t0_, int dt_, ctrl_cmd<Float> *cmds_, int seed) : 
-las_sim(seed), t0(t0_), dt(dt_), cmds(cmds_) 
+StochasticControllerApprox<Float>::StochasticControllerApprox(ParameterServer<Float>& ps_, int seed) : 
+las_sim(seed), params(ps_)
 { 
-	h_mid = las_sim.las.getConstants().h_cmd;
-	tol0 = las_sim.las.getConstants().ss_error_thresh;
+	h_mid = las_sim.las.getConstants().setpoint;
+	tol0 = las_sim.las.getConstants().tolerance;
 }
 
 template<class Float>
-void StocasticControllerApprox<Float>::get_pressure(sim_state<Float>& state){
-	unsigned int idx = (state.t-t0)/dt;
-	float theta = (state.t - (t0 + dt*idx))/((float)dt);
-	Float cmd_h = cmds[idx].h + theta * (cmds[idx+1].h - cmds[idx].h);
-	Float cmd_tol = cmds[idx].tol + theta * (cmds[idx+1].tol - cmds[idx].tol);
+void StochasticControllerApprox<Float>::get_pressure(sim_state<Float>& state){
+	ctrl_cmd<Float> cmd = params.get_param(state);
+	Float cmd_h = cmd.h;
+	Float cmd_tol = cmd.tol;
 	state.bal_rate = 0.03/60./60.*750/cmd_tol + 0.03/60./60.;  
 	sim_state<float> state_val;
 	state_val.lat = VAL(state.lat);
@@ -146,6 +145,58 @@ void StocasticControllerApprox<Float>::get_pressure(sim_state<Float>& state){
 	state.p = alt2p(alt);
 }
 
+template<class Float>
+TemporalParameters<Float>::TemporalParameters(int t0_, int dt_, int T_, double default_h_, double default_tol_) : 
+t0(t0_), dt(dt_), T(T_), default_h(default_h_), default_tol(default_tol_)
+{ 
+	int N = T_/dt_;
+	cmds = new ctrl_cmd<Float>[N];
+	for (int i=0; i<N; i++) {
+		cmds[i].h = default_h_;
+		cmds[i].tol = default_tol_;
+	}
+}
+
+template<class Float>
+TemporalParameters<Float>::~TemporalParameters() {
+	delete[] cmds;
+}
+
+template<class Float>
+ctrl_cmd<Float> TemporalParameters<Float>::get_param(sim_state<Float>& state){
+	unsigned int idx = (state.t-t0)/dt;
+	float theta = (state.t - (t0 + dt*idx))/((float)dt);
+	ctrl_cmd<Float> cmd;
+	cmd.h = cmds[idx].h + theta * (cmds[idx+1].h - cmds[idx].h);
+	cmd.tol = cmds[idx].tol + theta * (cmds[idx+1].tol - cmds[idx].tol);
+	return cmd;
+}
+
+template <class Float>
+double TemporalParameters<Float>::apply_gradients(double lr) {
+	return apply_gradients(lr, tag<TemporalParameters>());
+}
+
+template <class Float>
+double TemporalParameters<Float>::apply_gradients(double lr, tag<TemporalParameters<float>>) {
+	printf("You what mate, what are you trying to take the gradient of\n");
+	exit(1);
+	return M_PI;
+}
+
+template <class Float>
+double TemporalParameters<Float>::apply_gradients(double lr, tag<TemporalParameters<adouble>>) {
+	ctrl_cmd<adouble> *cmds_ = (ctrl_cmd<adouble>*)(&cmds[0]);
+	double norm = 0.0;
+	for (int i=0; i<(T/dt); i++) {
+		double grad = cmds_[i].h.get_gradient();
+		norm += grad*grad;
+		double val = VAL(cmds_[i].h) + lr * grad;
+		val = min(16500., max(10000., val));
+		cmds_[i].h.set_value(val);
+	}
+	return sqrt(norm);
+}
 
 template<class Float>
 void GreedySearch<Float>::get_pressure(sim_state<Float>& state){
@@ -341,7 +392,8 @@ sim_state<Float> Simulation<Float>::run(int t, Float lat, Float lon) {
 		template class EulerIntBal<type>;\
 		template class GreedySearch<type>;\
 		template class FinalLongitude<type>; \
-		template class StocasticControllerApprox<type>;
+		template class StochasticControllerApprox<type>; \
+		template class TemporalParameters<type>;
 
 #include <adept.h>
 INIT_SIM(adept::adouble)

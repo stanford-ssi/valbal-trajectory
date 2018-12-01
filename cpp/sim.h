@@ -188,17 +188,44 @@ struct ctrl_cmd {
 	Float tol;
 };
 
+template<class Float>
+class ParameterServer {
+public:
+	virtual ctrl_cmd<Float> get_param(sim_state<Float>&) = 0;
+	virtual double apply_gradients(double lr) = 0;
+};
+
 template <class Float>
-class StocasticControllerApprox : public PressureSource<Float> {
+class StochasticControllerApprox : public PressureSource<Float> {
 public: 
-	StocasticControllerApprox(int t0_, int dt_, ctrl_cmd<Float> *cmds_, int seed);
+	StochasticControllerApprox(ParameterServer<Float>& ps_, int seed);
 	void get_pressure(sim_state<Float>&);
 	LasSim<float> las_sim;
-	int t0;
-	int dt;
-	ctrl_cmd<Float> *cmds;
 	float h_mid;
 	float tol0;
+	ParameterServer<Float>& params;
+};
+
+/* I hate C++. --Joan */
+template <typename> struct tag {};
+
+template<class Float>
+class TemporalParameters : public ParameterServer<Float> {
+public:
+	TemporalParameters(int t0_, int dt_, int T_, double d_h, double d_t);
+	~TemporalParameters();
+	ctrl_cmd<Float> get_param(sim_state<Float>&);
+	double apply_gradients(double lr);
+
+private:
+	int t0;
+	int dt;
+	int T;
+	ctrl_cmd<Float> *cmds;
+	double default_h;
+	double default_tol;
+	double apply_gradients(double lr, tag<TemporalParameters<float>>);
+	double apply_gradients(double lr, tag<TemporalParameters<adouble>>);
 };
 
 

@@ -1,7 +1,7 @@
 TARGET = traj
 LIBS = -lm -ladept -lpthread
 CC = g++
-CXXFLAGS = -g -Werror -Ofast -march=native -fno-strict-aliasing -Wall -ffast-math
+CXXFLAGS = -g -Werror -Ofast -march=native -fno-strict-aliasing -Wall -ffast-math -std=c++14
 
 PATHS = -I ../ignored/balloons-VALBAL/lib/spa
 PATHS += -I ../ignored/balloons-VALBAL/src
@@ -13,7 +13,7 @@ PATHS += -I /usr/local/include
 default: $(TARGET)
 all: default
 
-OBJECTS = $(patsubst %.cpp, %.o, $(wildcard *.cpp))
+OBJECTS = $(patsubst %.cpp, %.o, $(filter-out extra.cpp, $(wildcard *.cpp)))
 HEADERS = $(wildcard *.h)
 
 #Jank additions to compile lasagna and Pastasim. Must run utils/flight_code.sh first

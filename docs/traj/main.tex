@@ -245,16 +245,28 @@ So, an estimator must be designed to calculate $\hat v$. A first order estimator
 
 \subsubsection{Choosing Gains}
 
+Choosing gains, $k_h$ and $k_v$, can be done through a linear 2nd order system analysis of the system dynamic response. While the control system is non-linear, it is piecewise-linear, so for any given operating point a linear approximation remains valid.
+
+The transfer function model for the system without nonlinearities is 
+\[T(s) = \frac{k_h k_v k_d}{s^2 + k_v k_d s + k_h k_v k_d}\].
+The damping ratio is then given by $\zeta = \frac{1}{2}\sqrt{\frac{k_v k_d}{k_h}}$. Since in general prefer minimal ballast used over performance metrics such as rise time, we want to ensure no overshoot in the step response of the controller. As such, we need to pick a gain ratio such that $\zeta \geq 1$. Assuming that we won't overshoot, we would perfer to have a minimal rise time, so we want the lowest damping ration that is greater than or equal to one, which would be one. However, $k_d$, is an estimated parameter we uncertainty associated with it, and since ensuring no overshoot is more important than minimizing rise time, we add in some margin. In practice, $\zeta = 1.2$ works well.
+
+This gives use a ratio between gains, but not the magnitude of $k_h k_v$. Picking the magnitude of the gains requires consideration of the deadband though, as unlike a linear controller, a higher gain will not result in a closer tracking of $h_{\n{cmd}}$, that is set by the $e_{\n{tol}}$. Instead, the magnitude of the gains influences how aggressively the controller acts around the bounds. A high gain means that the controller will wait longer and act more aggressively near the bounds, and a lower gain means that it will act sooner but slower. In the limit of a small $k_h k_v$ and a small $e_{\n{tol}}$, the system will behave like a linear controller tracking $h_{\n{cmd}}$, and in the limit of a large $k_h k_v$, the system will behave like a bang-bang controller to command velocity to 0 when the system reaches a boundary.
+
+With no uncertainty in the system, high gain would result better performance as the system would wait until the last possible second to ask. However, it would not be robust to noise in the system, measurement errors, or erros in estimated parameters. While a robust controller analysis could be used to determine the best total gain magnitude, this is subject to realistic estimates of errors in the system which are rigorously define. Instead, we model these errors in simulation, and tune this parameter form simulation, described in the next section.
 
 
-\subsubsection{Simulations}
+\subsection{Simulations}
+Simulations are critical in the control system designs, as a means of testing new concepts, tuning parameters, checking flight-code for bugs, and for giving general intuition on the system, as each flight tests is expensive and it is not easy to radically change the control algorithm after the balloon is launched. While good control performance in simulation gives little guarantee on real-world performance, poor performance in simulation shows problems with the controller and misunderstandings of the system.
 
+A simulation of the plan model shown in figure \ref{bd} is implemented in c++ (more on architecture is described in section \ref{arch}). Models for $w_{\dot \ell}$ and $w_{v}$ are determined by analysis of previous flight data. The noise models contain white noise, nightfall/sunrise effects, atmospheric waves, and terrain elevation effects\footnote{waves and terrain elevation have not been added yet but are currently being analyzed}. 
 
+A plot of an example simulation output is shown in \ref{lsim}. In this instance, the white noise on $w_{\dot \ell}$ was relatively small, as this simulation was a test of the controller's response to nightfall
 \begin{figure}[h]
 \includegraphics[width=1\linewidth]{lsim.png}
 \label{lsim}
+\caption{Plot of a simulated valbal flight, showing altitude (blue, left y axis) vs time, along with various velocity terms (right y axis). Valve events (green vertical lines), ballast events (blue vertical lines), and controller bounds (gray horizontal lines) are shown.}
 \end{figure}
-
 
 \newpage
 \section{Trajectory planning}
@@ -349,6 +361,7 @@ We notice a few things from this result. First, that in this particular scenario
 
 \newpage
 \section{Architecture}
+\label{arch}
 In this section we describe the architecture behind the simulations and trajectory optimization. It involves a complex pipeline, that involves fetching atmospheric data, a modular and fast simulation engine, and provisions for simulating with real flight code. It is mostly written more than two thousand lines of C++ and Python.
 
 The core of the simulator is written in C++. This allows for extremely fast simulations; when performing direct rollouts, it can compute hundreds of thousands of three-day ValBal trajectories per second on a 6-core machine. The code is designed to be modular; one can easily use different objective functions (horizontal distance, distance to a given target\dots), different optimization methods (vanilla gradient descent, Adagrad, Adam\dots), various differentiable controllers (uniform distribution, approximate Lasagna, differentiable Lasagna\dots), and so on.

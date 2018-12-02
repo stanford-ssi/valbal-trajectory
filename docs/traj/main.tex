@@ -273,6 +273,9 @@ A plot of an example simulation output is shown in \ref{lsim}. In this instance,
 \caption{Plot of a simulated ValBal flight, showing altitude (blue, left vertical axis) as a function time, along with various velocity terms (right vertical axis). Valve events (green vertical lines), ballast events (blue vertical lines), and controller bounds (gray horizontal lines) are shown.}
 \end{figure}
 
+\subsection{Flight results}
+\todo[inline]{show plots of newer flights that used las}
+
 \newpage
 \section{Trajectory planning}
 \label{TP}
@@ -333,12 +336,15 @@ V = \sum_{k=0}^{K-1} u_k \Delta t\label{eqn:value}
 where $\Delta t$ is a constant that does not affect the result. Other valid objective functions could include the distance to a particular point:
 \[V = \sum_{k=0}^{K-1} \lVert r_k - r_\text{target}\rVert\]
 
+\subsubsection{Full algorthim}
+\todo[inline]{Joan can u start this? You prolly have a good style for writing algorithms}
+
 \newpage
 \subsection{Preliminary results}
-\subsubsection*{Certainty equivalent}
+\subsubsection{Certainty equivalent}
 Before running the full stochastic gradient decent on the monte-carlo problem, we developed and tested the algorithm on certainty-equivalent simulation with no noise. In this experiment, we optimized a single starting trajectory, assuming that we had complete control over 20 altitude way points, with the balloon linearly interpolating between them. The results of such a test are shown in Figure~\ref{ce}. 
 
-\begin{figure}
+\begin{figure}[h!]
 \floatbox[{\capbeside\thisfloatsetup{capbesideposition={right,top},capbesidewidth=6cm}}]{figure}[\FBwidth]
 {\caption{Certainty equivalent optimization from a single trajectory of the total longitude traveled. Trajectories are depicted both in latitude vs longitude over a Mercator projection (top), and altitude vs time (middle). The launch site simulated was Hollister, California and flight endpoints are designated with a green star. Intermediate trajectories are shown in blue, with the final optimized result in red. A convergence plot of the objective function vs iteration number is shown (bottom).}\label{ce}}
 {\includegraphics[width=1\linewidth]{certaintyeq.png}}
@@ -346,7 +352,7 @@ Before running the full stochastic gradient decent on the monte-carlo problem, w
 
 We can see from this Figure~\ref{ce} that the optimization behaves as expected. The final longitude slowly moves forward each iteration, until it reaches a local extremum. The path of green points over the map---the endpoints of each intermediate trajectory---always moves to the right as iteration number increases. Running a thousand iterations of certainty equivalent optimization on a 100 hour flight as in the example takes well under a second on our hardware.
 
-\subsubsection*{Monte-Carlo runs}
+\subsubsection{Monte-Carlo runs}
 
 To run our first test of this formulation, we opted to utilize the traditional Model Predictive Control approach, in which we optimize an open-loop policy over a finite horizon. In flight, this optimization would be run repeatedly as the balloon flies, using the most recently observed system state to optimize new trajectories, forming a feedback control law. 
 
@@ -356,8 +362,12 @@ Results of this method on a sample of \textsc{noaa} analysis wind data are shown
 \caption{Example result of optimizing an open loop trajectory. The initial settings were a 13.5km setpoint and a 0.75km tolerance (red), while the optimized trajectory shows both changing setpoints and tolerances (blue). The dark blue line gives an example possible altitude profile from the many possible altitudes profiles given the command settings}
 \label{openloop}
 \end{figure}
-We notice a few things from this result. First, we note that in this particular scenario the initial commands resulted in a large variation in the resulting flight path. This was due to large changes in wind direction within the command tolerance over the Atlantic Ocean. We see that in the optimized open-loop trajectory, policies are picked such that there is not much variation in the resulting outcome. 
 
+We notice a few things from this result. First, we note that in this particular scenario the initial commands resulted in a large variation in the resulting flight path. This was due to large changes in wind direction within the command tolerance over the Atlantic Ocean. We see that in the optimized open-loop trajectory, policies are picked such that there is not much variation in the resulting outcome. 
+\subsubsection{Location-feedback altitude policy}
+\todo[inline]{ohp}
+\subsubsection{Flight tests}
+\todo[inline]{Is it worth adding to this? Due to valve stuff it seems maybe not worth it}
 
 
 \newpage
@@ -370,10 +380,6 @@ The core of the simulator is written in C++. This allows for extremely fast simu
 Having been designed with optimization in mind, another key feature of the simulation codebase is the formulation in terms of C++ templates, that allow the compiler to, from a single codebase, generate code that either merely computes rollouts of the trajectories, or keeps track of the gradients leading to the final objective function. The latter uses \emph{automatic differentation}, the same algorithm used in the training of large neural networks. It keeps track of the computation graph and derivative at each node; once the final objective function is computed (say, the final longitude), the gradient is propagated backwards to each parameter, and some first-order optimization method is used to update the parameters. By using the Adept library, the parametrized codebase can be specialized to use Adept's differentiable floating point type, that keeps track of the computation graph. Doing so incurs an overhead, of about 5 to 10$\times$, but is able to provide the exact gradient of the objective with respect to the parameters, in a much easier way than direct numeric differentiation, and without having separate code paths for direct evaluation and gradient evaluation.
 
 We also built several Python scripts to fetch the data and process the results. We can retrieve wind data from either the Global Forecast System (\textsc{gfs}) model from \textsc{noaa}, or the European \textsc{ecmwf} model. We preprocess the data, that comes in \textsc{grib} files, into binary files that are loaded directly by C++. This is key to the speed of the C++ codebase, by using the \texttt{mmap} system call from Linux, the data will end up cached in the comparatively faster RAM, and wind table lookups require merely the computation of an offset (as opposed to searching through a database, with various levels of indirection). In particular, we only store relevant variables at the altitudes ValBal normally flies, in order to save space and improve cache performance. Several Python scripts are used to plot the trajectories found by the C++ script (saved to a binary file) using the Matplotlib library.
-
-
-\section{Flight Test}
-
 
 
 

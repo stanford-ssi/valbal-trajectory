@@ -192,7 +192,7 @@ template<class Float>
 class ParameterServer {
 public:
 	virtual ctrl_cmd<Float> get_param(sim_state<Float>&) = 0;
-	virtual double apply_gradients(double lr) = 0;
+	virtual double apply_gradients(double lr, double) = 0;
 };
 
 template <class Float>
@@ -215,7 +215,7 @@ public:
 	TemporalParameters(int t0_, int dt_, int T_, double d_h, double d_t);
 	~TemporalParameters();
 	ctrl_cmd<Float> get_param(sim_state<Float>&);
-	double apply_gradients(double lr);
+	double apply_gradients(double lr, double);
 
 private:
 	int t0;
@@ -224,8 +224,27 @@ private:
 	ctrl_cmd<Float> *cmds;
 	double default_h;
 	double default_tol;
-	double apply_gradients(double lr, tag<TemporalParameters<float>>);
-	double apply_gradients(double lr, tag<TemporalParameters<adouble>>);
+	double apply_gradients(double lr, double, tag<TemporalParameters<float>>);
+	double apply_gradients(double lr, double, tag<TemporalParameters<adouble>>);
+};
+
+template<class Float>
+class SpatiotemporalParameters : public ParameterServer<Float> {
+public:
+	SpatiotemporalParameters(int t0_, int dt_, int T_, double d_h, double d_t);
+	~SpatiotemporalParameters();
+	ctrl_cmd<Float> get_param(sim_state<Float>&);
+	double apply_gradients(double lr, double);
+
+private:
+	int t0;
+	int dt;
+	int T;
+	ctrl_cmd<Float> *cmds;
+	double default_h;
+	double default_tol;
+	double apply_gradients(double lr, double, tag<TemporalParameters<float>>);
+	double apply_gradients(double lr, double, tag<TemporalParameters<adouble>>);
 };
 
 

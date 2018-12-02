@@ -173,28 +173,39 @@ ctrl_cmd<Float> TemporalParameters<Float>::get_param(sim_state<Float>& state){
 }
 
 template <class Float>
-double TemporalParameters<Float>::apply_gradients(double lr) {
-	return apply_gradients(lr, tag<TemporalParameters>());
+double TemporalParameters<Float>::apply_gradients(double lr, double lr_t) {
+	return apply_gradients(lr, lr_t, tag<TemporalParameters>());
 }
 
 template <class Float>
-double TemporalParameters<Float>::apply_gradients(double lr, tag<TemporalParameters<float>>) {
+double TemporalParameters<Float>::apply_gradients(double lr, double lr_t, tag<TemporalParameters<float>>) {
 	printf("You what mate, what are you trying to take the gradient of\n");
 	exit(1);
 	return M_PI;
 }
 
 template <class Float>
-double TemporalParameters<Float>::apply_gradients(double lr, tag<TemporalParameters<adouble>>) {
+double TemporalParameters<Float>::apply_gradients(double lr, double lr_t, tag<TemporalParameters<adouble>>) {
 	ctrl_cmd<adouble> *cmds_ = (ctrl_cmd<adouble>*)(&cmds[0]);
 	double norm = 0.0;
+	double tols = 0;
 	for (int i=0; i<(T/dt); i++) {
-		double grad = cmds_[i].h.get_gradient();
-		norm += grad*grad;
-		double val = VAL(cmds_[i].h) + lr * grad;
+		double grad_h = cmds_[i].h.get_gradient();
+		norm += grad_h*grad_h;
+		double grad_tol = cmds_[i].tol.get_gradient();
+		norm += grad_tol*grad_tol;
+
+		double val = VAL(cmds_[i].h) + lr * grad_h;
 		val = min(16500., max(10000., val));
 		cmds_[i].h.set_value(val);
+
+		double tval = VAL(cmds_[i].tol) + lr_t * grad_tol;
+		tval = min(2000., max(200., tval));
+		tols += tval;
+		cmds_[i].tol.set_value(tval);
 	}
+	tols /= (T/dt);
+	printf("mean tol %f\n", tols);
 	return sqrt(norm);
 }
 
@@ -348,7 +359,7 @@ sim_state<Float> Simulation<Float>::run(int t, Float lat, Float lon) {
 	state.lat = lat;
 	state.lon = lon;
 	state.t = t;
-	state.bal = 10;
+	state.bal = 4.5;
 	debugf("Starting from (%f, %f)\n", VAL(lat), VAL(lon));
 	while (state.t < Tmax) {
 		pressure.get_pressure(state);

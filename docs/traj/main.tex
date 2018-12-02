@@ -17,6 +17,7 @@
 \usepackage{multicol}
 \usetikzlibrary{calc}
 \usetikzlibrary{shapes,arrows,positioning}
+\usepackage{floatrow}
 \begin{document}
 
 \maketitle
@@ -312,13 +313,12 @@ For completely regular grids, bilinear interpolation will suffice. For irregular
 \[x_{k+1} = x_k + u_k\Delta t\quad y_{k+1} = y_k + v_k\Delta t\]
 and the conversion to $(\lambda_k, \phi_k)$ follows from a simple computation of spherical coordinates. 
 
-The viability of this method, as well as the quality of \textsc{noaa} data can demonstrated by comparing the integration method and wind model to previous balloon flight data.
-
-{\color{red} Words to go here}
+The viability of this method, as well as the quality of \textsc{noaa} data can demonstrated by comparing the integration method and wind model to previous balloon flight data. This comparison is shown in figure \ref{winds}.
 
 \begin{figure}[h]
-\includegraphics[width=0.5\linewidth]{winds.png}
-\includegraphics[width=0.5\linewidth]{spain.png}
+\includegraphics[width=0.45\linewidth]{winds.png}
+\includegraphics[width=0.45\linewidth]{spain.png}
+\caption{Comparison of real valbal flights (red) to valbal flights simulated using gfs data with added noise (blue)}
 \label{winds}
 \end{figure}
 
@@ -335,11 +335,11 @@ where $\Delta t$ is a constant that does not affect the result. Other valid obje
 \subsubsection*{Certainty Equivalent}
 Before running the full stochastic gradient decent on the monte-carlo problem, we developed and tested the algorithm on certainty-equivalent simulation with no noise. In this experiment, we optimized a single starting trajectory, assuming that we had complete control over 20 altitude way points, with the balloon linearly interpolating between them. The results of such a test are shown in figure \ref{ce}. 
 
-\begin{wrapfigure}{l}{0.5\textwidth}
-\includegraphics[width=1\linewidth]{certaintyeq.png}
-\caption{Certainty equivalent optimization from a single trajectory of the total longitude traveled. Trajectories are depicted both in latitude vs longitude over a Mercator projection (top), and altitude vs time (middle). The launch site simulated was Hollister, California and flight endpoints are designated with a green star. Intermediate trajectories are show in blue, with the final optimized result in red. A convergence plot of the objective function vs iteration number is shown (bottom)}
-\label{ce}
-\end{wrapfigure}
+\begin{figure}
+\floatbox[{\capbeside\thisfloatsetup{capbesideposition={right,top},capbesidewidth=6cm}}]{figure}[\FBwidth]
+{\caption{Certainty equivalent optimization from a single trajectory of the total longitude traveled. Trajectories are depicted both in latitude vs longitude over a Mercator projection (top), and altitude vs time (middle). The launch site simulated was Hollister, California and flight endpoints are designated with a green star. Intermediate trajectories are show in blue, with the final optimized result in red. A convergence plot of the objective function vs iteration number is shown (bottom)}\label{ce}}
+{\includegraphics[width=1\linewidth]{certaintyeq.png}}
+\end{figure}
 
 We can see from this figure, that the optimization behaves as expected. The final longitude slowly moves forward each iteration, until it is at reaches a local extremum. The path of green points over the map--the endpoints of each intermediate trajectory, always moves to the right as iteration number increases.  Running the 1000 iterations of certainty equivalent optimization on a 100 hour flight such as this take well under a second on our hardware.
 

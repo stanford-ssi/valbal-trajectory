@@ -9,14 +9,18 @@
 %\date{}
 \usepackage{amsmath}
 \usepackage{amssymb}
+\usepackage{todonotes} % lol
 \usepackage{graphicx}
 \usepackage{wrapfig}
 \usepackage{xcolor}
 \usepackage{tikz}
 \usepackage{pgfplots}
 \usepackage{multicol}
+\usepackage[bf]{caption}
+\captionsetup{format=plain}
 \usetikzlibrary{calc}
 \usetikzlibrary{shapes,arrows,positioning}
+
 \usepackage{floatrow}
 \begin{document}
 
@@ -104,7 +108,7 @@ While the force of drag on the balloon is nonlinear with respect to velocity, fo
 
 \[ v(t) = k_d \ell \qquad \dot h(t) = v(t)\]
 
-With $k_d$ being the linearized coefficient relating net lift to velocity. The valve and ballast system of can be seen as changes to the derivative of the net lift of the balloon, $\dot \ell$. For example, when the valve is open, $\dot \ell$ becomes negative as the balloon looses lift. In addition, the atmosphere is full of disturbances, so in the system dynamics we consider 2 other terms: $w_{\dot \ell}$ as the atmospheric disturbance on the lift rate, and $w_v$, as the atmospheric disturbance of velocity. For example, at night the balloon cools and looses lift, which is modeled as a negative $w_{\dot \ell}$, and vertical winds are modeled as a nonzero $w_v$. With these additions, the system dynamics become
+With $k_d$ being the linearized coefficient relating net lift to velocity. The valve and ballast system of can be seen as changes to the derivative of the net lift of the balloon, $\dot \ell$. For example, when the valve is open, $\dot \ell$ becomes negative as the balloon looses lift. In addition, the atmosphere is full of disturbances, so in the system dynamics we consider two other terms: $w_{\dot \ell}$ as the atmospheric disturbance on the lift rate, and $w_v$, as the atmospheric disturbance of velocity. For example, at night the balloon cools and looses lift, which is modeled as a negative $w_{\dot \ell}$, and vertical winds are modeled as a nonzero $w_v$. With these additions, the system dynamics become
 
 \[ \dot v(t) = k_d(\dot \ell(t) + w_{\dot \ell}(t)) \qquad \dot h(t) = v(t) + w_v(t) \]
 
@@ -117,7 +121,7 @@ Using the following substitution we can write the a state-space representation o
 \subsubsection{Overview}
 The altitude control system has an unconventional objective for a feedback control system. On every ValBal flight, there is an essential trade-off between tracking closely to a target and system ballast use, as ballast is typically the endurance-limiting factor on a flight. Furthermore, this trade-off can not be usually be conveniently represented as a quadratic relationship between state errors and control inputs to allow for an LQG-style optimal control design. In addition, a more complex SMPC-based optimal control approach would not be feasible due to the constraints that the control law run on a low power embedded processor. Further more, the control objectives are typically given (or well-approximated by) a range of equally equally appealing altitudes, with a lower and upper bound. For instance, on an endurance flight with no location objectives, the lower bound is set by aircraft altitudes and the upper bound is set by latex degradation balloon latex degradation. 
 
-As such a linear control law that is of the form $u = K \hat x$ for some $K \in \mathbf{R}^{1 \times 2}$, and a state estimate $\hat x$, would not be sufficient. Instead, a nested feedback loop structure is used, where an altitude loop commands a velocity loop which commands a change in lift, which allows for the easy addition of two key nonlinearities. The full control system structure is show in figure \ref{bd}.
+As such a linear control law that is of the form $u = K \hat x$ for some $K \in \mathbf{R}^{1 \times 2}$, and a state estimate $\hat x$, would not be sufficient. Instead, a nested feedback loop structure is used, where an altitude loop commands a velocity loop which commands a change in lift, which allows for the easy addition of two key nonlinearities. The full control system structure is show in Figure~\ref{bd}.
 \begin{figure}[h!]
 \caption{Altitude control system block diagram}
 \begin{center}
@@ -180,7 +184,7 @@ As such a linear control law that is of the form $u = K \hat x$ for some $K \in 
 
 \vspace{0.2cm}
 \begin{tabular}{r l}
-$H(s)$ &Lowpass filter\\
+$H(s)$ &low-pass filter\\
 $f_1(v\,;v_{\mathrm{lim}})$ & clamp on the velocity commanded by the altitude loop set by $v_{\mathrm{lim}}$ \\ 
 $f_2(\dot \ell \, ; \tau)$ & deadband on the controller effort set by $\tau$ \\
 $h_c$ & commanded altitude \footnotesize (set by Flight Controller) \\
@@ -197,7 +201,7 @@ $\hat v$ & estimate of velocity\\
 
 \subsubsection{Nonlinearities}
 
-The two non-linearities in the controller are given by $f_1$ and $f_2$. The first function $f_1(v\,;v_{\mathrm{lim}})$ is simply a clamping function that limits the velocity commanded by the altitude loop to $\pm v_{\mathrm{lim}}$. This prevents the controller fromm overreacting when it is far from it's command. The second non-linearity $f_2(\dot \ell \, ; \tau)$ is a deadband on the output of the controller. It is defined by 
+The two non-linearities in the controller are given by $f_1$ and $f_2$. The first function $f_1(v\,;v_{\mathrm{lim}})$ is simply a clamping function that limits the velocity commanded by the altitude loop to $\pm v_{\mathrm{lim}}$. This prevents the controller from overreacting when it is far from it's command. The second non-linearity $f_2(\dot \ell \, ; \tau)$ is a deadband on the output of the controller. It is defined by 
 
 \begin{figure*}[h!]
 \begin{center}
@@ -238,35 +242,35 @@ every axis plot/.append style={thick}]
 \end{figure*}
 The parameter $\tau$ is set by $\tau = k_hk_ve_{\mathrm{tol}}$, where $e_{\n{tol}}$ is the steady-state error in altitude allowable by the controller. This means, that with $v=0$, the system can be at an altitude anywhere in the range $h = h_{\n{cmd}} \pm e_{\n{tol}}$, without the controller acting. The controller can then be thought of as having two bounds, $h_{\n{lower}},h_{\n{upper}}$ that are given by $h_{\n{lower}} = h_{\n{cmd}} - e_{\n{tol}}$ and $h_{\n{upper}} = h_{\n{cmd}} + e_{\n{tol}}$. As such, controller input commands can either be given in the form $(h_{\n{cmd}}, e_{\n{tol}})$ or $(h_{\n{lower}},h_{\n{upper}})$. The values are either set by the human flight controller commanding the system, or a trajectory planning algorithm (described in section \ref{TP}).
 
-\subsubsection{Velocity Estimator}
+\subsubsection{Velocity estimator}
 
-For control, it is important that we have a reasonable estimate of the vertical velocity of the balloon, $\hat v$. However, the atmosphere has a large amount of turbulence and waves, which have a dramatic impact on the short-term velocity of the balloon. For control on the altitude ranges that valbal flies in, we do not care about these effects. What we actually care about is the component the velocity of the balloon that is due to the net lift. For example, it is possible for the balloon to be rising at 1m/s, and still be neutrally buoyant, as it is simply floating atop a wave in the atmosphere. In this case, we would not want the controller to act to this in the same way it would to the balloon rising steadily at 1m/s due to a positive net lift.
+For control, it is important that we have a reasonable estimate of the vertical velocity of the balloon, $\hat v$. However, the atmosphere has a large amount of turbulence and waves, which have a dramatic impact on the short-term velocity of the balloon. For control on the altitude ranges that ValBal flies in, we do not care about these effects; what we actually care about is the component the velocity of the balloon that is due to the net lift. For example, it is possible for the balloon to be rising at 1~m/s, and still be neutrally buoyant, as it is simply floating atop a wave in the atmosphere. In this case, we would not want the controller to act to this in the same way it would to the balloon rising steadily at 1~m/s due to a positive net lift.
 
-So, an estimator must be designed to calculate $\hat v$. A first order estimator such as a Kalman filter would suffice for this, if the noise on the velocity was Gaussian and uncorrelated in time. However, previous flight data and atmospheric literature {\color{red} cite} shows that this noise is dominated by large-amplitude waves at specific frequencies. So, a 2nd order lowpass filter, $H(s)$, is used to achieve better roll-off and reject the high frequency waves. In addition, actions of the controller are be integrated through the plan model to update the $\hat v$ estimate immediately after controller actions. The corner frequency of $H(s)$ is tpyically set around $($15 minutes$)^{-1}$ and is determined by looking at the spectral content of atmospheric waves in prior flight data.
+As a result, an estimator must be designed to calculate $\hat v$. A first order estimator such as a Kalman filter would suffice for this, if the noise on the velocity was Gaussian and uncorrelated in time. However, previous flight data and atmospheric literature \todo{cite} shows that this noise is dominated by large-amplitude waves at specific frequencies. Therefore, a second order low-pass filter, $H(s)$, is used to achieve better roll-off and reject the high frequency waves. In addition, actions of the controller are be integrated through the plan model to update the $\hat v$ estimate immediately after controller actions. The corner frequency of $H(s)$ is typically set around $($15~minutes$)^{-1}$ and is determined by looking at the spectral content of atmospheric waves in prior flight data.
 
-\subsubsection{Choosing Gains}
+\subsubsection{Choosing gains}
 
-Choosing gains, $k_h$ and $k_v$, can be done through a linear 2nd order system analysis of the system dynamic response. While the control system is non-linear, it is piecewise-linear, so for any given operating point a linear approximation remains valid.
+Choosing gains, $k_h$ and $k_v$, can be done through a linear second order system analysis of the system dynamic response. While the control system is non-linear, it is piecewise-linear, so for any given operating point a linear approximation remains valid.
 
 The transfer function model for the system without nonlinearities is 
-\[T(s) = \frac{k_h k_v k_d}{s^2 + k_v k_d s + k_h k_v k_d}\].
-The damping ratio is then given by $\zeta = \frac{1}{2}\sqrt{\frac{k_v k_d}{k_h}}$. Since in general prefer minimal ballast used over performance metrics such as rise time, we want to ensure no overshoot in the step response of the controller. As such, we need to pick a gain ratio such that $\zeta \geq 1$. Assuming that we won't overshoot, we would perfer to have a minimal rise time, so we want the lowest damping ration that is greater than or equal to one, which would be one. However, $k_d$, is an estimated parameter we uncertainty associated with it, and since ensuring no overshoot is more important than minimizing rise time, we add in some margin. In practice, $\zeta = 1.2$ works well.
+\[T(s) = \frac{k_h k_v k_d}{s^2 + k_v k_d s + k_h k_v k_d}.\]
+The damping ratio is then given by $\zeta = \frac{1}{2}\sqrt{\frac{k_v k_d}{k_h}}$. Since in general minimal ballast usage is preferred over other performance metrics such as rise time, we want to ensure no overshoot in the step response of the controller. As such, we need to pick a gain ratio such that $\zeta \geq 1$. Assuming that we won't overshoot, we would prefer to have a minimal rise time, so we want the lowest damping ration that is greater than or equal to one, which would be one. However, $k_d$, is an estimated parameter we uncertainty associated with it, and since ensuring no overshoot is more important than minimizing rise time, we add in some margin. In practice, $\zeta = 1.2$ works well.
 
-This gives use a ratio between gains, but not the magnitude of $k_h k_v$. Picking the magnitude of the gains requires consideration of the deadband though, as unlike a linear controller, a higher gain will not result in a closer tracking of $h_{\n{cmd}}$, that is set by the $e_{\n{tol}}$. Instead, the magnitude of the gains influences how aggressively the controller acts around the bounds. A high gain means that the controller will wait longer and act more aggressively near the bounds, and a lower gain means that it will act sooner but slower. In the limit of a small $k_h k_v$ and a small $e_{\n{tol}}$, the system will behave like a linear controller tracking $h_{\n{cmd}}$, and in the limit of a large $k_h k_v$, the system will behave like a bang-bang controller to command velocity to 0 when the system reaches a boundary.
+This gives use a ratio between gains, but not the magnitude of $k_h k_v$. However, picking the magnitude of the gains requires consideration of the deadband because, unlike a linear controller, a higher gain will not result in a closer tracking of $h_{\n{cmd}}$, that is set by the $e_{\n{tol}}$. Instead, the magnitude of the gains influences how aggressively the controller acts around the bounds. A high gain means that the controller will wait longer and act more aggressively near the bounds, and a lower gain means that it will act sooner but slower. In the limit of a small $k_h k_v$ and a small $e_{\n{tol}}$, the system will behave like a linear controller tracking $h_{\n{cmd}}$, and in the limit of a large $k_h k_v$, the system will behave like a bang-bang controller to command velocity to zero when the system reaches a boundary.
 
-With no uncertainty in the system, high gain would result better performance as the system would wait until the last possible second to ask. However, it would not be robust to noise in the system, measurement errors, or erros in estimated parameters. While a robust controller analysis could be used to determine the best total gain magnitude, this is subject to realistic estimates of errors in the system which are rigorously define. Instead, we model these errors in simulation, and tune this parameter form simulation, described in the next section.
+With no uncertainty in the system, high gain would result better performance as the system would wait until the last possible second to act. However, it would not be robust to noise in the system, measurement errors, or errors in the estimated parameters. While a robust controller analysis could be used to determine the best total gain magnitude, this is subject to realistic estimates of errors in the system which are rigorously defined. Instead, we model these errors in simulation, and tune this parameter using the simulation, described in the next section.
 
 
 \subsection{Simulations}
 Simulations are critical in the control system designs, as a means of testing new concepts, tuning parameters, checking flight-code for bugs, and for giving general intuition on the system, as each flight tests is expensive and it is not easy to radically change the control algorithm after the balloon is launched. While good control performance in simulation gives little guarantee on real-world performance, poor performance in simulation shows problems with the controller and misunderstandings of the system.
 
-A simulation of the plan model shown in figure \ref{bd} is implemented in c++ (more on architecture is described in section \ref{arch}). Models for $w_{\dot \ell}$ and $w_{v}$ are determined by analysis of previous flight data. The noise models contain white noise, nightfall/sunrise effects, atmospheric waves, and terrain elevation effects\footnote{waves and terrain elevation have not been added yet but are currently being analyzed}. 
+A simulation of the plan model shown in Figure~\ref{bd} is implemented in C++ (the architecture is described in depth in section \ref{arch}). Models for $w_{\dot \ell}$ and $w_{v}$ are determined by analysis of previous flight data. The noise models contain white noise, nightfall/sunrise effects, atmospheric waves, and terrain elevation effects.\footnote{Waves and terrain elevation have not been added yet but are currently being analyzed.}
 
-A plot of an example simulation output is shown in \ref{lsim}. In this instance, the white noise on $w_{\dot \ell}$ was relatively small, as this simulation was a test of the controller's response to nightfall
+A plot of an example simulation output is shown in \ref{lsim}. In this instance, the white noise on $w_{\dot \ell}$ was relatively small, as this simulation was a test of the controller's response to nightfall.
 \begin{figure}[h]
 \includegraphics[width=1\linewidth]{lsim.png}
 \label{lsim}
-\caption{Plot of a simulated valbal flight, showing altitude (blue, left y axis) vs time, along with various velocity terms (right y axis). Valve events (green vertical lines), ballast events (blue vertical lines), and controller bounds (gray horizontal lines) are shown.}
+\caption{Plot of a simulated ValBal flight, showing altitude (blue, left vertical axis) as a function time, along with various velocity terms (right vertical axis). Valve events (green vertical lines), ballast events (blue vertical lines), and controller bounds (gray horizontal lines) are shown.}
 \end{figure}
 
 \newpage
@@ -274,10 +278,9 @@ A plot of an example simulation output is shown in \ref{lsim}. In this instance,
 \label{TP}
 \subsection{Introduction}
 
-ValBal has no direct control over it's lateral movement around the globe, but rather is always drifting with the air currents of earth's atmosphere. However, by changing the altitude that it flies at, it can choose different wind currents moving in a range of directions in a given column of air. The high-level goal of trajectory planning is to come up with these altitudes that the balloon should fly at in order to achieve some mission outcome in the lateral trajectory of the balloon.
+ValBal has no direct control over its lateral movement around the globe, but rather is always drifting with the air currents of Earth's atmosphere. However, by changing the altitude that it flies at, it can choose different wind currents moving in a range of directions in a given column of air. The high-level goal of trajectory planning is to come up with these altitudes that the balloon should fly at in order to achieve some mission outcome in the lateral trajectory of the balloon.
 
-[Literature review]
-
+\todo[inline]{Literature review goes here}
 
 
 \subsection{Formulation}
@@ -331,31 +334,37 @@ where $\Delta t$ is a constant that does not affect the result. Other valid obje
 \[V = \sum_{k=0}^{K-1} \lVert r_k - r_\text{target}\rVert\]
 
 \newpage
-\subsection{Preliminary Results}
-\subsubsection*{Certainty Equivalent}
-Before running the full stochastic gradient decent on the monte-carlo problem, we developed and tested the algorithm on certainty-equivalent simulation with no noise. In this experiment, we optimized a single starting trajectory, assuming that we had complete control over 20 altitude way points, with the balloon linearly interpolating between them. The results of such a test are shown in figure \ref{ce}. 
+\subsection{Preliminary results}
+\subsubsection*{Certainty equivalent}
+Before running the full stochastic gradient decent on the monte-carlo problem, we developed and tested the algorithm on certainty-equivalent simulation with no noise. In this experiment, we optimized a single starting trajectory, assuming that we had complete control over 20 altitude way points, with the balloon linearly interpolating between them. The results of such a test are shown in Figure~\ref{ce}. 
 
+<<<<<<< HEAD
 \begin{figure}
 \floatbox[{\capbeside\thisfloatsetup{capbesideposition={right,top},capbesidewidth=6cm}}]{figure}[\FBwidth]
 {\caption{Certainty equivalent optimization from a single trajectory of the total longitude traveled. Trajectories are depicted both in latitude vs longitude over a Mercator projection (top), and altitude vs time (middle). The launch site simulated was Hollister, California and flight endpoints are designated with a green star. Intermediate trajectories are show in blue, with the final optimized result in red. A convergence plot of the objective function vs iteration number is shown (bottom)}\label{ce}}
 {\includegraphics[width=1\linewidth]{certaintyeq.png}}
 \end{figure}
+=======
+\begin{wrapfigure}{l}{0.5\textwidth}
+\includegraphics[width=1\linewidth]{certaintyeq.png}
+\caption{Certainty equivalent optimization from a single trajectory of the total longitude traveled. Trajectories are depicted both in latitude vs longitude over a Mercator projection (top), and altitude vs time (middle). The launch site simulated was Hollister, California and flight endpoints are designated with a green star. Intermediate trajectories are shown in blue, with the final optimized result in red. A convergence plot of the objective function vs iteration number is shown (bottom).}
+\label{ce}
+\end{wrapfigure}
+>>>>>>> 25ca8e4c22f76f5be5b75fc2a73c2afa42284f45
 
-We can see from this figure, that the optimization behaves as expected. The final longitude slowly moves forward each iteration, until it is at reaches a local extremum. The path of green points over the map--the endpoints of each intermediate trajectory, always moves to the right as iteration number increases.  Running the 1000 iterations of certainty equivalent optimization on a 100 hour flight such as this take well under a second on our hardware.
+We can see from this Figure~\ref{ce} that the optimization behaves as expected. The final longitude slowly moves forward each iteration, until it reaches a local extremum. The path of green points over the map---the endpoints of each intermediate trajectory---always moves to the right as iteration number increases. Running a thousand iterations of certainty equivalent optimization on a 100 hour flight as in the example takes well under a second on our hardware.
 
+\subsubsection*{Monte-Carlo runs}
 
-\subsubsection*{Monte-Carlo}
+To run our first test of this formulation, we opted to utilize the traditional Model Predictive Control approach, in which we optimize an open-loop policy over a finite horizon. In flight, this optimization would be run repeatedly as the balloon flies, using the most recently observed system state to optimize new trajectories, forming a feedback control law. 
 
-To run our first test of this formulation, we we opted to utilize the traditional Model Predictive Control approach, in which we optimize an open-loop policy over a finite horizon. In flight, this optimization would be ran again and again as the balloon flies, using the most recently observed system state to optimize new trajectories, forming a feedback control law. 
-
-Results of this method on a sample of \textsc{noaa} analysis wind data is show in figure \ref{openloop}.
+Results of this method on a sample of \textsc{noaa} analysis wind data are shown in Figure~\ref{openloop}.
 \begin{figure}[h]
 \includegraphics[width=\linewidth]{datasheetfig.png}
 \caption{Example result of optimizing an open loop trajectory. The initial settings were a 13.5km setpoint and a 0.75km tolerance (red), while the optimized trajectory shows both changing setpoints and tolerances (blue). The dark blue line gives an example possible altitude profile from the many possible altitudes profiles given the command settings}
 \label{openloop}
 \end{figure}
-
-We notice a few things from this result. First, that in this particular scenario, the initial commands resulted in a large variation in the resulting flight path. This was due to large changes in wind direction within the command tolerance over the Atlantic ocean. We see that in the optimized open-loop trajectory, policies are picked such that there is not much variation in the resulting outcome. 
+We notice a few things from this result. First, we note that in this particular scenario the initial commands resulted in a large variation in the resulting flight path. This was due to large changes in wind direction within the command tolerance over the Atlantic Ocean. We see that in the optimized open-loop trajectory, policies are picked such that there is not much variation in the resulting outcome. 
 
 
 

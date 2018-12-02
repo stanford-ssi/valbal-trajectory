@@ -1,7 +1,7 @@
 \documentclass[11pt]{scrartcl} % justified tufte-handout
 %Gummi|065|=)
-\title{\bfseries Differentiable Trajectory Optimization\\ Under Uncertainty}
-
+\title{\bfseries ValBal Altitude Control\\ and Trajectory Planning}
+\subtitle{\Large Master document} % TODO maybe remove this
 
 %\usepackage{classico}
 \usepackage{microtype}
@@ -97,6 +97,10 @@ $v$ & vertical velocity\\
 $\ell$ & net lift \\
 $w_{\dot \ell}$ & disturbance on lift \\
 $w_{v}$ & disturbance on the vertical velocity of the balloon (wind) \\
+$\theta$ & parameters to differentiable trajectory planner, e.g. (altitude, setpoint) pairs\\
+$V(\theta)$ & value function to be optimized for trajectory planning \\
+$\hat V(\theta; \lambda)$ & stochastic evaluation of the value function under parametrized randomness $\lambda$ \\
+$(u,v)$ & wind vector in longitude and latitude, respectively.`
 \end{tabular}
 
 \section{Altitude control}
@@ -116,7 +120,8 @@ Using the following substitution we can write the a state-space representation o
 
 \[x = \mx{c}{h \\ v} \qquad u = \dot \ell\]
 \[\dot x = \mx{cc}{0 & 1 \\ 0 & 0}x + \mx{cc}{0 \\ k_d} u + \mx{c}{w_v \\ k_d w_{\dot \ell}}\]
-\newpage
+
+%\newpage
 \subsection{Control system}
 \subsubsection{Overview}
 The altitude control system has an unconventional objective for a feedback control system. On every ValBal flight, there is an essential trade-off between tracking closely to a target and system ballast use, as ballast is typically the endurance-limiting factor on a flight. Furthermore, this trade-off can not be usually be conveniently represented as a quadratic relationship between state errors and control inputs to allow for an LQG-style optimal control design. In addition, a more complex SMPC-based optimal control approach would not be feasible due to the constraints that the control law run on a low power embedded processor. Further more, the control objectives are typically given (or well-approximated by) a range of equally equally appealing altitudes, with a lower and upper bound. For instance, on an endurance flight with no location objectives, the lower bound is set by aircraft altitudes and the upper bound is set by latex degradation balloon latex degradation. 
@@ -182,7 +187,7 @@ As such a linear control law that is of the form $u = K \hat x$ for some $K \in 
     \draw[thick,dotted] ($(dlift)+(-.3cm,.7cm)$) node [above right] {plant, $G(s)$} rectangle ($(vint)+(.3cm,-.3cm)$) ;
 \end{tikzpicture}\\
 
-\vspace{0.2cm}
+\vspace{0.5cm}
 \begin{tabular}{r l}
 $H(s)$ &low-pass filter\\
 $f_1(v\,;v_{\mathrm{lim}})$ & clamp on the velocity commanded by the altitude loop set by $v_{\mathrm{lim}}$ \\ 
@@ -202,8 +207,7 @@ $\hat v$ & estimate of velocity\\
 \subsubsection{Nonlinearities}
 
 The two non-linearities in the controller are given by $f_1$ and $f_2$. The first function $f_1(v\,;v_{\mathrm{lim}})$ is simply a clamping function that limits the velocity commanded by the altitude loop to $\pm v_{\mathrm{lim}}$. This prevents the controller from overreacting when it is far from it's command. The second non-linearity $f_2(\dot \ell \, ; \tau)$ is a deadband on the output of the controller. It is defined by 
-
-\begin{figure*}[h!]
+%\begin{figure*}[h!]
 \begin{center}
 \begin{multicols}{2}
 \null \vfill
@@ -238,8 +242,9 @@ every axis plot/.append style={thick}]
 \end{tikzpicture}
 \end{multicols}
 \end{center}
-\vspace*{-1em}
-\end{figure*}
+%\vspace*{-1em}
+%\end{figure*}
+
 The parameter $\tau$ is set by $\tau = k_hk_ve_{\mathrm{tol}}$, where $e_{\n{tol}}$ is the steady-state error in altitude allowable by the controller. This means, that with $v=0$, the system can be at an altitude anywhere in the range $h = h_{\n{cmd}} \pm e_{\n{tol}}$, without the controller acting. The controller can then be thought of as having two bounds, $h_{\n{lower}},h_{\n{upper}}$ that are given by $h_{\n{lower}} = h_{\n{cmd}} - e_{\n{tol}}$ and $h_{\n{upper}} = h_{\n{cmd}} + e_{\n{tol}}$. As such, controller input commands can either be given in the form $(h_{\n{cmd}}, e_{\n{tol}})$ or $(h_{\n{lower}},h_{\n{upper}})$. The values are either set by the human flight controller commanding the system, or a trajectory planning algorithm (described in section \ref{TP}).
 
 \subsubsection{Velocity estimator}

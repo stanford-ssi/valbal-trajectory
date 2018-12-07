@@ -6,6 +6,8 @@
 \usepackage{pgfplots}
 \usepackage{multicol}
 \include{defs}
+\usepackage{biblatex}
+\bibliography{traj}
 
 %% formatting
 
@@ -32,13 +34,13 @@
 }
 \footlineon
 
-%\AtBeginSection[] 
-%{ 
-%	\begin{frame}<beamer> 
-%		\frametitle{Outline} 
-%		\tableofcontents[currentsection,currentsubsection] 
-%	\end{frame} 
-%} 
+\AtBeginSection[] 
+{ 
+	\begin{frame}<beamer> 
+		\frametitle{Outline} 
+		\tableofcontents[currentsection,currentsubsection] 
+	\end{frame} 
+} 
 
 %% begin presentation
 
@@ -49,6 +51,7 @@
 
 \date{\today}
 
+\newcommand{\citehere}[1]{\footnotesize \citeauthor{#1}, \citetitle{#1} (\citeyear{#1})}
 \begin{document}
 
 \frame{
@@ -89,8 +92,47 @@
 
 \section{Trajectory Planning}
 
+\begin{frame}
+\frametitle{Trajectory Planning}
+\includegraphics[width=\linewidth,trim={0cm 0cm .7cm 0cm},clip]{multitraj.png}
+\end{frame}
 
 
+\subsection{Background}
+
+\begin{frame}
+\frametitle{Tree search for station keeping}
+\begin{itemize}
+\item \citehere{DBorn}
+\end{itemize}
+\ig{0.9}{davis.png}
+\end{frame}
+
+\begin{frame}
+\frametitle{MDP}
+\begin{itemize}
+\item \citehere{wolf2010}
+\end{itemize}
+\begin{columns}
+\column{0.5\textwidth}
+\ig{1}{blackmore1.png}
+\column{0.5\textwidth}
+\ig{1}{blackmore2.png}
+\end{columns}
+\end{frame}
+
+\begin{frame}
+\frametitle{Formulation}
+\begin{itemize}
+
+\item System represented by states $s \in \mathcal{S}$
+\item $\mathcal{S} = \mathcal{H} \times \Lambda \times \Phi \times \mathcal{T}$ (Time, Altitude, Longitude, Latitude)
+\item Atmosphereic winds act on the balloon $w(h, \lambda, \phi, t) \to (u, v)$
+\end{itemize}
+\end{frame}
+
+
+\section
 \section{Altitude Control}
 \subsection{System Dynamics}
 

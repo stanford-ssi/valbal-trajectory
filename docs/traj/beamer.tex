@@ -169,15 +169,71 @@
 \item $V = \lambda_f=\lambda_0 + v_1(t_1, h_1,\phi_1,\lambda_1)\Delta t + \cdots + v_N(t_N, h_N, \phi_N,\lambda_N)\Delta t$.
 
 
-\item Need to parametrize $V$. We control altitude of the balloon (see later). Simplest formulation: define waypoints $\theta_1,\dots,\theta_k$ at points $T_1,\dots,T_k$, and assume balloon goes linearly between waypoints: $h_i=\theta_j + (t_i-T_j)\frac{\theta_{j+1}-\theta_j}{T_{j+1}-T_j}$.
-\item However each velocity depends on altitude, which means that each successive longitude depends on all previous altitudes\dots OH GOD THE BLOCK IS REAL
+\item Need to parametrize $V$. We control altitude of the balloon (see later). Simplest formulation: define waypoints $\theta_1,\dots,\theta_k$ at points $T_1,\dots,T_k$, and assume balloon goes linearly between waypoints: $h_i=\theta_j + (t_i-T_j)\frac{\theta_{j+1}-\theta_j}{T_{j+1}-T_j}$. Ability to do stochastic formulations (later).
+%\item However each velocity depends on altitude, which means that each successive longitude depends on all previous altitudes\dots OH GOD THE BLOCK IS REAL
 \end{itemize}
 \end{frame}
 
 \begin{frame}
-\[s_{k+1} = a(s_k,\theta(t_k))\]
-\[s_{k+1} = a(\dots a(a(s_0,\theta(t_0)),\theta(t_1))\dots )\theta(t_k))\]
-\[\frac{d s_{k+1}}{d\theta(t_k)} = a(\dots a(a(s_0,\theta(t_0)),\theta(t_1))\dots ),\theta(t_k))\]
+\begin{align*}
+h(t) &= \begin{cases}
+\theta_1 + (t-t_1)\frac{\theta_2-\theta_1}{t_2-t_1} \qquad & t_1 \leq t < t_2\\
+\cdots\\
+\theta_{n-1} + (t-t_{n-1})\frac{\theta_n-\theta_{n-1}}{t_n-t_{n-1}} \qquad & t_{n-1} \leq t < t_n
+\end{cases}\\
+w_{\{\lambda,\phi\}}(\lambda,\phi,h,t) &= \text{bilinear interpolation in $(\lambda,\phi)$, linear in $t,h$ from \textsc{NOAA}}
+\end{align*}
+\begin{align*}
+&(h_0, t_0, \phi_0, \lambda_0)\\
+&\begin{cases}
+h_1 = h(t_1)\\
+\lambda_1 = \lambda_0 + \Delta t \cdot w_\lambda(\lambda_0, \phi_0, h_0, t_0)\\
+\phi_1 = \phi_0 + \Delta t \cdot w_\phi(\lambda_0, \phi_0, h_0, t_0)
+\end{cases}\\
+&\begin{cases}
+h_2 &= h(t_2)\\
+\lambda_2 &= \lambda_1 + \Delta t \cdot w_\lambda(\lambda_1, \phi_1, h_1, t_1)\\
+&{\scriptstyle =\lambda_0 + \Delta t \cdot w_\lambda(\lambda_0, \phi_0, h_0, t_0)} \\[-0.2cm]
+&{\scriptstyle \qquad + w_\lambda(\lambda_0 + w_\lambda(\lambda_0, \phi_0, h_0, t_0) \Delta t, \phi_0 +  w_\phi(\lambda_0, \phi_0, h_0, t_0)\Delta t, h_(t_1), t_1)\Delta t} 
+\end{cases}\\
+&\cdots\\
+&\frac{\partial \lambda_n}{\partial \theta_i}\neq 0\text{, follow the computation graph to compute derivative}
+\end{align*}
+
+%\[s_{k+1} = a(s_k,\theta(t_k))\]
+%\[s_{k+1} = a(\dots a(a(s_0,\theta(t_0)),\theta(t_1))\dots )\theta(t_k))\]
+%\[\frac{d s_{k+1}}{d\theta(t_k)} = a(\dots a(a(s_0,\theta(t_0)),\theta(t_1))\dots ),\theta(t_k))\]
+\end{frame}
+
+\begin{frame}
+\frametitle{Stochastic formulation}
+\begin{itemize}
+\item Previous formulation does not account for noise---balloon can't hit linearly interpolated altitude waypoints exactly! (Not without wasting tonnes of ballast, anyway.)
+\item Onboard control algorithm has two parameters: $h_\text{cmd}$ (setpoint) and $e_\text{tol}$ (tolerance). Approximate balloon as being somewhere in $h_\text{cmd}\pm e_\text{tol}$ randomly.
+\item However, position within the tolerance is correlated between timesteps.
+\begin{itemize}
+\item If balloon was at $h_\text{cmd} - 0.98e_\text{tol}$ at $t=0$, it's unlikely to be at $h_\text{cmd} + 0.5e_\text{tol}$ at $t=10~\text{min}$.
+\end{itemize}
+\item Solution: parametrize in terms of a slow-moving random walk $\lambda(t)$.
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Stochastic formulation}
+
+\begin{itemize}
+\item Refined differentiable altitude:
+\[h(t; \lambda) =
+\text{LinInterp}\left(t, t_i \to h_{\text{cmd},i} + \lambda(t_i) e_{\text{tol},i}\right)
+\]
+where $-1 \leq \lambda(t) \leq 1$ is sampled from realistic balloon trajectories (e.g. slow-moving random walk, or rollouts of the physical system).
+\item Note we introduced randomness into the simulation without blowing up the size of the state space!
+\item If we let $\lambda(t)=0$, we recover certainty equivalent formulation above.
+\item If we sample multiple random $\lambda(t)$, we can build a stochastic value function:
+\[\tilde V = \sum_{\text{random}~\lambda}^K V(t_f; \lambda)\]
+\item If we increase $K$ we capture the variance distribution with more fidelity.
+\end{itemize}
+
 \end{frame}
 
 \begin{frame}

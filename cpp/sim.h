@@ -188,11 +188,19 @@ struct ctrl_cmd {
 	Float tol;
 };
 
+class Optimizer {
+public:
+	Optimizer(double lr_, double lr_t_) : lr(lr_), lr_t(lr_t_) {};
+	double lr;
+	double lr_t;
+	void optimize(ctrl_cmd<adept::adouble>&);
+};
+
 template<class Float>
 class ParameterServer {
 public:
 	virtual ctrl_cmd<Float> get_param(sim_state<Float>&) = 0;
-	virtual double apply_gradients(double lr, double) = 0;
+	virtual double apply_gradients(Optimizer&) = 0;
 };
 
 template <class Float>
@@ -215,7 +223,7 @@ public:
 	TemporalParameters(int t0_, int dt_, int T_, double d_h, double d_t);
 	~TemporalParameters();
 	ctrl_cmd<Float> get_param(sim_state<Float>&);
-	double apply_gradients(double lr, double);
+	double apply_gradients(Optimizer&);
 
 private:
 	int t0;
@@ -224,8 +232,24 @@ private:
 	ctrl_cmd<Float> *cmds;
 	double default_h;
 	double default_tol;
-	double apply_gradients(double lr, double, tag<TemporalParameters<float>>);
-	double apply_gradients(double lr, double, tag<TemporalParameters<adouble>>);
+	double apply_gradients(Optimizer&, tag<TemporalParameters<float>>);
+	double apply_gradients(Optimizer&, tag<TemporalParameters<adouble>>);
+};
+
+template<class Float>
+class cmd_tree {
+public:
+	cmd_tree() : upper(0), lower(0) {};
+
+	cmd_tree<Float> *upper;
+	cmd_tree<Float> *lower;
+
+	ctrl_cmd<Float> cmd;
+
+	// a*lat + b*lon >= c
+	double a;
+	double b;
+	double c;
 };
 
 template<class Float>
@@ -234,18 +258,17 @@ public:
 	SpatiotemporalParameters(int t0_, int dt_, int T_, double d_h, double d_t);
 	~SpatiotemporalParameters();
 	ctrl_cmd<Float> get_param(sim_state<Float>&);
-	double apply_gradients(double lr, double);
+	double apply_gradients(Optimizer&);
 
 private:
 	int t0;
 	int dt;
 	int T;
-	ctrl_cmd<Float> *cmds;
+	cmd_tree<Float> *cmds;
 	double default_h;
 	double default_tol;
-	double apply_gradients(double lr, double, tag<TemporalParameters<float>>);
-	double apply_gradients(double lr, double, tag<TemporalParameters<adouble>>);
+	double apply_gradients(Optimizer&, tag<TemporalParameters<float>>);
+	double apply_gradients(Optimizer&, tag<TemporalParameters<adouble>>);
 };
-
 
 #endif

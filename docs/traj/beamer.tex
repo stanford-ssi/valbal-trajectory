@@ -4,8 +4,9 @@
 \usetikzlibrary{calc}
 \usetikzlibrary{shapes,arrows,positioning}
 \usepackage{pgfplots}
-\usepackage{defs}
 \usepackage{multicol}
+\include{defs}
+
 %% formatting
 
 \mode<presentation>
@@ -55,6 +56,36 @@
 \titlepage
 }
 
+\section{ValBal}
+\begin{frame}
+\frametitle{ValBal}
+
+\begin{itemize}
+\item Research project by the Stanford Space Initiative (undergrad student club).
+\item High altitude latex balloon platform that controls its altitude by venting lifting gas and dropping ballast mass.
+\item Very cheap (sub thousand dollars), long endurance (5 days demonstrated).
+\item Potential applications: hurricane data collection, radar probing of Greenland ice, lightning research, data relay\dots
+\item Control: in altitude (remain between bounds while minimizing control effort), in space (pick altitude to get good winds).
+\end{itemize}
+{\scriptsize
+\begin{enumerate}
+\item A. Sushko, A. Tedjarati, J. Creus-Costa, S. Maldonado, K. Marshland and M. Pavone, ``Low cost, high endurance, altitude-controlled latex balloon for near-space research (ValBal),'' 2017 IEEE Aerospace Conference, Big Sky, MT, 2017, pp. 1-9.
+\item A. Sushko et al., ``Advancements in low-cost, long endurance, altitude controlled latex balloons (ValBal),'' 2018 IEEE Aerospace Conference, Big Sky, MT, 2018, pp. 1-10.
+\end{enumerate}}
+\end{frame}
+
+\begin{frame}
+
+\begin{center}\includegraphics[width=0.4\linewidth,trim={0cm 13cm 0cm 5cm},clip]{render.jpg}\hspace{1cm}\includegraphics[width=0.4\linewidth,trim={12cm 2cm 25cm 12cm},clip]{vbpic.jpg}\end{center}
+\end{frame}
+
+
+\begin{frame}
+\centering
+\includegraphics[width=0.9\linewidth]{valbal-map.png}
+\includegraphics[width=0.6\linewidth]{thegraph.pdf}
+%\vfill
+\end{frame}
 
 \section{Trajectory Planning}
 

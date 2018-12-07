@@ -168,7 +168,7 @@
 \begin{itemize}
 \item Suppose we want to maximize longitudinal distance of final point after $N$ steps (say $N=720$, 5 days).
 \item Final longitude is the result of doing a simulation rollout, using Euler integration in latitude and longitude.
-\item $V = \lambda_f=\lambda_0 + v_1(t_1, h_1,\phi_1,\lambda_1)\Delta t + \cdots + v_N(t_N, h_N, \phi_N,\lambda_N)\Delta t$.
+\item $V = \lambda_f=\lambda_0 + w_\lambda(t_1, h_1,\phi_1,\lambda_1)\Delta t + \cdots + w_\lambda(t_N, h_N, \phi_N,\lambda_N)\Delta t$.
 
 
 \item Need to parametrize $V$. We control altitude of the balloon (see later). Simplest formulation: define waypoints $\theta_1,\dots,\theta_k$ at points $T_1,\dots,T_k$, and assume balloon goes linearly between waypoints: $h_i=\theta_j + (t_i-T_j)\frac{\theta_{j+1}-\theta_j}{T_{j+1}-T_j}$. Ability to do stochastic formulations (later).
@@ -216,7 +216,7 @@ h_2 &= h(t_2)\\
 \begin{itemize}
 \item If balloon was at $h_\text{cmd} - 0.98e_\text{tol}$ at $t=0$, it's unlikely to be at $h_\text{cmd} + 0.5e_\text{tol}$ at $t=10~\text{min}$.
 \end{itemize}
-\item Solution: parametrize in terms of a slow-moving random walk $\lambda(t)$.
+\item Solution: parametrize in terms of a slow-moving random walk $\gamma(t)$.
 \end{itemize}
 \end{frame}
 
@@ -225,14 +225,14 @@ h_2 &= h(t_2)\\
 
 \begin{itemize}
 \item Refined differentiable altitude:
-\[h(t; \lambda) =
-\text{LinInterp}\left(t, t_i \to h_{\text{cmd},i} + \lambda(t_i) e_{\text{tol},i}\right)
+\[h(t; \gamma) =
+\text{LinInterp}\left(t, t_i \to h_{\text{cmd},i} + \gamma(t_i) e_{\text{tol},i}\right)
 \]
-where $-1 \leq \lambda(t) \leq 1$ is sampled from realistic balloon trajectories (e.g. stochastic altitude controller simulations).
+where $-1 \leq \gamma(t) \leq 1$ is sampled from realistic balloon trajectories (e.g. stochastic altitude controller simulations).
 \item Note we introduced randomness into the simulation without blowing up the size of the state space!
-\item If we let $\lambda(t)=0$, we recover certainty equivalent formulation above.
-\item If we sample multiple random $\lambda(t)$, we can build a stochastic value function:
-\[\tilde V = \sum_{\text{random}~\lambda}^K V(t_f; \lambda)\]
+\item If we let $\gamma(t)=0$, we recover certainty equivalent formulation above.
+\item If we sample multiple random $\gamma(t)$, we can build a stochastic value function:
+\[\tilde V = \sum_{\text{random}~\gamma}^K V(t_f; \gamma)\]
 \item If we increase $K$ we capture the variance distribution with more fidelity.
 \end{itemize}
 \end{frame}

@@ -7,6 +7,7 @@
 \usepackage{multicol}
 \usepackage{algpseudocode}
 \include{defs}
+\usepackage{textcomp}
 \usepackage{biblatex}
 \bibliography{traj}
 
@@ -128,8 +129,55 @@
 
 \item System represented by states $s \in \mathcal{S}$
 \item $\mathcal{S} = \mathcal{H} \times \Lambda \times \Phi \times \mathcal{T}$ (Time, Altitude, Longitude, Latitude)
-\item Atmosphereic winds act on the balloon $w(h, \lambda, \phi, t) \to (u, v)$
+\begin{itemize}
+\item Physically intuitive to keep majority of state continuous---curse of dimensionality as we discretize.
+\begin{itemize}
+\item $h \in \mathcal{H}$: altitudes ($[0~\text{km},20~\text{km}]$)
+\item $\lambda \in \Lambda$: longitudes ($[0, 2\pi]$)  
+\item $\phi \in \Phi$: latitudes ($[-\pi/2,\pi/2]$)
 \end{itemize}
+\item $t \in \mathcal{T}$: time, defined in discrete steps of 10~min. Allows us to use simple Euler integration spatially to trace out wind field (altitude handled differently).
+\end{itemize}
+\item Atmospheric winds act on the balloon $w(h, \lambda, \phi, t) \to (u, v)$. $w$ given by \textsc{noaa} on 0.25\textdegree{} grid at various altitudes; interpolate in each variable.
+\item Control policies $\theta(t) = (h_{\n{cmd}},e_{\n{tol}})$ command the altitude of the balloon and error tollerance around set altitude
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Formulation}
+\begin{itemize}
+\item Goal: formulate value function $V$ as a differentiable function of a (small) set of policy parameters $\theta$.
+\begin{itemize}
+\item Avoids having to discretize a huge state space as in most MDP formulations.
+\end{itemize}
+\item Optimize $V$ via a gradient method, \eg\, $\theta^{k+1} = \theta^k + \alpha_k \nabla_\theta V(\theta)$. for stepsize $a_k$
+\item Allows us to preserve key properties of the spaces we're in:
+\begin{itemize}
+\item We preserve smoothness of the value function: the wind field is not random, and has a rather small spatial frequency.
+\item We preserve the continuity of our variables: altitude, latitude, longitude need small discretization to be realistic.
+\item We will be able to handle stochasticity without blowing up the size of the problem.
+\end{itemize}
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Formulation: example}
+\begin{itemize}
+\item Suppose we want to maximize longitudinal distance of final point after $N$ steps (say $N=720$, 5 days).
+\item Final longitude is the result of doing a simulation rollout, using Euler integration in latitude and longitude.
+\item $V = \lambda_f=\lambda_0 + v_1(t_1, h_1,\phi_1,\lambda_1)\Delta t + \cdots + v_N(t_N, h_N, \phi_N,\lambda_N)\Delta t$.
+
+
+\item Need to parametrize $V$. We control altitude of the balloon (see later). Simplest formulation: define waypoints $\theta_1,\dots,\theta_k$ at points $T_1,\dots,T_k$, and assume balloon goes linearly between waypoints: $h_i=\theta_j + (t_i-T_j)\frac{\theta_{j+1}-\theta_j}{T_{j+1}-T_j}$.
+\item However each velocity depends on altitude, which means that each successive longitude depends on all previous altitudes\dots OH GOD THE BLOCK IS REAL
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\[s_{k+1} = a(s_k,\theta(t_k))\]
+\[s_{k+1} = a(\dots a(a(s_0,\theta(t_0)),\theta(t_1))\dots )\theta(t_k))\]
+\[\frac{d s_{k+1}}{d\theta(t_k)} = a(\dots a(a(s_0,\theta(t_0)),\theta(t_1))\dots ),\theta(t_k))\]
 \end{frame}
 
 \begin{frame}
@@ -148,6 +196,8 @@ check convergence
 \EndProcedure
 \end{algorithmic}
 \end{frame}
+
+
 
 \section{Altitude Control}
 \subsection{System Dynamics}

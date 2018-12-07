@@ -26,7 +26,7 @@ void demo() {
 	WaypointController<float> controller(t0, 3600, pressures);
 
     TIMEIT("Running simple sims",
-        const int N = 500000;
+        const int N = 5000000;
 		/* This is just to run it faster, on multiplee threads. The scheduler isn't
          * strictly necessary. */
         Scheduler<float> sched(-2, N);
@@ -57,9 +57,11 @@ void stochasticGradients(){
 	float LR_H = 200000;
 	float LR_T = 20000;
 	const float alpha = 0.995;
+	const int N_IT = 200;
 	adept::Stack stack;
-	TemporalParameters<adouble> params(t0, dt, 120*dt, 14000, 1500);
-	for (int it=0; it<3000; it++){
+	Optimizer opt(LR_H, LR_T);
+	TemporalParameters<adouble> params(t0, dt, 120*dt, 14000, 2000);
+	for (int it=0; it<N_IT; it++){
 		LR_H = LR_H*alpha;
 		clock_t timer0 = clock();
 		adouble obj_sum = 0;
@@ -69,11 +71,14 @@ void stochasticGradients(){
 		float meantime = 0;
 
 		for (int run=0; run<N_RUNS; run++) {
-			StochasticControllerApprox<adouble> controller(params, time(NULL));
+			StochasticControllerApprox<adouble> controller(params, rand());
 			LinInterpWind<adouble> wind;
+            wind.sigma = 10;
 			FinalLongitude<adouble> obj;
 			EulerIntBal<adouble> in;
-			Simulation<adouble> sim(controller, wind, obj, in, run + N_RUNS*(it==0));
+			int fname = -1;
+			if (it == 0 || it == N_IT-1) { printf("saving!\n"); fname = run + N_RUNS*(it == 0); }
+			Simulation<adouble> sim(controller, wind, obj, in, fname);
 			sim.tmax=60*60*120;
 			sim_state<adouble> sf = sim.run(t0, lat0, lon0);
 			meanbal += VAL(sf.bal);
@@ -87,10 +92,10 @@ void stochasticGradients(){
 		obj_sum = obj_sum/((float)N_RUNS);
 		obj_sum.set_gradient(1.0);
 		stack.compute_adjoint();
-		double grad_mag = params.apply_gradients(LR_H, LR_T);
+		params.apply_gradients(opt);
 
 		float dt = (clock() - timer0)/((double)CLOCKS_PER_SEC)*1000;
-		printf("Took %.2f ms, obj: %f, bal: %f, days: %f, gradient %e\n",dt,VAL(obj_sum), meanbal, meantime/86400., grad_mag);
+		printf("Took %.2f ms, obj: %f, bal: %f, days: %f\n",dt,VAL(obj_sum), meanbal, meantime/86400.);
 	}
 }
 
@@ -98,8 +103,6 @@ int main() {
 	printf("ValBal trajectory optimization.\n");
 	printf("This program is highly cunning and, on the face of it, not entirely wrong.\n");
 
-	demo();
-	exit(1);
 
 	//load_data(get_data_path("/proc/gfs_pred_0deg5/20181021_12"), 1500000000,1600000000);
 	//load_data("../ignored/proc/euro_anl", 1500000000,1600000000);

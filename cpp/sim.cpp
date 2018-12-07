@@ -11,6 +11,19 @@
 
 #define STORE_ALTITUDE
 
+void Optimizer::optimize(ctrl_cmd<adept::adouble>& cmd) {
+	double grad_h = cmd.h.get_gradient();
+	double grad_tol = cmd.tol.get_gradient();
+
+	double val = VAL(cmd.h) + lr * grad_h;
+	val = min(16500., max(10000., val));
+	cmd.h.set_value(val);
+
+	double tval = VAL(cmd.tol) + lr_t * grad_tol;
+	tval = min(2500., max(200., tval));
+	cmd.tol.set_value(tval);
+}
+
 template <class Float>
 void EulerInt<Float>::integrate(sim_state<Float>& loc, wind_vector<Float>& w){
 	loc.lat += w.v * idlat;
@@ -173,40 +186,24 @@ ctrl_cmd<Float> TemporalParameters<Float>::get_param(sim_state<Float>& state){
 }
 
 template <class Float>
-double TemporalParameters<Float>::apply_gradients(double lr, double lr_t) {
-	return apply_gradients(lr, lr_t, tag<TemporalParameters>());
+double TemporalParameters<Float>::apply_gradients(Optimizer& opt) {
+	return apply_gradients(opt, tag<TemporalParameters>());
 }
 
 template <class Float>
-double TemporalParameters<Float>::apply_gradients(double lr, double lr_t, tag<TemporalParameters<float>>) {
+double TemporalParameters<Float>::apply_gradients(Optimizer& opt, tag<TemporalParameters<float>>) {
 	printf("You what mate, what are you trying to take the gradient of\n");
 	exit(1);
 	return M_PI;
 }
 
 template <class Float>
-double TemporalParameters<Float>::apply_gradients(double lr, double lr_t, tag<TemporalParameters<adouble>>) {
+double TemporalParameters<Float>::apply_gradients(Optimizer& optimizer, tag<TemporalParameters<adouble>>) {
 	ctrl_cmd<adouble> *cmds_ = (ctrl_cmd<adouble>*)(&cmds[0]);
-	double norm = 0.0;
-	double tols = 0;
 	for (int i=0; i<(T/dt); i++) {
-		double grad_h = cmds_[i].h.get_gradient();
-		norm += grad_h*grad_h;
-		double grad_tol = cmds_[i].tol.get_gradient();
-		norm += grad_tol*grad_tol;
-
-		double val = VAL(cmds_[i].h) + lr * grad_h;
-		val = min(16500., max(10000., val));
-		cmds_[i].h.set_value(val);
-
-		double tval = VAL(cmds_[i].tol) + lr_t * grad_tol;
-		tval = min(2000., max(200., tval));
-		tols += tval;
-		cmds_[i].tol.set_value(tval);
+		optimizer.optimize(cmds_[i]);
 	}
-	tols /= (T/dt);
-	printf("mean tol %f\n", tols);
-	return sqrt(norm);
+	return 0.0;
 }
 
 template<class Float>
@@ -391,6 +388,59 @@ sim_state<Float> Simulation<Float>::run(int t, Float lat, Float lon) {
 	}
 	return state;
 }
+
+/*
+template<class Float>
+SpatiotemporalParameters<Float>::SpatiotemporalParameters(int t0_, int dt_, int T_, double default_h_, double default_tol_) : 
+t0(t0_), dt(dt_), T(T_), default_h(default_h_), default_tol(default_tol_)
+{ 
+	int N = T_/dt_;
+	cmds = new cmd_tree<Float>[N];
+	for (int i=0; i<N; i++) {
+		cmds[i].cmd.h = default_h_;
+		cmds[i].cmd.tol = default_tol_;
+	}
+}
+
+template<class Float>
+SpatiotemporalParameters<Float>::~TemporalParameters() {
+	delete[] cmds;
+}
+
+template<class Float>
+ctrl_cmd<Float> SpatiotemporalParameters<Float>::get_param(sim_state<Float>& state){
+	unsigned int idx = (state.t-t0)/dt;
+	float theta = (state.t - (t0 + dt*idx))/((float)dt);
+	ctrl_cmd<Float> cmd;
+	cmd.h = cmds[idx].h + theta * (cmds[idx+1].h - cmds[idx].h);
+	cmd.tol = cmds[idx].tol + theta * (cmds[idx+1].tol - cmds[idx].tol);
+	return cmd;
+}
+
+template <class Float>
+double SpatiotemporalParameters<Float>::apply_gradients(double lr, double lr_t) {
+	return apply_gradients(lr, lr_t, tag<TemporalParameters>());
+}
+
+template <class Float>
+double SpatiotemporalParameters<Float>::apply_gradients(double lr, double lr_t, tag<TemporalParameters<float>>) {
+	printf("You what mate, what are you trying to take the gradient of\n");
+	exit(1);
+	return M_PI;
+}
+
+template <class Float>
+double SpatiotemporalParameters<Float>::apply_gradients(double lr, double lr_t, tag<TemporalParameters<adouble>>) {
+	ctrl_cmd<adouble> *cmds_ = (ctrl_cmd<adouble>*)(&cmds[0]);
+	for (int i=0; i<(T/dt); i++) {
+
+	}
+	tols /= (T/dt);
+	printf("mean tol %f max tol %f max alt %f\n", tols, maxtol, maxalt);
+	return sqrt(norm);
+}
+*/
+
 
 #define INIT_SIM(type) \
 		template class PressureTable<type>; \

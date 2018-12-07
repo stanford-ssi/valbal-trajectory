@@ -27,7 +27,7 @@
 \newcommand\footlineon{
   \setbeamertemplate{footline} {
     \begin{beamercolorbox}[ht=2.5ex,dp=1.125ex,leftskip=.8cm,rightskip=.6cm]{structure}
-      \footnotesize \insertsection
+      \footnotesize \insertsection \,---\,\insertsubsection
       \hfill
       {\insertframenumber}
     \end{beamercolorbox}
@@ -122,6 +122,8 @@
 \ig{1}{blackmore2.png}
 \end{columns}
 \end{frame}
+
+\subsection{Formulation}
 
 \begin{frame}
 \frametitle{Formulation}
@@ -226,7 +228,7 @@ h_2 &= h(t_2)\\
 \[h(t; \lambda) =
 \text{LinInterp}\left(t, t_i \to h_{\text{cmd},i} + \lambda(t_i) e_{\text{tol},i}\right)
 \]
-where $-1 \leq \lambda(t) \leq 1$ is sampled from realistic balloon trajectories (e.g. slow-moving random walk, or rollouts of the physical system).
+where $-1 \leq \lambda(t) \leq 1$ is sampled from realistic balloon trajectories (e.g. stochastic altitude controller simulations).
 \item Note we introduced randomness into the simulation without blowing up the size of the state space!
 \item If we let $\lambda(t)=0$, we recover certainty equivalent formulation above.
 \item If we sample multiple random $\lambda(t)$, we can build a stochastic value function:
@@ -253,7 +255,24 @@ check convergence
 \end{algorithmic}
 \end{frame}
 
-\section{Flight Test}
+\subsection{Results}
+
+\begin{frame}
+\frametitle{Certainty Equivalent}
+\begin{columns}
+\column{0.6\linewidth}
+\includegraphics[width=1\linewidth,trim={0 9.5cm 0 0cm},clip]{certaintyeq.png}
+\column{0.5\linewidth}
+\includegraphics[width=1\linewidth,trim={0 0cm 0 18.3cm},clip]{certaintyeq.png}
+\end{columns}
+\end{frame}
+
+\begin{frame}
+\frametitle{Stocasstic}
+\includegraphics[width=1\linewidth,trim={0 0cm 0 0cm},clip]{datasheetfig.png}
+\end{frame}
+
+\subsection{Flight Test}
 
 \begin{frame}
 \frametitle{Valbal Flights}
@@ -268,6 +287,59 @@ check convergence
 \begin{frame}
 \frametitle{Mission Control}
 \hspace*{-1cm}\includegraphics[width=1.2\linewidth,trim={0 0cm 0 0cm},clip]{habmc.png}
+\end{frame}
+
+\begin{frame}
+\frametitle{Flight Optimization}
+\begin{center}
+\includegraphics[width=1\linewidth,trim={0 0cm 0 0cm},clip]{f1.png}
+\end{center}
+\end{frame}
+\begin{frame}
+\frametitle{Flight Optimization}
+\begin{center}
+\includegraphics[width=1\linewidth,trim={0 0cm 0 0cm},clip]{f2.png}
+\end{center}
+\end{frame}
+\begin{frame}
+\frametitle{Flight Optimization}
+\begin{center}
+\includegraphics[width=.6\linewidth,trim={0 0cm 0 0cm},clip]{f3.png}
+\end{center}
+\end{frame}
+\begin{frame}
+\frametitle{Flight Optimization}
+\begin{center}
+\includegraphics[width=.6\linewidth,trim={0 0cm 0 0cm},clip]{f4.png}
+\end{center}
+\end{frame}
+\begin{frame}
+\frametitle{Flight Optimization}
+\begin{center}
+\includegraphics[width=.6\linewidth,trim={0 0cm 0 0cm},clip]{f5.png}
+\end{center}
+\end{frame}
+\begin{frame}
+\frametitle{Flight Optimization}
+\begin{center}
+\includegraphics[width=.6\linewidth,trim={0 0cm 0 0cm},clip]{f6.png}
+\end{center}
+\end{frame}
+\begin{frame}
+\frametitle{Flight Optimization}
+\begin{center}
+\includegraphics[width=.6\linewidth,trim={0 0cm 0 0cm},clip]{f7.png}
+\end{center}
+\end{frame}
+\begin{frame}
+\frametitle{Flight Optimization}
+\begin{center}
+\hspace*{-1.4cm}\includegraphics[width=1.2\linewidth,trim={0 0cm 0 0cm},clip]{f8.png}
+\end{center}
+\end{frame}
+
+\subsection{Architecture}
+\begin{frame}{Architecture}
 \end{frame}
 
 \section{Altitude Control}
@@ -463,4 +535,16 @@ High gain performs better but can't tolerate uncertainty, low gain is worse but 
 \includegraphics[width=\linewidth,trim={.7cm 0 1cm 1cm},clip]{bal_avg.png}
 \end{columns}
 \end{frame}
+
+
+\section{Conclusion}
+\begin{frame}{Future Work}
+\begin{itemize}\itemsep=24pt
+\item Benchmarks
+\item Comparison with MCTS
+\item 
+\end{itemize}
+\end{frame}
+
+
 \end{document}

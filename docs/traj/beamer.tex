@@ -2,9 +2,10 @@
 
 \usepackage{graphicx,amsmath,amssymb,tikz,psfrag}
 \usetikzlibrary{calc}
+\usetikzlibrary{shapes,arrows,positioning}
 \usepackage{pgfplots}
 \usepackage{defs}
-
+\usepackage{multicol}
 %% formatting
 
 \mode<presentation>
@@ -70,18 +71,17 @@
 \item Assumptions
 \vspace*{0.5em}
 \begin{itemize}
-\item $v_t$ is small
 \item $F_d \propto v$ i.e. drag is linear.
 \item $F_l - F_g = F_d$ i.e. the balloon is always at terminal velocity 
 \end{itemize}
 \item Equations of motion
 \vspace*{0.5em}
 \begin{itemize}
-\item let $l = F_l - F_g$ be the net lift on the balloon
-\item $\dot l$ is commanded by controller
-\item $v = k_{d} \int \dot l \, dt $
-\item $h = \int v \, dt$
-\item $\mathcal{L}\{\cdot\} = k_{d} / s^2$
+\item let $\ell = F_{\ell} - F_g$ be the net lift on the balloon
+\item $\dot \ell$ is commanded by controller
+\item $\dot v(t) = k_d (\dot \ell(t) + w_{\dot \ell} (t))$
+\item $\dot h(t) = v(t) +  w_v(t)$
+\item $\mathcal{L}\{h(t) / \dot \ell (t) \} = k_{d} / s^2$
 \end{itemize}
 \end{itemize}
 
@@ -90,24 +90,23 @@
 \begin{center}
 \begin{tikzpicture}[scale=0.7]
     \draw[gray] (-1,-1) rectangle (1,1);
-    \draw[thick,->] (0,1) -- (0,3) node[midway,right]{$F_l$};
+    \draw[thick,->] (0,1) -- (0,3) node[midway,right]{$F_{\ell}$};
     \draw[thick,->] (.5,-1) -- (.5,-2) node[midway,right]{$F_d$};
     \draw[thick,->] (-.5,-1) -- (-.5,-2) node[midway,left]{$F_g$};
     \draw[thick,->] (1.5,-0.8) -- (1.5,0.8) node[midway,right]{$v$};
-    \draw[->] (-1.5,3) -- (-1.5,2.5) node[midway,left]{$v_t$};
+    \draw[->] (-1.5,3) -- (-1.5,2.5) node[midway,left]{$w_v$};
 \end{tikzpicture}
 \end{center}
-
 $F_d$: Force of drag\\
 $F_g$: Gravity\\
-$F_l$: Buoyant force\\
+$F_{\ell}$: Buoyant force\\
 $v$: vertical velocity of balloon\\
-$v_t$: vertical velocity of surrounding air
+$w_v$: vertical velocity of surrounding air
 \end{columns}
 \end{frame}
 
 \begin{frame}
-\frametitle{Open Loop Block Diagram}
+\frametitle{Plant Block Diagram}
 \begin{center}
 \begin{tikzpicture}[scale=2,
      block/.style = {draw, rectangle,node distance=1cm},
@@ -121,12 +120,12 @@ $v_t$: vertical velocity of surrounding air
       shape border rotate=-90}
     ]
     \begin{scope}[scale=.75, transform shape]
-    \node [input] (cinput) {$\dot l_c$};
+    \node [input] (cinput) {$\dot \ell$};
     \node [sum, right of=cinput] (dlift) {};
-    \node [input, above of=dlift] (ldist) {$\dot l_t$};
+    \node [input, above of=dlift] (ldist) {$w_{\dot \ell}$};
     \node [block, right of=dlift] (lint) {$\frac{k_d}{s}$};
     \node [sum, right of=lint] (velocity) {};
-    \node [input, above of=velocity] (vdist) {$v_t$};
+    \node [input, above of=velocity] (vdist) {$w_v$};
     \node [block, right of=velocity] (vint) {$\frac{1}{s}$};
     \node [output, right of=vint] (h) {$h$};
 
@@ -140,209 +139,86 @@ $v_t$: vertical velocity of surrounding air
     \end{scope}
 \end{tikzpicture}
 \end{center}
-\vspace{1cm}
-$\dot l_c$: commanded change in lift (valve and ballast actions) \\
-$\dot l_t$: atmospheric lift disturbance \\
-$v_t$: atmosphereic velocity disturbance \\
+\vspace{0cm}
+$\dot \ell$: commanded change in lift (valve and ballast actions) \\
+$w_{\dot \ell}$: atmospheric lift disturbance \\
+$w_v$: atmosphereic velocity disturbance \\
 $h$: altitude 
+\[x = \mx{c}{h \\ v} \qquad u = \dot \ell\]
+\[\dot x = \mx{cc}{0 & 1 \\ 0 & 0}x + \mx{cc}{0 \\ k_d} u + \mx{c}{w_v \\ k_d w_{\dot \ell}}\]
+
 \end{frame}
 
+\include{blockdiagram}
 
-
-\section{Spaghetti}
-
-\begin{frame}
-\frametitle{Spaghetti Controller Motivation}
-\begin{itemize}
-\item Use a simple linear compensator to stabilize altitude with robust stability margins
-
-\item 
-\end{itemize}
-\end{frame}
-
-\begin{frame}
-\frametitle{Spaghetti Block Diagram}
-\begin{center}
-\begin{tikzpicture}[scale=2,
-     block/.style = {draw, rectangle,node distance=1cm},
-     input/.style = {node distance=1cm},
-     output/.style = {node distance=1cm},
-     arrow/.style={draw, -latex,node distance=2cm},
-     pinstyle/.style = {pin edge={latex-, black,node distance=2cm}},
-     sum/.style = {draw, circle, node distance=1cm},
-     gain/.style = {regular polygon, regular polygon sides=3,draw, fill=white, text width=1em,
-      inner sep=0mm, outer sep=0mm,
-      shape border rotate=-90}
-    ]
-        
-    \node [input] (hcmd) {$h_c$};
-    \node [sum,right of=hcmd] (hsum) {};    
-    \node [block,right of=hsum, node distance=1.5cm] (lead) {$K(s)$};
-    \node [sum, right of=lead, node distance=2cm] (dlift) {};
-    \node [input, above of=dlift] (ldist) {$\dot l_t$};
-    \node [block, right of=dlift] (lint) {$\frac{k_d}{s}$};
-    \node [sum, right of=lint] (velocity) {};
-    \node [input, above of=velocity] (vdist) {$v_t$};
-    \node [block, right of=velocity] (vint) {$\frac{1}{s}$};
-    \node [output, right of=vint,node distance=1.4cm] (h) {$h$};
-
-    \draw[->] (hcmd) -- (hsum) node [above left] {\scriptsize +};
-    \draw[->] (hsum) -- (lead);
-    \draw[->] (lead) -- node [above left] {$\dot l_c$} (dlift)  node [above left] {\scriptsize +};
-    \draw[->] (ldist) -- (dlift) node [above right] {\scriptsize +};
-    \draw[->] (dlift) -- (lint);
-    \draw[->] (lint) -- (velocity) node [above left] {\scriptsize +};
-    \draw[->] (vdist) -- (velocity) node [above right] {\scriptsize +};
-    \draw[->] (velocity) -- (vint) node [above right] {};
-    \draw[->] (vint) -- (h) node [above right] {};
-    \draw  (h) ++ (-.3,0) -- ++(0,-.7) coordinate (fb);
-    \draw[->] (fb) -| (hsum) node [below left] {\scriptsize -};
-    \draw[thick,dotted] ($(dlift)+(-.3cm,.7cm)$) node [above right] {plant, $G(s)$} rectangle ($(vint)+(.3cm,-.3cm)$) ;
-
-\end{tikzpicture}
-\end{center}
-\vspace{1cm}
-$K(s)$: First order lead compensator.
-\end{frame}
-
-\begin{frame}{Spaghetti Flight}
-\begin{center}
-
-\includegraphics[width=1\linewidth,trim={10 0 10 0cm},clip]{flight.png}
-\begin{itemize}
-\item 120hr flight from December with spaghetti as controller 
-\begin{itemize}
-\item blue shows ballast events, green shows vent events
-\item temperature shows sunset/sunrise, large effect on ballast use
-\end{itemize}
-\item issues durring flight:
-\begin{itemize}
-\item valve controller had software bug, instead of changing duty cylce, one threshold met valve was repeatedly opened
-\item At end of flight, balloon has low overpressure--opening valve has no effect until balloon rises high enough
-\end{itemize}
-\end{itemize}
-\end{center}
-\end{frame}
-
-
-\begin{frame}{Oscillations}
-
-\includegraphics[width=1\linewidth,trim={10 0 10 0cm},clip]{osc.png}
-\end{frame}
-
-\begin{frame}{Velocity Estimator}
-
-Lowpass filtered velocity estimate that fuses information on actions from the controller.
-\begin{center}
-\includegraphics[width=.8\linewidth,trim={10 0 10 0cm},clip]{est.png}
-\end{center}
-\vspace{-0.5cm}
-\[ \mathcal{L}\{ \hat v \} = H_1(s) \mathcal{L}\{h\} + H_2(s) \mathcal{L} \{\dot l_c\} \]
-$H_1(s)$ is differentiation and 2nd order lowpass filter\\
-$H_2(s)$ is integration with decay (estimate of effect of actions, decays to 0 over time)
-\end{frame}
-
-
-\section{Lasagna}
-
-\begin{frame}
-\frametitle{Lasagna Block Diagram}
-\vspace{-1cm}
-\begin{center}
-\begin{tikzpicture}[scale=2,
-     block/.style = {draw, rectangle,node distance=1cm},
-     input/.style = {node distance=1cm},
-     output/.style = {node distance=1cm},
-     arrow/.style={draw, -latex,node distance=2cm},
-     pinstyle/.style = {pin edge={latex-, black,node distance=2cm}},
-     sum/.style = {draw, circle, node distance=1cm},
-     gain/.style = {regular polygon, regular polygon sides=3,draw, fill=white, text width=1em,
-      inner sep=0mm, outer sep=0mm,
-      shape border rotate=-90}
-    ]
-        
-    \node [input] (hcmd) {$h_c$};
-    \node [sum,right of=hcmd] (hsum) {};    
-    \node [block,right of=hsum, node distance=1cm] (K1) {$K_1(s)$};
-    \node [sum,right of=K1, node distance=1.5cm] (vsum) {};
-    \node [block, right of=vsum] (K2) {$K_2(s)$};
-    \node [sum, right of=K2, node distance=2cm] (dlift) {};
-    \node [input, above of=dlift] (ldist) {$\dot l_t$};
-    \node [block, right of=dlift] (lint) {$\frac{k_d}{s}$};
-    \node [sum, right of=lint] (velocity) {};
-    \node [input, above of=velocity] (vdist) {$v_t$};
-    \node [block, right of=velocity] (vint) {$\frac{1}{s}$};
-    \node [output, right of=vint,node distance=1.4cm] (h) {$h$};
-    \node [block, below of=vint,node distance=1.8cm] (H1) {$H_1(s)$};
-    \node [block, below of=dlift,node distance=1.1cm] (H2) {$H_2(s)$};
-    \node [sum, left of=H1,node distance=1.5cm] (fsum) {};
-
-    \draw[->] (hcmd) -- (hsum) node [above left] {\scriptsize +};
-    \draw[->] (hsum) -- (K1);
-    \draw[->] (K1) -- node [above] {$v_c$} (vsum) node [above left] {\scriptsize +};
-    \draw[->] (vsum) -- (K2);
-    \draw[->] (K2) -- node [above left] {$\dot l_c$} (dlift)  node [above left] {\scriptsize +};
-    \draw[->] (ldist) -- (dlift) node [above right] {\scriptsize +};
-    \draw[->] (dlift) -- (lint);
-    \draw[->] (lint) -- (velocity) node [above left] {\scriptsize +};
-    \draw[->] (vdist) -- (velocity) node [above right] {\scriptsize +};
-    \draw[->] (velocity) -- (vint) node [above right] {};
-    \draw[->] (vint) -- (h) node [above right] {};
-    \draw  (h) ++ (-.3,0) -- ++(0,-1.3) coordinate (fb);
-    \draw[->]  (h) ++ (-.3,0) |- (H1);
-    \draw[->] (K2) ++ (0.5,0) |- (H2);
-    \draw[->] (H1) -- (fsum) node [below right] {\scriptsize +};
-    \draw[->] (H2) -| (fsum) node [above right] {\scriptsize +}; 
-    \draw[->] (fsum) -| node [above left] {$\hat v$} (vsum) node [below left] {\scriptsize -};
-    \draw[->] (fb) -| (hsum) node [below left] {\scriptsize -};
-    \draw[thick,dotted] ($(dlift)+(-.3cm,.7cm)$) node [above right] {plant, $G(s)$} rectangle ($(vint)+(.3cm,-.3cm)$) ;
-
-\end{tikzpicture}
-\end{center}
-$K_1(s)$: Position loop compensator \\
-$K_2(s)$: Velocity loop compensator \\
-$H_1(s), H_2(s)$: Velocity estimator \\
-With just proportional control, we have $\dot l_c = ((h_c - h) k_h - \hat v) k_v$
-\end{frame}
-
-\begin{frame}{Lasanga Nonlinearities}
+\begin{frame}{Controller Deadband}
 Since we typically command a target altitude and an allowable region, we add a deadband to the controller output. Let $\dot l_o$ be the output of the nonlinearity.
 Deadband:
 \begin{center}
+\begin{multicols}{2}
 \begin{tikzpicture}
 \begin{axis}
 [
-width = 6cm,
-height = 5cm,
+width = 5cm,
+height = 4cm,
 scale = 1.4, 
 xtick = {-1,0,1}, 
 xticklabels = {$-\tau$,0,$\tau$}, 
 ytick = {0}, 
-ylabel = {\small $\dot l_o$}, 
-xlabel = {\small $\dot l_c$}, 
+ylabel = {\small $f_2$}, 
+xlabel = {\small $\dot \ell$}, 
 axis x line=middle, 
 axis y line=middle,
-xmin = -3, xmax = 3,
+xmin = -2.2, xmax = 2.2,
 ymin = -2, ymax = 2,
 every axis plot/.append style={thick}] 
   \addplot[domain=-1:1, samples=10] {0};
   \addplot[domain=1:2, samples=100] {x-1};
   \addplot[domain=-2:-1, samples=100] {x+1};
-  \addplot[domain=-1.5:1.5, samples=100, style={thin,dashed}] {x} node[above] {\tiny$\dot l_o =\dot l_c$};
-
+  \addplot[domain=-1.5:1.5, samples=100, style={very thin,dashed}] {x} node[above] {\tiny$f_2 =\dot \ell$};
 \end{axis}
 \end{tikzpicture}
+\null \vfill
+\[
+f_2(\dot \ell \, ; \tau) = \left\{\begin{array}{cc}
+0 & |\dot \ell| < \tau \\ 
+\mathrm{\textbf{sign}}(\dot \ell)(|\dot \ell| - \tau) & |\dot \ell| > \tau \\ 
+\end{array}
+\right.\] 
+
+\end{multicols}
 \end{center}
 To set bounds on the altutude, we set $\tau = e_{\mathrm{tol}} k_v k_h$, where $e_{\mathrm{tol}}$ is the allowable distance from the altitude command.
 \end{frame}
 
+\include{blockdiagram}
+
+\begin{frame}{Atmosphere Waves}
+\begin{center}
+\includegraphics[width=.8\linewidth,trim={0 8cm 0 0cm},clip]{waves.jpg}
+\includegraphics[width=.8\linewidth]{borgwaves.png}
+\end{center}
+\end{frame}
+
+\begin{frame}{Velocity Estimator}
+Low pass filtered velocity estimate uses a 2nd order filter to remove the effect of atmospheric waves
+\begin{center}
+\includegraphics[width=.8\linewidth,trim={10 0 10 0cm},clip]{est.png}
+\end{center}
+\vspace{-0.5cm}
+\[ \mathcal{L}\{ \hat v \} = s H(s) \mathcal{L}\{h\} + \left(\frac{1}{s} - H(s) \right) \mathcal{L} \{\dot l_c\} \]
+$H(s)$ a 2nd order lowpass filter\\
+\end{frame}
+
+\include{blockdiagram}
+
 \begin{frame}{Picking gains}
 \emph{note:} while the deadband makes the controller non-linear, it still peicewise linear, thus linear analysis can be used.\\
 Transfer function for the linear system is\\
-\[\frac{k_v k_h k_l}{s^2 + k_l k_v s + k_l k_v k_h}\]
-So damping ratio is $\zeta = \frac{1}{2}\sqrt{\frac{k_l k_v}{k_h}}$. 
+\[T(s) = \frac{k_h k_v k_d}{s^2 + k_v k_d s + k_h k_v k_d}.\]
+So damping ratio is $\zeta = \frac{1}{2}\sqrt{\frac{k_d k_v}{k_h}}$. 
 \begin{itemize}
-\item We choose gains such that $\zeta = 1$ and we have critical damping.
+\item We choose gains such that $\zeta > 1$ and we have over damping.
 \item This gives ratio between $k_v$ and $k_h$, but what about magnitiude?
 \item high gain $\to$ controller waits and acts agressively near $e_{\n{tol}}$
 \item low gain $\to$ controller acts cautiously before $e_{\n{tol}}$
@@ -359,6 +235,10 @@ low gain
 \includegraphics[width=\linewidth,trim={0 0 0 0cm},clip]{lowgainsim.png}
 
 High gain performs better but can't tolerate uncertainty, low gain is worse but performs better under uncertainty
+\end{frame}
+
+\begin{frame}{Simulations}
+\includegraphics[width=1\linewidth]{lsim.png}
 \end{frame}
 
 \begin{frame}{Nightfall}

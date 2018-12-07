@@ -1,0 +1,75 @@
+\begin{frame}
+\frametitle{Controller Block Diagram}
+\resizebox{11cm}{!}{
+\begin{tikzpicture}[scale=2,
+     block/.style = {draw, rectangle,node distance=1cm},
+     input/.style = {node distance=1cm},
+     output/.style = {node distance=1cm},
+     arrow/.style={draw, -latex,node distance=2cm},
+     pinstyle/.style = {pin edge={latex-, black,node distance=2cm}},
+     sum/.style = {draw, circle, node distance=1cm},
+     gain/.style = {regular polygon, regular polygon sides=3,draw, fill=white, text width=1em,
+      inner sep=0mm, outer sep=0mm,
+      shape border rotate=-90}
+    ]
+        
+    \node [input] (hcmd) {$h_c$};
+    \node [sum,right of=hcmd] (hsum) {};    
+    \node [gain,right of=hsum, node distance=0.75cm] (K1) {$k_h$};
+    \node [block, right of=K1] (N1) {$f_1$};
+    \node [sum,right of=N1, node distance=1.2cm] (vsum) {};
+    \node [input,above of=N1] (vlim) {$v_{\mathrm{lim}}$};
+    \node [gain, right of=vsum,node distance=0.75cm] (K2) {$k_v$};
+    \node [block, right of=K2] (N2) {$f_2$};
+    \node [sum, right of=N2, node distance=2cm] (dlift) {};
+    \node [input,above of=N2] (etol) {$\tau$};
+    \node [input, above of=dlift] (ldist) {$w_{\dot \ell}$};
+    \node [block, right of=dlift] (lint) {$\frac{k_d}{s}$};
+    \node [sum, right of=lint] (velocity) {};
+    \node [input, above of=velocity] (vdist) {$w_v$};
+    \node [block, right of=velocity] (vint) {$\frac{1}{s}$};
+    \node [output, right of=vint,node distance=1.4cm] (h) {$h$};
+    \node [block, below of=vint,node distance=1.7cm] (H1) {$sH(s)$};
+    \node [block, below right = .6 cm and -1.3 cm of dlift] (H2) {$k_d\left(\frac{1}{s}-H(s)\right)$};
+    \node [sum, left of=H1,node distance=1.2cm] (fsum) {};
+
+    \draw[->] (hcmd) -- (hsum) node [above left] {\scriptsize +};
+    \draw[->] (hsum) -- (K1);
+    \draw[->] (K1) -- (N1);
+    \draw[->] (N1) -- node [above] {$v_c$} (vsum) node [above left] {\scriptsize +};
+    \draw[->] (vsum) -- (K2);
+    \draw[->] (K2) -- (N2);
+    \draw[->,dashed] (etol) -- (N2);
+    \draw[->,dashed] (vlim) -- (N1);
+    \draw[->] (N2) -- node [above left] {$\dot \ell_c$} (dlift)  node [above left] {\scriptsize +};
+    \draw[->] (ldist) -- (dlift) node [above right] {\scriptsize +};
+    \draw[->] (dlift) -- (lint);
+    \draw[->] (lint) -- (velocity) node [above left] {\scriptsize +};
+    \draw[->] (vdist) -- (velocity) node [above right] {\scriptsize +};
+    \draw[->] (velocity) -- (vint) node [above right] {};
+    \draw[->] (vint) -- (h) node [above right] {};
+    \draw  (h) ++ (-.3,0) -- ++(0,-1.15) coordinate (fb);
+    \draw[->]  (h) ++ (-.3,0) |- (H1);
+    \draw[->] (K2) ++ (0.8,0) |- (H2);
+    \draw[->] (H1) -- (fsum) node [below right] {\scriptsize +};
+    \draw[->] (H2) -| (fsum) node [above right] {\scriptsize +}; 
+    \draw[->] (fsum) -| node [above left] {$\hat v$} (vsum) node [below left] {\scriptsize -};
+    \draw[->] (fb) -| (hsum) node [below left] {\scriptsize -};
+    \draw[thick,dotted] ($(dlift)+(-.3cm,.7cm)$) node [above right] {plant, $G(s)$} rectangle ($(vint)+(.3cm,-.3cm)$) ;
+\end{tikzpicture}
+}
+\resizebox{11cm}{!}{
+\begin{tabular}{r l}
+$H(s)$ &low-pass filter\\
+$f_1(v\,;v_{\mathrm{lim}})$ & clamp on the velocity commanded by the altitude loop set by $v_{\mathrm{lim}}$ \\ 
+$f_2(\dot \ell \, ; \tau)$ & deadband on the controller effort set by $\tau$ \\
+$h_c$ & commanded altitude \footnotesize (set by Flight Controller) \\
+$v_c$ & commanded velocity \footnotesize (output of position loop) \\
+$\dot \ell_c$ & commanded change in lift per unit time  \footnotesize (output of velocity loop)\\
+$w_{\dot \ell}$ & atmospheric disturbances that change balloon lift  \footnotesize (heating/cooling)\\
+$w_v$ & atmospheric disturbances that change balloon velocity \footnotesize (turbulence)\\
+$h$ & balloon altitude\\
+$\hat v$ & estimate of velocity\\
+\end{tabular}
+}
+\end{frame}

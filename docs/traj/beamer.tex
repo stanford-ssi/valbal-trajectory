@@ -5,6 +5,7 @@
 \usetikzlibrary{shapes,arrows,positioning}
 \usepackage{pgfplots}
 \usepackage{multicol}
+\usepackage{algpseudocode}
 \include{defs}
 \usepackage{biblatex}
 \bibliography{traj}
@@ -131,8 +132,23 @@
 \end{itemize}
 \end{frame}
 
+\begin{frame}
+\frametitle{algorithm}
+\begin{algorithmic}[1]
+\Procedure{StocasticMPC}{$S_1,S_2$}
+\State$s:$ intial sim state
+\While{not converged}
+\State$obj:$ objective object
+\For{$i \in \{0, 1, \dots, N-1\}$}
+\State Sim : simulation object
+\EndFor 
 
-\section
+check convergence
+\EndWhile
+\EndProcedure
+\end{algorithmic}
+\end{frame}
+
 \section{Altitude Control}
 \subsection{System Dynamics}
 

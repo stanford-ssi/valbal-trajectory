@@ -235,25 +235,8 @@ where $-1 \leq \lambda(t) \leq 1$ is sampled from realistic balloon trajectories
 \[\tilde V = \sum_{\text{random}~\lambda}^K V(t_f; \lambda)\]
 \item If we increase $K$ we capture the variance distribution with more fidelity.
 \end{itemize}
-
 \end{frame}
 
-\begin{frame}
-\frametitle{algorithm}
-\begin{algorithmic}[1]
-\Procedure{StocasticMPC}{$S_1,S_2$}
-\State$s:$ intial sim state
-\While{not converged}
-\State$obj:$ objective object
-\For{$i \in \{0, 1, \dots, N-1\}$}
-\State Sim : simulation object
-\EndFor 
-
-check convergence
-\EndWhile
-\EndProcedure
-\end{algorithmic}
-\end{frame}
 
 \subsection{Results}
 
@@ -268,7 +251,7 @@ check convergence
 \end{frame}
 
 \begin{frame}
-\frametitle{Stocasstic}
+\frametitle{Stochastic}
 \includegraphics[width=1\linewidth,trim={0 0cm 0 0cm},clip]{datasheetfig.png}
 \end{frame}
 
@@ -340,6 +323,17 @@ check convergence
 
 \subsection{Architecture}
 \begin{frame}{Architecture}
+\begin{itemize}\itemsep=12pt
+\item core of simulator written in C++ for efficiency
+\item automatic differentiation with Adept
+\item simulation classes template defined for standard computation use as well as differentiable computation
+\item processed atmosphere data efficiently cached using Linux {\tt mmap}
+\item 300,000 stochastic 100hr sims per second
+\begin{itemize}
+\item Ryzen 2700x 8C16T 3.9Ghz CPU
+\item about $10\times$ slow for differentiable sims
+\end{itemize}
+\end{itemize}
 \end{frame}
 
 \section{Altitude Control}
@@ -477,8 +471,8 @@ To set bounds on the altutude, we set $\tau = e_{\mathrm{tol}} k_v k_h$, where $
 
 \begin{frame}{Atmosphere Waves}
 \begin{center}
+\includegraphics[width=1\linewidth]{borg.jpg}
 \includegraphics[width=.8\linewidth,trim={0 8cm 0 0cm},clip]{waves.jpg}
-\includegraphics[width=.8\linewidth]{borgwaves.png}
 \end{center}
 \end{frame}
 
@@ -535,16 +529,5 @@ High gain performs better but can't tolerate uncertainty, low gain is worse but 
 \includegraphics[width=\linewidth,trim={.7cm 0 1cm 1cm},clip]{bal_avg.png}
 \end{columns}
 \end{frame}
-
-
-\section{Conclusion}
-\begin{frame}{Future Work}
-\begin{itemize}\itemsep=24pt
-\item Benchmarks
-\item Comparison with MCTS
-\item 
-\end{itemize}
-\end{frame}
-
 
 \end{document}

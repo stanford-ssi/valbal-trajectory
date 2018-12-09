@@ -239,7 +239,7 @@ private:
 template<class Float>
 class cmd_tree {
 public:
-	cmd_tree() : upper(0), lower(0) {};
+	cmd_tree() : upper(0), lower(0) { printf("Initializing cmd tree!\n"); };
 
 	cmd_tree<Float> *upper;
 	cmd_tree<Float> *lower;
@@ -267,8 +267,8 @@ private:
 	cmd_tree<Float> *cmds;
 	double default_h;
 	double default_tol;
-	double apply_gradients(Optimizer&, tag<TemporalParameters<float>>);
-	double apply_gradients(Optimizer&, tag<TemporalParameters<adouble>>);
+	double apply_gradients(Optimizer&, tag<SpatiotemporalParameters<float>>);
+	double apply_gradients(Optimizer&, tag<SpatiotemporalParameters<adouble>>);
 };
 
 #endif

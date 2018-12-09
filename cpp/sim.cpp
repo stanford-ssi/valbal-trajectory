@@ -389,7 +389,6 @@ sim_state<Float> Simulation<Float>::run(int t, Float lat, Float lon) {
 	return state;
 }
 
-/*
 template<class Float>
 SpatiotemporalParameters<Float>::SpatiotemporalParameters(int t0_, int dt_, int T_, double default_h_, double default_tol_) : 
 t0(t0_), dt(dt_), T(T_), default_h(default_h_), default_tol(default_tol_)
@@ -403,7 +402,7 @@ t0(t0_), dt(dt_), T(T_), default_h(default_h_), default_tol(default_tol_)
 }
 
 template<class Float>
-SpatiotemporalParameters<Float>::~TemporalParameters() {
+SpatiotemporalParameters<Float>::~SpatiotemporalParameters() {
 	delete[] cmds;
 }
 
@@ -412,34 +411,31 @@ ctrl_cmd<Float> SpatiotemporalParameters<Float>::get_param(sim_state<Float>& sta
 	unsigned int idx = (state.t-t0)/dt;
 	float theta = (state.t - (t0 + dt*idx))/((float)dt);
 	ctrl_cmd<Float> cmd;
-	cmd.h = cmds[idx].h + theta * (cmds[idx+1].h - cmds[idx].h);
-	cmd.tol = cmds[idx].tol + theta * (cmds[idx+1].tol - cmds[idx].tol);
+	cmd.h = cmds[idx].cmd.h + theta * (cmds[idx+1].cmd.h - cmds[idx].cmd.h);
+	cmd.tol = cmds[idx].cmd.tol + theta * (cmds[idx+1].cmd.tol - cmds[idx].cmd.tol);
 	return cmd;
 }
 
 template <class Float>
-double SpatiotemporalParameters<Float>::apply_gradients(double lr, double lr_t) {
-	return apply_gradients(lr, lr_t, tag<TemporalParameters>());
+double SpatiotemporalParameters<Float>::apply_gradients(Optimizer& opt) {
+	return apply_gradients(opt, tag<SpatiotemporalParameters>());
 }
 
 template <class Float>
-double SpatiotemporalParameters<Float>::apply_gradients(double lr, double lr_t, tag<TemporalParameters<float>>) {
+double SpatiotemporalParameters<Float>::apply_gradients(Optimizer &opt, tag<SpatiotemporalParameters<float>>) {
 	printf("You what mate, what are you trying to take the gradient of\n");
 	exit(1);
 	return M_PI;
 }
 
 template <class Float>
-double SpatiotemporalParameters<Float>::apply_gradients(double lr, double lr_t, tag<TemporalParameters<adouble>>) {
-	ctrl_cmd<adouble> *cmds_ = (ctrl_cmd<adouble>*)(&cmds[0]);
+double SpatiotemporalParameters<Float>::apply_gradients(Optimizer &opt, tag<SpatiotemporalParameters<adouble>>) {
+	cmd_tree<adouble> *cmds_ = (cmd_tree<adouble>*)(&cmds[0]);
 	for (int i=0; i<(T/dt); i++) {
-
+		opt.optimize(cmds_[i].cmd);	
 	}
-	tols /= (T/dt);
-	printf("mean tol %f max tol %f max alt %f\n", tols, maxtol, maxalt);
-	return sqrt(norm);
+	return 0;
 }
-*/
 
 
 #define INIT_SIM(type) \
@@ -454,7 +450,8 @@ double SpatiotemporalParameters<Float>::apply_gradients(double lr, double lr_t, 
 		template class GreedySearch<type>;\
 		template class FinalLongitude<type>; \
 		template class StochasticControllerApprox<type>; \
-		template class TemporalParameters<type>;
+		template class TemporalParameters<type>; \
+		template class SpatiotemporalParameters<type>;
 
 #include <adept.h>
 INIT_SIM(adept::adouble)

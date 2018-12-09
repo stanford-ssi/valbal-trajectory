@@ -13,4 +13,4 @@ for row in index:
 list.sort(times,key=int)
 for t in times[1:]:
 	time = datetime.strptime(t,"%Y%m%d%H")
-	procWindData(time, time + timedelta(hours=200),db="gfs_pred_0deg5",dry_run=True)
+	procWindData(time, time + timedelta(hours=200),db="gfs_pred_0deg5",dry_run=False)

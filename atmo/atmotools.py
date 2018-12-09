@@ -25,7 +25,7 @@ def getRecentGFS():
 	pred_time = datetime.strptime(recent,"%Y%m%d%H")
 	return pred_time
 
-def getFile(src,dst):
+def getFile(src,dst,dry_run=False):
 	if os.path.exists(dst):
 		size = os.path.getsize(dst)
 		print("Local file "+dst+" found and is %.2fMB, skipping"%(size/1000000))
@@ -33,9 +33,12 @@ def getFile(src,dst):
 			raise Warning("file size smaller than expected: %.2fMB "%(size/1000000))
 	else:	
 		print("Fetching from",src+"...",end='',flush=True)
-		urlretrieve(src,dst)
-		size = os.path.getsize(dst)
-		print("   done, %.2fMB"%(size/1000000))
+		if not dry_run:
+			urlretrieve(src,dst)
+			size = os.path.getsize(dst)
+			print("   done, %.2fMB"%(size/1000000))
+		else:
+			print("   jk dry run.")
 
 def setupAtmoData(start,end,db='gfs_anl_0deg5',pred_time=None):
 	if not type(start) == type("boop"):
@@ -89,7 +92,7 @@ def setupAtmoData(start,end,db='gfs_anl_0deg5',pred_time=None):
 
 
 
-def fetchWindData(start,end,db='gfs_anl_0deg5',pred_time=None):
+def fetchWindData(start,end,db='gfs_anl_0deg5',pred_time=None,dry_run=False):
 	""" Fetch data from gfs database for times inbetween start and end
 	"""
 	start,end,t,end_t,db,local,remote,fstartname,pred_time = setupAtmoData(start,end,db=db,pred_time=pred_time)
@@ -107,7 +110,7 @@ def fetchWindData(start,end,db='gfs_anl_0deg5',pred_time=None):
 			for i in [0,3]:
 				fulfpath = fpath + "_00%d"%i + ".grb2"
 				path = dpath + fulfpath;
-				getFile(remote+path,local+fulfpath)
+				getFile(remote+path,local+fulfpath,dry_run=dry_run)
 				filelist.append(fulfpath)
 				times.append(t + i*timedelta(1/24))
 			t +=  timedelta(1/4)
@@ -118,7 +121,7 @@ def fetchWindData(start,end,db='gfs_anl_0deg5',pred_time=None):
 			if dhours > 372:
 				break
 			fpath = fstartname + "%03d"%dhours
-			getFile(remote+fpath,local+fpath)
+			getFile(remote+fpath,local+fpath,dry_run=dry_run)
 			times.append(t)
 			filelist.append(fpath)
 			if dhours < 240:
@@ -130,8 +133,11 @@ def fetchWindData(start,end,db='gfs_anl_0deg5',pred_time=None):
 	return filelist,times,start,end,db
 
 
-def procWindData(start,end,db='gfs_anl_0deg5',overwrite=False,pred_time=None,altitude_range = [0,20000],aux_data=False):
-	ret = fetchWindData(start,end,db,pred_time=pred_time)
+def procWindData(start,end,db='gfs_anl_0deg5',overwrite=False,pred_time=None,altitude_range = [0,20000],aux_data=False,dry_run=False):
+	ret = fetchWindData(start,end,db,pred_time=pred_time,dry_run=dry_run)
+	if dry_run:
+		print("quitting, dry run")
+		return
 	db = ret[4]
 	dstpath = "../ignored/proc/" + db + "/"
 	auxpath = "../ignored/proc/" + db + "_aux/"

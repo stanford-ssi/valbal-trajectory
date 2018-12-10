@@ -12,13 +12,15 @@ using adept::adouble;
 
 void simpleSim(){
 	//PressureTable<float> pres(get_data_path("flights/ssi71_inp.bin"));
+	DataHandler data;
+	data.load_data(get_data_path("/proc/gfs_anl_0deg5"), 1500000000,1600000000);
 	TIMEIT("Running simple sims",
 		const int N = 10000;
     	Scheduler<float> sched(-2, N);
 		for (int i=0; i<N; i++) {
 			sched.add([i]() {
 				LasSim<float> pres(std::time(0)+i,1000,0.1);
-				Simulation<float> sim(pres, i);
+				Simulation<float> sim(pres, data, i);
 				sim.wind_default.sigma = 2;
 				sim.tmax = 60*60*100;
 				sim.run(1536994800, 36.849014, -121.432913+360);
@@ -36,12 +38,14 @@ void simpleSim(){
 /* lol gdi joan --john */
 void simpleSim63(){
 	PressureTable<float> pres(get_data_path("flights/ssi63_inp.bin"));
+	DataHandler data;
+	data.load_data(get_data_path("/proc/gfs_anl_0deg5"), 1500000000,1600000000);
 	TIMEIT("Running simple sims",
 		const int N = 200;
 		Scheduler<float> sched(-1, N);
 		for (int i=0; i<N; i++) {
 			sched.add([&pres, i]() {
-				Simulation<float> sim(pres, i);
+				Simulation<float> sim(pres, data, i);
 				sim.wind_default.sigma = 1;
 				sim.run(1512889140+7*60*60, 37.251022, -122.03919+360);
 				return 0.;
@@ -56,12 +60,14 @@ void simpleSim63(){
 
 void simpleSim67(){
 	PressureTable<float> pres(get_data_path("flights/ssi67_inp.bin"));
+	DataHandler data;
+	data.load_data(get_data_path("/proc/gfs_anl_0deg5"), 1500000000,1600000000);
 	TIMEIT("Running simple sims",
 		const int N = 200;
     	Scheduler<float> sched(-1, N);
 		for (int i=0; i<N; i++) {
 			sched.add([&pres, i]() {
-				Simulation<float> sim(pres, i+1);
+				Simulation<float> sim(pres, data,i+1);
 				if (i != 0) sim.wind_default.sigma = 1;
 				sim.run(1526169840, 35.714558, -119.94677+360);
 				return 0.;
@@ -78,7 +84,9 @@ void simpleSim67(){
 void ssi71Sims(){
 	// for playing around with ssi71 data
 	PressureTable<float> pres1(get_data_path("flights/ssi71_inp.bin"));
-	Simulation<float> sim(pres1, 1);
+	DataHandler data;
+	data.load_data(get_data_path("/proc/gfs_anl_0deg5"), 1500000000,1600000000);
+	Simulation<float> sim(pres1, data, 1);
 	sim.run(1529007840, 42.46636, -68.021255+360);
 	printf("SIMDONE");
 	for(int i = 2; i < 50; i++){
@@ -100,6 +108,8 @@ void ssi71Sims(){
 }
 
 void gradientsStuff(){
+	DataHandler data;
+	data.load_data(get_data_path("/proc/gfs_anl_0deg5"), 1500000000,1600000000);
 	load_data(get_data_path("/proc/gfs_pred_0deg5/20181029_12"), 1500000000,1600000000);
 	int t0 = 1540834728;
 	int dt = 3600*5;
@@ -128,7 +138,7 @@ void gradientsStuff(){
 			stack.new_recording();
 		
 			WaypointController<adouble> pres(t0, dt, waypoints);
-			LinInterpWind<adouble> wind;
+			LinInterpWind<adouble> wind(data);
 			FinalLongitude<adouble> obj;
 			//MinDistanceToPoint<adouble> obj(31.753952, -77.081033+360);
 			Simulation<adouble> sim(pres, wind, obj,N_ITER*j + it);
@@ -151,10 +161,12 @@ void gradientsStuff(){
 }
 
 void searchStuff(){
+	DataHandler data;
+	data.load_data(get_data_path("/proc/gfs_anl_0deg5"), 1500000000,1600000000);
 	clock_t timer0 = clock();
 	//MinDistanceToPoint<float> obj(59.916193, 30.325234+360);
 	FinalLongitude<float> obj;
-	LinInterpWind<float> wind;
+	LinInterpWind<float> wind(data);
 	EulerInt<float> intg;
 	GreedySearch<float> pres(wind,intg,obj,vec2<float>{10000,18000});
 	Simulation<float> sim(pres, wind, obj,0);
@@ -173,7 +185,8 @@ void saveSpaceshot() {
 	std::normal_distribution<float> equil_alt_N(28700,300);
 	std::normal_distribution<float> ascent_rate_N(3.7,0.05);
 	std::normal_distribution<float> cutdown_time_N(2.5*60*60,60*2);
-	load_data(get_data_path("/proc/gfs_pred_0deg5/20181020_18"), 1500000000,1600000000);
+	DataHandler data;
+	data.load_data(get_data_path("/proc/gfs_pred_0deg5/20181020_18"), 1500000000,1600000000);
 	int t0 = 1540060749;
 	int dt_wp = 60*1;
 	int tmax = 48*60*60;
@@ -206,7 +219,7 @@ void saveSpaceshot() {
 		waypoints[i] = float(alt2p(alt));
 	}
 	WaypointController<float> pres(t0, dt_wp, waypoints);
-	Simulation<float> sim(pres, j);
+	Simulation<float> sim(pres, data, j);
 	sim.tmax = tmax;
 	sim.run(t0, 36.89262,-121.45095+360);
 	}

@@ -20,11 +20,10 @@
 #include <vector>
 #include "data.h"
 
-data_file *files;
-int num_files;
-uint32_t conf_hash;
 
-void load_data(const char *dname, uint64_t start, uint64_t end) {
+void DataHandler::load_data(const char *dname, uint64_t start, uint64_t end) {
+	assert(!loaded && "bruh don't load data more than once with the same object");
+	loaded = true;
 	#ifdef SHOULD_PRELOAD
 		struct rlimit rl;
 		rl.rlim_cur = rl.rlim_max = 1024*1024*512;
@@ -42,6 +41,27 @@ void load_data(const char *dname, uint64_t start, uint64_t end) {
 	reader.parse(configf,obj);
 	std::istringstream converter(obj["hash"].asString());
 	converter >> std::hex >> conf_hash; 
+
+	LON_MIN =   obj["LON_MIN"].asFloat();		
+	LON_MAX =   obj["LON_MAX"].asFloat();		
+	LON_D =   	obj["LON_D"].asFloat();	
+	NUM_LONS =  obj["NUM_LONS"].asInt(); 		
+	LAT_MIN =   obj["LAT_MIN"].asFloat();		
+	LAT_MAX =   obj["LAT_MAX"].asFloat();		
+	LAT_D =   	obj["LAT_D"].asFloat();	
+	NUM_LATS =  obj["NUM_LATS"].asInt(); 		
+	NUM_LEVELS = obj["NUM_LEVELS"].asInt();
+	LEVELS = new float[NUM_LEVELS];
+	const char* l1 = obj["LEVELS"].asCString(); l1 = l1 +1;
+	for(int i = 0;i<NUM_LEVELS-1;i++){
+		LEVELS[i] = atof(l1);
+		const char* l2 = strchr(l1,',');
+		l1 = l2+1;
+	}
+	LEVELS[NUM_LEVELS-1] = atof(l1);
+
+	NUM_VARIABLES = obj["NUM_VARIABLES"].asInt();
+
 	std::vector<uint64_t> timestamps;
 	struct dirent *entry;	
 	while ((entry = readdir(dir)) != 0) {
@@ -83,7 +103,7 @@ void load_data(const char *dname, uint64_t start, uint64_t end) {
 	printf("Loaded %d wind data files.\n", num_files);
 }
 
-wind_t *get_data_at_point(data_file *file, point p) {
+wind_t* DataHandler::get_data_at_point(data_file *file, point p) {
 	//printf("%d %d %lu %p\n", latidx, lonidx, sizeof(wind_data), file);
 	if (!file->verified){
 		//printf("checking file\n");
@@ -100,13 +120,13 @@ wind_t *get_data_at_point(data_file *file, point p) {
 	return &file->data[NUM_LEVELS*NUM_VARIABLES*(NUM_LONS * p.lat + p.lon)];
 }
 
-point get_base_neighbor(float lat, float lon) {
+point DataHandler::get_base_neighbor(float lat, float lon) {
 	int lat0 = (int)((lat - LAT_MIN)/LAT_D);
 	int lon0 = (int)((lon - LON_MIN)/LON_D);
 	return {lat0, lon0};
 }
 
-point get_nearest_neighbor(float lat, float lon) {
+point DataHandler::get_nearest_neighbor(float lat, float lon) {
 	int lat0 = (int)round((lat - LAT_MIN)/LAT_D);
 	int lon0 = (int)round((lon - LON_MIN)/LON_D);
 	return {lat0, lon0};

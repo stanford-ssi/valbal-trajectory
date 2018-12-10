@@ -13,7 +13,8 @@ using adept::adouble;
 using namespace std;
 
 void demo() {
-	load_data(get_data_path("/proc/gfs_anl_0deg5"), 1500000000,1600000000);
+	DataHandler data;
+	data.load_data(get_data_path("/proc/gfs_anl_0deg5"), 1500000000,1600000000);
 	int t0 = 1540755060;
 	float lat0 = 36.84;
 	float lon0 =  -121.43 + 360;
@@ -31,8 +32,8 @@ void demo() {
          * strictly necessary. */
         Scheduler<float> sched(-2, N);
         for (int i=0; i<N; i++) {
-            sched.add([&controller, i, t0, lat0, lon0]() {
-                Simulation<float> sim(controller, -1);
+            sched.add([&controller, i, t0, lat0, lon0, &data]() {
+                Simulation<float> sim(controller, data, -1);
                 sim.wind_default.sigma = 0;
 				sim.tmax = 60*60*60;
                 return sim.run(t0, lat0, lon0).lon;
@@ -47,7 +48,8 @@ void demo() {
 }
 
 void stochasticGradients(){
-	load_data(get_data_path("../ignored/proc/gfs_pred_0deg5/20181129_12/"), 1500000000,1600000000);
+	DataHandler data;
+	data.load_data(get_data_path("../ignored/proc/gfs_pred_0deg5/20181129_12/"), 1500000000,1600000000);
     //load_data(get_data_path("../ignored/proc/gfs_anl_0deg5"), 1500000000,1600000000);
     //int t0 = 1537196400;
     int t0 = 1543492800;
@@ -73,7 +75,7 @@ void stochasticGradients(){
 
 		for (int run=0; run<N_RUNS; run++) {
 			StochasticControllerApprox<adouble> controller(params, rand());
-			LinInterpWind<adouble> wind;
+			LinInterpWind<adouble> wind(data);
             wind.sigma = 0;
 			FinalLongitude<adouble> obj;
 			EulerIntBal<adouble> in;

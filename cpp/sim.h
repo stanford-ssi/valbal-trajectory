@@ -86,8 +86,9 @@ public:
 template <class Float>
 class LinInterpWind : public WindSource<Float> {
 public:
-	LinInterpWind() : random_gen((std::random_device())()), normal(0,1) {};
+	LinInterpWind(DataHandler& data) : dat(data), random_gen((std::random_device())()), normal(0,1) {};
 	wind_vector<Float> get_wind(sim_state<Float>&);
+	DataHandler& dat;
 	int cur_file = 0;
 	float sigma = 0;
     std::mt19937 random_gen;
@@ -103,9 +104,10 @@ public:
 	LinInterpWind<Float> wind_default;
 	NoOp<Float> obj_default;
 	EulerInt<Float> intg_default;
+	DataHandler dat_default;
 	Simulation(PressureSource<Float>& s, WindSource<Float>& w, ObjectiveFn<Float>& o, Integrator<Float>& in, int i=-1);
 	Simulation(PressureSource<Float>& s, WindSource<Float>& w, ObjectiveFn<Float>& o, int i=-1);
-	Simulation(PressureSource<Float>& s, int i=-1);
+	Simulation(PressureSource<Float>& s, DataHandler& d, int i=-1);
 	PressureSource<Float>& pressure;
 	WindSource<Float>& wind;
 	Integrator<Float>& intg;

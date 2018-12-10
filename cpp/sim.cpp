@@ -226,35 +226,35 @@ void GreedySearch<Float>::get_pressure(sim_state<Float>& state){
 
 template<class Float>
 wind_vector<Float> LinInterpWind<Float>::get_wind(sim_state<Float>& s) {
-	while (files[cur_file+1].time < s.t) {
+	while (dat.files[cur_file+1].time < s.t) {
 		cur_file++;
 	}
-	assert(cur_file < num_files && "file requested out of range");
-	debugf("%d cur file %d %d %d pres %f\n", s.t, cur_file, ((int)(s.t-files[cur_file].time)), (int)(files[cur_file].time), VAL(s.p));
+	assert(cur_file < dat.num_files && "file requested out of range");
+	debugf("%d cur file %d %d %d pres %f\n", s.t, cur_file, ((int)(s.t-dat.files[cur_file].time)), (int)(dat.files[cur_file].time), VAL(s.p));
 
 	/* Get pressure level. Here a simple linear search is faster, although it
 	 * can probably be vectorized. */
 	int i;
-	for (i=0; i<NUM_LEVELS; i++) {
-		if (s.p <= LEVELS[i]) break;
+	for (i=0; i<dat.NUM_LEVELS; i++) {
+		if (s.p <= dat.LEVELS[i]) break;
 	}
-	assert(i > 0 && i < NUM_LEVELS);
-	Float theta_pr = (s.p-LEVELS[i-1])/(LEVELS[i] - LEVELS[i-1]);
+	assert(i > 0 && i < dat.NUM_LEVELS);
+	Float theta_pr = (s.p-dat.LEVELS[i-1])/(dat.LEVELS[i] - dat.LEVELS[i-1]);
 
 	#define INTERP_ALT(dst, src, idx) \
-		Float dst = src[NUM_LEVELS*(i-1) + idx] + theta_pr*(src[NUM_LEVELS*i + idx] - src[NUM_LEVELS*(i-1) + idx]);
-	#define LAT(x) (LAT_MIN + LAT_D * (x))
-	#define LON(x) (LON_MIN + LON_D * (x))
+		Float dst = src[dat.NUM_VARIABLES*(i-1) + idx] + theta_pr*(src[dat.NUM_VARIABLES*i + idx] - src[dat.NUM_VARIABLES*(i-1) + idx]);
+	#define LAT(x) (dat.LAT_MIN + dat.LAT_D * (x))
+	#define LON(x) (dat.LON_MIN + dat.LON_D * (x))
 
-	point pt = get_base_neighbor(VAL(s.lat), VAL(s.lon));
-	Float theta_lat = (s.lat - LAT(pt.lat))/LAT_D;
-	Float theta_lon = (s.lon - LON(pt.lon))/LON_D;
-	float theta_t = s.t-files[cur_file].time;
-	theta_t /= (files[cur_file+1].time-files[cur_file].time);
+	point pt = dat.get_base_neighbor(VAL(s.lat), VAL(s.lon));
+	Float theta_lat = (s.lat - LAT(pt.lat))/dat.LAT_D;
+	Float theta_lon = (s.lon - LON(pt.lon))/dat.LON_D;
+	float theta_t = s.t-dat.files[cur_file].time;
+	theta_t /= (dat.files[cur_file+1].time-dat.files[cur_file].time);
 	debugf("theta t %f\n", theta_t);
 	assert(theta_t >= 0 && theta_t <= 1);
 
-	data_file *f = files + cur_file;
+	data_file *f = dat.files + cur_file;
 	Float us[2];
 	Float vs[2];
 	#ifdef INTERPOLATE_IN_TIME
@@ -263,17 +263,17 @@ wind_vector<Float> LinInterpWind<Float>::get_wind(sim_state<Float>& s) {
 	{ int j = 0;
 	#endif
 
-		wind_t *p11 = get_data_at_point(f+j, {pt.lat, pt.lon});
-		wind_t *p12 = get_data_at_point(f+j, {pt.lat, pt.lon + 1});
-		wind_t *p21 = get_data_at_point(f+j, {pt.lat + 1, pt.lon});
-		wind_t *p22 = get_data_at_point(f+j, {pt.lat + 1, pt.lon + 1});
+		wind_t *p11 = dat.get_data_at_point(f+j, {pt.lat, pt.lon});
+		wind_t *p12 = dat.get_data_at_point(f+j, {pt.lat, pt.lon + 1});
+		wind_t *p21 = dat.get_data_at_point(f+j, {pt.lat + 1, pt.lon});
+		wind_t *p22 = dat.get_data_at_point(f+j, {pt.lat + 1, pt.lon + 1});
 
 		INTERP_ALT(u11, p11, 0);
 		INTERP_ALT(u21, p21, 0);
 		Float ulat1 = u11 + theta_lat * (u21 - u11);
 		debugf("v11! @ %f %d %d %f %f\n", VAL(s.p), pt.lat, pt.lon, LAT(pt.lat), LON(pt.lon));
-		for (int k=0; k<NUM_LEVELS; k++) {
-			debugf("%f: %d\n", LEVELS[k], p11[NUM_LEVELS*k+1]);
+		for (int k=0; k<dat.NUM_LEVELS; k++) {
+			debugf("%f: %d\n", dat.LEVELS[k], p11[dat.NUM_LEVELS*k+1]);
 		}
 
 		INTERP_ALT(u12, p12, 0);
@@ -321,19 +321,19 @@ wind_vector<Float> LinInterpWind<Float>::get_wind(sim_state<Float>& s) {
 
 template<class Float>
 Simulation<Float>::Simulation(PressureSource<Float>& s, WindSource<Float>& w, ObjectiveFn<Float>& o, Integrator<Float>& in, int i)
-		: pressure(s), wind(w), intg(in), objfn(o) {
+		: wind_default(dat_default), pressure(s), wind(w), intg(in), objfn(o) {
 	init(i);
 }
 
 template<class Float>
 Simulation<Float>::Simulation(PressureSource<Float>& s, WindSource<Float>& w, ObjectiveFn<Float>& o, int i)
-		: intg_default(), pressure(s), wind(w), intg(intg_default), objfn(o) {
+		: wind_default(dat_default), intg_default(), pressure(s), wind(w), intg(intg_default), objfn(o) {
 	init(i);
 }
 
 template<class Float>
-Simulation<Float>::Simulation(PressureSource<Float>& s, int i)
-		: wind_default(), obj_default(), intg_default(), pressure(s), wind(wind_default), intg(intg_default), objfn(obj_default) {
+Simulation<Float>::Simulation(PressureSource<Float>& s, DataHandler& d, int i)
+		: wind_default(d), obj_default(), intg_default(), pressure(s), wind(wind_default), intg(intg_default), objfn(obj_default) {
 	init(i);
 }
 

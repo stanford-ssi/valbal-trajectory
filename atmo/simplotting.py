@@ -81,10 +81,10 @@ def plot2():
 		x2,y2 = m(f2[:,1], f2[:,0])
 		ax0.plot(x2,y2,color="#be1e2d",alpha=0.3)
 		ax0.plot(x2[-1],y2[-1],"*",c="#be1e2d")
-		ax0.plot(x2[::6*10],y2[::6*10],"*",c="#be1e2d",alpha=0.3)
+		#ax0.plot(x2[::6*10],y2[::6*10],"*",c="#be1e2d",alpha=0.3)
 		ax0.plot(xpred,ypred,color="blue",alpha=0.1)
 		ax0.plot(xpred[-1],ypred[-1],"*",c="blue")
-		ax0.plot(xpred[::6*10],ypred[::6*10],"*",c="blue",alpha=0.3)
+		#ax0.plot(xpred[::6*10],ypred[::6*10],"*",c="blue",alpha=0.3)
 	#plt.savefig("../ignored/figs/plot1.png")
 	plt.show()
 
@@ -283,5 +283,5 @@ def plotmc():
 	plt.show()
 
 
-plotmc()
-#plot2()
+#plotmc()
+plot2()

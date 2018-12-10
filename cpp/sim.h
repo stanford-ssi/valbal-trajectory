@@ -116,7 +116,7 @@ public:
 
 	int cur_file = 0;
 	//const int tmax = 60*60*103;
-	int tmax = 60*60*40;
+	int tmax = 60*60*100;
 
 	bool save_to_file = false;
 	FILE *file;

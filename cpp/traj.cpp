@@ -47,9 +47,10 @@ void demo() {
 }
 
 void stochasticGradients(){
-	load_data(get_data_path("/proc/gfs_anl_0deg5"), 1500000000,1600000000);
-	//int t0 = 1541045606;
-	int t0 = 1540755060;
+	load_data(get_data_path("../ignored/proc/gfs_pred_0deg5/20181129_12/"), 1500000000,1600000000);
+    //load_data(get_data_path("../ignored/proc/gfs_anl_0deg5"), 1500000000,1600000000);
+    //int t0 = 1537196400;
+    int t0 = 1543492800;
 	float lat0 = 36.84;
 	float lon0 =  -121.43 + 360;
 	int dt = 3600*6;
@@ -73,7 +74,7 @@ void stochasticGradients(){
 		for (int run=0; run<N_RUNS; run++) {
 			StochasticControllerApprox<adouble> controller(params, rand());
 			LinInterpWind<adouble> wind;
-            wind.sigma = 10;
+            wind.sigma = 0;
 			FinalLongitude<adouble> obj;
 			EulerIntBal<adouble> in;
 			int fname = -1;

@@ -12,14 +12,17 @@
 #include <assert.h>
 #include <string.h>
 #include <sys/resource.h>
-
+#include <iostream>
+#include <fstream>
+#include <jsoncpp/json/json.h>
+#include <sstream>
 #include <algorithm>
 #include <vector>
-
 #include "data.h"
 
 data_file *files;
 int num_files;
+uint32_t conf_hash;
 
 void load_data(const char *dname, uint64_t start, uint64_t end) {
 	#ifdef SHOULD_PRELOAD
@@ -30,6 +33,15 @@ void load_data(const char *dname, uint64_t start, uint64_t end) {
 	DIR *dir = opendir(dname);
 	assert(dir != 0);
 
+	char confp[PATH_MAX];
+	snprintf(confp, PATH_MAX, "%s/config.json", dname);
+	std::ifstream configf(confp);
+	assert(!configf.fail());
+	Json::Reader reader;
+	Json::Value obj;
+	reader.parse(configf,obj);
+	std::istringstream converter(obj["hash"].asString());
+	converter >> std::hex >> conf_hash; 
 	std::vector<uint64_t> timestamps;
 	struct dirent *entry;	
 	while ((entry = readdir(dir)) != 0) {
@@ -61,7 +73,7 @@ void load_data(const char *dname, uint64_t start, uint64_t end) {
 		#if __linux__
 			mmap_flags |= MAP_POPULATE; /* Possibly only if SHOULD_PRELOAD? */
 		#endif
-		files[i].data = (wind_data*)mmap(NULL, s.st_size, PROT_READ, mmap_flags, files[i].fd, 0);
+		files[i].data = (wind_t*)((char*)mmap(NULL, s.st_size, PROT_READ, mmap_flags, files[i].fd, 0) + 4);
 		assert(files[i].data != MAP_FAILED);
 		#ifdef SHOULD_PRELOAD
 			assert(mlock(files[i].data, s.st_size) == 0);
@@ -71,13 +83,21 @@ void load_data(const char *dname, uint64_t start, uint64_t end) {
 	printf("Loaded %d wind data files.\n", num_files);
 }
 
-wind_data *get_data_at_point(data_file *file, point p) {
+wind_t *get_data_at_point(data_file *file, point p) {
 	//printf("%d %d %lu %p\n", latidx, lonidx, sizeof(wind_data), file);
+	if (!file->verified){
+		//printf("checking file\n");
+		uint32_t fhash = *(uint32_t*)((char*)file->data-4);
+		fhash = (fhash & 0x000000FFU) << 24 | (fhash & 0x0000FF00U) << 8 | (fhash & 0x00FF0000U) >> 8 | (fhash & 0xFF000000U) >> 24; //god damn it
+		//printf("[file hash] %x,%x\n",fhash,conf_hash);
+		assert(fhash == conf_hash);
+		file->verified = true;
+	}
 	if (p.lon >= NUM_LONS) p.lon -= NUM_LONS;
 	if (p.lon < 0) p.lon += NUM_LONS;
 	if (p.lat >= NUM_LATS) p.lat -= NUM_LATS;
 	if (p.lat < 0) p.lat += NUM_LATS;
-	return &file->data[NUM_LONS * p.lat + p.lon];
+	return &file->data[NUM_LEVELS*NUM_VARIABLES*(NUM_LONS * p.lat + p.lon)];
 }
 
 point get_base_neighbor(float lat, float lon) {

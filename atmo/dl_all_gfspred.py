@@ -4,6 +4,10 @@ import urllib.request as url
 import re
 from atmotools import *
 
+
+time = datetime.strptime("20181129_18","%Y%m%d_%H")
+procWindData(time, time + timedelta(hours=200),db="gfs_pred_0deg5",dry_run=False,overwrite=True)
+exit()
 index = str(url.urlopen("http://www.ftp.ncep.noaa.gov/data/nccf/com/gfs/prod/").read()).split("\\n")
 times = []
 for row in index:
@@ -13,4 +17,4 @@ for row in index:
 list.sort(times,key=int)
 for t in times[1:]:
 	time = datetime.strptime(t,"%Y%m%d%H")
-	procWindData(time, time + timedelta(hours=200),db="gfs_pred_0deg5",dry_run=False)
+	procWindData(time, time + timedelta(hours=200),db="gfs_pred_0deg5",dry_run=False,overwrite=True)

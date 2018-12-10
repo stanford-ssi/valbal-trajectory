@@ -12,6 +12,8 @@ import pickle
 import sys
 import argparse
 import re
+import json
+import hashlib
 
 def getRecentGFS():
 	index = str(url.urlopen("http://www.ftp.ncep.noaa.gov/data/nccf/com/gfs/prod/").read()).split("\\n")
@@ -39,6 +41,18 @@ def getFile(src,dst,dry_run=False):
 			print("   done, %.2fMB"%(size/1000000))
 		else:
 			print("   jk dry run.")
+
+def gfsFileToTime(f):
+	if "pred" in f:
+		base = f.split("/")[-2]
+		return datetime.strptime(base,"%Y%m%d_%H") + timedelta(hours=int(f[-3:]))
+	else:
+		f = f.split("/")[-1]
+		date = f.split("_")[2]
+		hr = f.split("_")[3][:2]
+		plus = f.split("_")[4][:3]
+		return datetime.strptime(date,"%Y%m%d") + timedelta(hours=int(hr)) + timedelta(hours=int(plus))
+
 
 def setupAtmoData(start,end,db='gfs_anl_0deg5',pred_time=None):
 	if not type(start) == type("boop"):
@@ -133,8 +147,19 @@ def fetchWindData(start,end,db='gfs_anl_0deg5',pred_time=None,dry_run=False):
 	return filelist,times,start,end,db
 
 
-def procWindData(start,end,db='gfs_anl_0deg5',overwrite=False,pred_time=None,altitude_range = [0,20000],aux_data=False,dry_run=False):
-	ret = fetchWindData(start,end,db,pred_time=pred_time,dry_run=dry_run)
+def procWindData(start,end,db='gfs_anl_0deg5',overwrite=False,pred_time=None,altitude_range = [0,25000],aux_data=False,dry_run=False,files=[]):
+	if files:
+		db = "/".join(files[0].split("/")[:-1]).split("ignored/raw/")[-1]
+		times = list(map(gfsFileToTime,files))
+		for i in range(len(files)):
+			files[i] = files[i].split("/")[-1]
+		#print(files[0],times[0])
+		#print(db)
+		ret = [files,times,0,0,db]	
+		if not db:
+			raise Warning("bad file paths")
+	else:
+		ret = fetchWindData(start,end,db,pred_time=pred_time,dry_run=dry_run)
 	if dry_run:
 		print("quitting, dry run")
 		return
@@ -153,13 +178,17 @@ def procWindData(start,end,db='gfs_anl_0deg5',overwrite=False,pred_time=None,alt
 	lats = lats[:,0]
 	lons = lons[0,:]
 	levels = getGRIBlevels(grb,altitude_range=altitude_range)
-	headertext = genWindHeader(db.replace("/","_"),lons,lats,levels)
+	headertext,jsontext,check = genWindHeader(db.replace("/","_"),lons,lats,levels)
 	headerfile = dstpath + db.replace("/","_") + ".h"
+	jsonfile = dstpath + "config.json"
 	procfiles=[]
 	with open(headerfile,"w") as f:
 		f.write(headertext)
+	with open(jsonfile,"w") as f:
+		f.write(jsontext)
 	keys = {"lons":lons, "lats":lats, "levels": levels, "alts": p2a(levels)}
 	pickle.dump(keys,open(dstpath + "keys.pickle",'wb'))
+	print("Altitudes: ",keys["alts"])
 	for k,file in enumerate(files):
 		if db.split("/")[0]=="gfs_pred_0deg5":
 			# check file timestamps
@@ -173,7 +202,7 @@ def procWindData(start,end,db='gfs_anl_0deg5',overwrite=False,pred_time=None,alt
 		procfiles.append(outpath)
 		if os.path.exists(outpath) and not overwrite:
 			size = os.path.getsize(outpath)
-			if np.zeros((lats.size,lons.size,levels.size,2),dtype=np.int16).size*2==size:
+			if np.zeros((lats.size,lons.size,levels.size,2),dtype=np.int16).size*2 + 4==size: #+4 is for the size of the hash
 				print("Local file "+outpath+" found and is %.2fMB"%(size/10**6)+", skipping (%d / %d)" % (k+1, len(files)))
 				continue
 		print("Saving to",outpath+"...",end='',flush=True)
@@ -196,7 +225,9 @@ def procWindData(start,end,db='gfs_anl_0deg5',overwrite=False,pred_time=None,alt
 			if aux_data:
 				if row.shortName == "t" and row.level >= levels[0] and row.level <= levels[-1]:
 					data[:,:,levels.searchsorted(row.level),0] = row.values
-		data.flatten().tofile(outpath)
+		f = open(outpath,"wb")
+		f.write(check)
+		f.write(data.flatten().tobytes())
 		if aux_data:
 			aux.flatten().tofile(auxoutpath)
 		print("   done (%d / %d)" % (k+1, len(files)))
@@ -212,6 +243,7 @@ def getDataValue(data,time,db):
 
 
 def genWindHeader(dataset,lons,lats,levels):
+
 	filetext = "#ifndef __%s__ \n\r" % dataset
 	filetext += "#define __%s__ \n\r \n\r" % dataset
 	filetext += "/* \n\r"
@@ -232,7 +264,24 @@ def genWindHeader(dataset,lons,lats,levels):
 	filetext += "const int NUM_LEVELS = sizeof(LEVELS)/sizeof(LEVELS[0]); \n\r"
 	filetext += "const int NUM_VARIABLES = 2; \n\r \n\r"
 	filetext += "#endif \n\r"
-	return filetext;
+
+	conf = {"LON_MIN":lons[0],"LON_MAX":lons[-1],
+	"LON_D":(lons[1] - lons[0]),
+	"NUM_LONS":lons.size,
+	"LAT_MIN":lats[0],
+	"LAT_MAX":lats[-1],
+	"LAT_D":(lats[1] - lats[0]),
+	"NUM_LATS":lats.size,
+	"LEVELS":"[" + ",".join(map(str,levels*100)) + "]",
+	"NUM_LEVELS":levels.size,
+	"NUM_VARIABLES":2,
+	}
+	jtxt = str(json.dumps(conf)).encode('utf-8')
+	check = hashlib.sha1(jtxt)
+	conf["hash"] = check.hexdigest()[:8]
+	jtxt = json.dumps(conf)
+	check = check.digest()[:4]
+	return filetext,jtxt,check;
 
 
 
@@ -292,7 +341,7 @@ def makeWindArray(start,end,overwrite=False,altitude_range=[10000,20000],name_mo
 	np.save(filepath2,data)
 	return filepath,filepath2
 
-def getGRIBlevels(grib,shortname='v',altitude_range = [0,20000]):
+def getGRIBlevels(grib,shortname='v',altitude_range = [0,25000]):
 	""" retruns array of all levels in a GRIB file
 	"""
 	levels = []
@@ -326,7 +375,13 @@ print(df.index[0])
 procWindData(df.index[0],df.index[-1] + timedelta(2),db="gfs_anl_0deg5",overwrite=False)
 '''
 
-#procWindData("2018-09-05_00","2018-09-21_00",db="gfs_anl_0deg5",overwrite=False)
+di = "../ignored/raw/gfs_pred_0deg5/20181129_12/"
+#di = "../ignored/raw/gfs_anl_0deg5/"
+files = os.listdir(di)
+for i in range(len(files)):
+	files[i] = di+files[i] 
+	print(files[i])
+procWindData("0","0",files=files,overwrite=False)
 #fetchWindData("2018-10-20_00","2018-10-22_00",db="gfs_pred_0deg5")
 #procWindData("2018-10-28_12","2018-11-02_00",db="gfs_pred_0deg5",overwrite=True)
 #procWindData("2018-10-20_18","2018-10-23_18",db="gfs_pred_0deg5",overwrite=True,altitude_range = [0,30000])

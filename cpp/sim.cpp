@@ -22,6 +22,7 @@ void Optimizer::optimize(ctrl_cmd<adept::adouble>& cmd) {
 	double tval = VAL(cmd.tol) + lr_t * grad_tol;
 	tval = min(2500., max(200., tval));
 	cmd.tol.set_value(tval);
+	//printf("[cmds] setpoint:%f, tol:%f\n",val,tval);
 }
 
 template <class Float>
@@ -241,7 +242,7 @@ wind_vector<Float> LinInterpWind<Float>::get_wind(sim_state<Float>& s) {
 	Float theta_pr = (s.p-LEVELS[i-1])/(LEVELS[i] - LEVELS[i-1]);
 
 	#define INTERP_ALT(dst, src, idx) \
-		Float dst = src->data[i-1][idx] + theta_pr*(src->data[i][idx] - src->data[i-1][idx]);
+		Float dst = src[NUM_LEVELS*(i-1) + idx] + theta_pr*(src[NUM_LEVELS*i + idx] - src[NUM_LEVELS*(i-1) + idx]);
 	#define LAT(x) (LAT_MIN + LAT_D * (x))
 	#define LON(x) (LON_MIN + LON_D * (x))
 
@@ -261,17 +262,18 @@ wind_vector<Float> LinInterpWind<Float>::get_wind(sim_state<Float>& s) {
 	#else
 	{ int j = 0;
 	#endif
-		wind_data *p11 = get_data_at_point(f+j, {pt.lat, pt.lon});
-		wind_data *p12 = get_data_at_point(f+j, {pt.lat, pt.lon + 1});
-		wind_data *p21 = get_data_at_point(f+j, {pt.lat + 1, pt.lon});
-		wind_data *p22 = get_data_at_point(f+j, {pt.lat + 1, pt.lon + 1});
+
+		wind_t *p11 = get_data_at_point(f+j, {pt.lat, pt.lon});
+		wind_t *p12 = get_data_at_point(f+j, {pt.lat, pt.lon + 1});
+		wind_t *p21 = get_data_at_point(f+j, {pt.lat + 1, pt.lon});
+		wind_t *p22 = get_data_at_point(f+j, {pt.lat + 1, pt.lon + 1});
 
 		INTERP_ALT(u11, p11, 0);
 		INTERP_ALT(u21, p21, 0);
 		Float ulat1 = u11 + theta_lat * (u21 - u11);
 		debugf("v11! @ %f %d %d %f %f\n", VAL(s.p), pt.lat, pt.lon, LAT(pt.lat), LON(pt.lon));
 		for (int k=0; k<NUM_LEVELS; k++) {
-			debugf("%f: %d\n", LEVELS[k], p11->data[k][1]);
+			debugf("%f: %d\n", LEVELS[k], p11[NUM_LEVELS*k+1]);
 		}
 
 		INTERP_ALT(u12, p12, 0);

@@ -11,20 +11,6 @@
 
 #define STORE_ALTITUDE
 
-void Optimizer::optimize(ctrl_cmd<adept::adouble>& cmd) {
-	double grad_h = cmd.h.get_gradient();
-	double grad_tol = cmd.tol.get_gradient();
-
-	double val = VAL(cmd.h) + lr * grad_h;
-	val = min(16500., max(10000., val));
-	cmd.h.set_value(val);
-
-	double tval = VAL(cmd.tol) + lr_t * grad_tol;
-	tval = min(2500., max(200., tval));
-	cmd.tol.set_value(tval);
-	//printf("[cmds] setpoint:%f, tol:%f\n",val,tval);
-}
-
 template <class Float>
 void EulerInt<Float>::integrate(sim_state<Float>& loc, wind_vector<Float>& w){
 	loc.lat += w.v * idlat;
@@ -148,7 +134,7 @@ void StochasticControllerApprox<Float>::get_pressure(sim_state<Float>& state){
 	ctrl_cmd<Float> cmd = params.get_param(state);
 	Float cmd_h = cmd.h;
 	Float cmd_tol = cmd.tol;
-	state.bal_rate = 0.03/60./60.*750/cmd_tol + 0.03/60./60.;  
+	state.bal_rate = 0.03/60./60.*750/cmd_tol + 0.04/60./60.;  
 	sim_state<float> state_val;
 	state_val.lat = VAL(state.lat);
 	state_val.lon = VAL(state.lon);
@@ -187,22 +173,22 @@ ctrl_cmd<Float> TemporalParameters<Float>::get_param(sim_state<Float>& state){
 }
 
 template <class Float>
-double TemporalParameters<Float>::apply_gradients(Optimizer& opt) {
+double TemporalParameters<Float>::apply_gradients(StepRule& opt) {
 	return apply_gradients(opt, tag<TemporalParameters>());
 }
 
 template <class Float>
-double TemporalParameters<Float>::apply_gradients(Optimizer& opt, tag<TemporalParameters<float>>) {
+double TemporalParameters<Float>::apply_gradients(StepRule& opt, tag<TemporalParameters<float>>) {
 	printf("You what mate, what are you trying to take the gradient of\n");
 	exit(1);
 	return M_PI;
 }
 
 template <class Float>
-double TemporalParameters<Float>::apply_gradients(Optimizer& optimizer, tag<TemporalParameters<adouble>>) {
+double TemporalParameters<Float>::apply_gradients(StepRule& StepRule, tag<TemporalParameters<adouble>>) {
 	ctrl_cmd<adouble> *cmds_ = (ctrl_cmd<adouble>*)(&cmds[0]);
 	for (int i=0; i<(T/dt); i++) {
-		optimizer.optimize(cmds_[i]);
+		StepRule.optimize(cmds_[i]);
 	}
 	return 0.0;
 }
@@ -419,19 +405,19 @@ ctrl_cmd<Float> SpatiotemporalParameters<Float>::get_param(sim_state<Float>& sta
 }
 
 template <class Float>
-double SpatiotemporalParameters<Float>::apply_gradients(Optimizer& opt) {
+double SpatiotemporalParameters<Float>::apply_gradients(StepRule& opt) {
 	return apply_gradients(opt, tag<SpatiotemporalParameters>());
 }
 
 template <class Float>
-double SpatiotemporalParameters<Float>::apply_gradients(Optimizer &opt, tag<SpatiotemporalParameters<float>>) {
+double SpatiotemporalParameters<Float>::apply_gradients(StepRule &opt, tag<SpatiotemporalParameters<float>>) {
 	printf("You what mate, what are you trying to take the gradient of\n");
 	exit(1);
 	return M_PI;
 }
 
 template <class Float>
-double SpatiotemporalParameters<Float>::apply_gradients(Optimizer &opt, tag<SpatiotemporalParameters<adouble>>) {
+double SpatiotemporalParameters<Float>::apply_gradients(StepRule &opt, tag<SpatiotemporalParameters<adouble>>) {
 	cmd_tree<adouble> *cmds_ = (cmd_tree<adouble>*)(&cmds[0]);
 	for (int i=0; i<(T/dt); i++) {
 		opt.optimize(cmds_[i].cmd);	

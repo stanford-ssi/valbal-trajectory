@@ -147,7 +147,7 @@ def fetchWindData(start,end,db='gfs_anl_0deg5',pred_time=None,dry_run=False):
 	return filelist,times,start,end,db
 
 
-def procWindData(start,end,db='gfs_anl_0deg5',overwrite=False,pred_time=None,altitude_range = [0,25000],aux_data=False,dry_run=False,files=[]):
+def procWindData(start,end,db='gfs_anl_0deg5',overwrite=False,pred_time=None,altitude_range = [0,30000],aux_data=False,dry_run=False,files=[]):
 	if files:
 		db = "/".join(files[0].split("/")[:-1]).split("ignored/raw/")[-1]
 		times = list(map(gfsFileToTime,files))
@@ -375,6 +375,7 @@ print(df.index[0])
 procWindData(df.index[0],df.index[-1] + timedelta(2),db="gfs_anl_0deg5",overwrite=False)
 '''
 
+''' reprocess old files
 di = "../ignored/raw/gfs_pred_0deg5/20181129_12/"
 #di = "../ignored/raw/gfs_anl_0deg5/"
 files = os.listdir(di)
@@ -382,6 +383,8 @@ for i in range(len(files)):
 	files[i] = di+files[i] 
 	print(files[i])
 procWindData("0","0",files=files,overwrite=False)
+'''
+
 #fetchWindData("2018-10-20_00","2018-10-22_00",db="gfs_pred_0deg5")
 #procWindData("2018-10-28_12","2018-11-02_00",db="gfs_pred_0deg5",overwrite=True)
 #procWindData("2018-10-20_18","2018-10-23_18",db="gfs_pred_0deg5",overwrite=True,altitude_range = [0,30000])

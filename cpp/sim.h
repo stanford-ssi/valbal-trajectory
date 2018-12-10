@@ -9,6 +9,8 @@ using adept::adouble;
 
 #include "data.h"	
 #include "utils.h"
+#include "objectives.h"
+#include "trajtypes.h"
 #include "opt.h"
 
 #include "../ignored/balloons-VALBAL/src/LasagnaController.h"
@@ -185,24 +187,10 @@ private:
 };
 
 template<class Float>
-struct ctrl_cmd {
-	Float h;
-	Float tol;
-};
-
-class Optimizer {
-public:
-	Optimizer(double lr_, double lr_t_) : lr(lr_), lr_t(lr_t_) {};
-	double lr;
-	double lr_t;
-	void optimize(ctrl_cmd<adept::adouble>&);
-};
-
-template<class Float>
 class ParameterServer {
 public:
 	virtual ctrl_cmd<Float> get_param(sim_state<Float>&) = 0;
-	virtual double apply_gradients(Optimizer&) = 0;
+	virtual double apply_gradients(StepRule&) = 0;
 };
 
 template <class Float>
@@ -225,7 +213,7 @@ public:
 	TemporalParameters(int t0_, int dt_, int T_, double d_h, double d_t);
 	~TemporalParameters();
 	ctrl_cmd<Float> get_param(sim_state<Float>&);
-	double apply_gradients(Optimizer&);
+	double apply_gradients(StepRule&);
 
 private:
 	int t0;
@@ -234,8 +222,8 @@ private:
 	ctrl_cmd<Float> *cmds;
 	double default_h;
 	double default_tol;
-	double apply_gradients(Optimizer&, tag<TemporalParameters<float>>);
-	double apply_gradients(Optimizer&, tag<TemporalParameters<adouble>>);
+	double apply_gradients(StepRule&, tag<TemporalParameters<float>>);
+	double apply_gradients(StepRule&, tag<TemporalParameters<adouble>>);
 };
 
 template<class Float>
@@ -260,7 +248,7 @@ public:
 	SpatiotemporalParameters(int t0_, int dt_, int T_, double d_h, double d_t);
 	~SpatiotemporalParameters();
 	ctrl_cmd<Float> get_param(sim_state<Float>&);
-	double apply_gradients(Optimizer&);
+	double apply_gradients(StepRule&);
 
 private:
 	int t0;
@@ -269,8 +257,8 @@ private:
 	cmd_tree<Float> *cmds;
 	double default_h;
 	double default_tol;
-	double apply_gradients(Optimizer&, tag<SpatiotemporalParameters<float>>);
-	double apply_gradients(Optimizer&, tag<SpatiotemporalParameters<adouble>>);
+	double apply_gradients(StepRule&, tag<SpatiotemporalParameters<float>>);
+	double apply_gradients(StepRule&, tag<SpatiotemporalParameters<adouble>>);
 };
 
 #endif

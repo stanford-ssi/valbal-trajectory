@@ -57,27 +57,23 @@ void stochasticGradients(){
 	float lon0 =  -121.43 + 360;
 	int dt = 3600*6;
 	const int N_RUNS = 50;
-	float LR_H = 200000;
-	float LR_T = 20000;
-	const float alpha = 0.995;
-	const int N_IT = 200;
+	const int N_IT = 300;
 	adept::Stack stack;
-	Optimizer opt(LR_H, LR_T);
+	GradStep step;
 	TemporalParameters<adouble> params(t0, dt, 120*dt, 14000, 2000);
 	for (int it=0; it<N_IT; it++){
-		LR_H = LR_H*alpha;
 		clock_t timer0 = clock();
 		adouble obj_sum = 0;
 		stack.new_recording();
 		adouble objectives[N_RUNS];
 		float meanbal = 0;
 		float meantime = 0;
-
 		for (int run=0; run<N_RUNS; run++) {
 			StochasticControllerApprox<adouble> controller(params, rand());
 			LinInterpWind<adouble> wind(data);
             wind.sigma = 0;
-			FinalLongitude<adouble> obj;
+			//FinalLongitude<adouble> obj;
+			MinDistanceToPoint<adouble> obj(13.589181, -85.584796+360);
 			EulerIntBal<adouble> in;
 			int fname = -1;
 			if (it == 0 || it == N_IT-1) { printf("saving!\n"); fname = run + N_RUNS*(it == 0); }
@@ -86,7 +82,7 @@ void stochasticGradients(){
 			sim_state<adouble> sf = sim.run(t0, lat0, lon0);
 			meanbal += VAL(sf.bal);
 			meantime += (sf.t - t0);
-			objectives[run] = obj.getObjective();
+			objectives[run] = -obj.getObjective();
 		}
 		meanbal /= N_RUNS;
 		meantime /= N_RUNS;
@@ -95,7 +91,7 @@ void stochasticGradients(){
 		obj_sum = obj_sum/((float)N_RUNS);
 		obj_sum.set_gradient(1.0);
 		stack.compute_adjoint();
-		params.apply_gradients(opt);
+		params.apply_gradients(step);
 
 		float dt = (clock() - timer0)/((double)CLOCKS_PER_SEC)*1000;
 		printf("Took %.2f ms, obj: %f, bal: %f, days: %f\n",dt,VAL(obj_sum), meanbal, meantime/86400.);

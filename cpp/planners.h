@@ -8,18 +8,25 @@
 class StocasticMPC {
 public: 
 	typedef struct{
-		double lat0 = 36.84;
-		double lon0 = -121.43 + 360;
-		double tmax = 120;
-		double simdt = 600*6;
-		int n_samples = 50;
-		int n_iters = 300;
+		sim_state<float> state0;
+		int tmax = 120*60*60;				// max sim time in seconds
+		int cmd_dt = 3600*6;				// time between comand waypoints
+		int n_samples = 50;					// Number of samples per batch
+		int n_iters = 300;					// Number of itterations
+		int n_starts;						// Numer of random starts to try
+		int opt_sign = 1;					// sign on the optimization
+		int fname_offset = 0;				// offset on the file name numbers
 	} Config;
-	StocasticMPC(const char* intput_db, int t0){};
-	DataHandler data;
+	StocasticMPC(const char* input_db, sim_state<float> state0);
 	adept::Stack stack;
-	StepRule opt;
+	TemporalParameters<adouble> run();
+	DataHandler data;
+	GradStep step;
+	Config conf;
+	//MinDistanceToPoint<adouble> objfn;
+	FinalLongitude<adouble> objfn;
 };
+
 
 
 #endif

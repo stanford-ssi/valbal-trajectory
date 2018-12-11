@@ -185,11 +185,9 @@ double TemporalParameters<Float>::apply_gradients(StepRule& opt, tag<TemporalPar
 }
 
 template <class Float>
-double TemporalParameters<Float>::apply_gradients(StepRule& StepRule, tag<TemporalParameters<adouble>>) {
+double TemporalParameters<Float>::apply_gradients(StepRule& step_rule, tag<TemporalParameters<adouble>>) {
 	ctrl_cmd<adouble> *cmds_ = (ctrl_cmd<adouble>*)(&cmds[0]);
-	for (int i=0; i<(T/dt); i++) {
-		StepRule.optimize(cmds_[i]);
-	}
+	step_rule.optimize(cmds_,(int)(T/dt));
 	return 0.0;
 }
 
@@ -336,16 +334,10 @@ void Simulation<Float>::init(int i){
 	}
 }
 
-
 template<class Float>
-sim_state<Float> Simulation<Float>::run(int t, Float lat, Float lon) {
-	int Tmax = tmax + t;
-	sim_state<Float> state;
-	state.lat = lat;
-	state.lon = lon;
-	state.t = t;
-	state.bal = 4.5;
+void Simulation<Float>::run(sim_state<Float>& state) {
 	debugf("Starting from (%f, %f)\n", VAL(lat), VAL(lon));
+	int Tmax = tmax + state.t;
 	while (state.t < Tmax) {
 		pressure.get_pressure(state);
 		if (save_to_file) {
@@ -374,6 +366,16 @@ sim_state<Float> Simulation<Float>::run(int t, Float lat, Float lon) {
 	if (save_to_file) {
 		fclose(file);
 	}
+}
+
+template<class Float>
+sim_state<Float> Simulation<Float>::run(int t, Float lat, Float lon) {
+	sim_state<Float> state;
+	state.lat = lat;
+	state.lon = lon;
+	state.t = t;
+	state.bal = 4.5;
+	run(state);
 	return state;
 }
 
@@ -418,10 +420,9 @@ double SpatiotemporalParameters<Float>::apply_gradients(StepRule &opt, tag<Spati
 
 template <class Float>
 double SpatiotemporalParameters<Float>::apply_gradients(StepRule &opt, tag<SpatiotemporalParameters<adouble>>) {
-	cmd_tree<adouble> *cmds_ = (cmd_tree<adouble>*)(&cmds[0]);
-	for (int i=0; i<(T/dt); i++) {
-		opt.optimize(cmds_[i].cmd);	
-	}
+    /********* NOT SURE WHAT THIS SHOULD DO WITH NEW SYNTAX TO I JUST DISABLED IT @JCREUS*******/
+	//cmd_tree<adouble> *cmds_ = (cmd_tree<adouble>*)(&cmds[0]);
+	//opt.optimize(cmds_,(int)(T/dt));
 	return 0;
 }
 

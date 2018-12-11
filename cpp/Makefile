@@ -34,7 +34,7 @@ HEADERS += ../ignored/balloons-VALBAL/hootl/lasagna/PastaSim.h
 .PRECIOUS: $(TARGET) $(OBJECTS)
 
 $(TARGET): $(OBJECTS)
-	$(CC) $(PATHS) $(OBJECTS) -Wall $(LIBS) -o $@
+	$(CC) $(PATHS) $(OBJECTS) -g -Wall $(LIBS) -o $@
 
 diff: diff.o
 	$(CC) diff.o -o difftest

@@ -10,7 +10,7 @@ using adept::adouble;
 
 class StepRule {
 public:
-	virtual void optimize(ctrl_cmd<adept::adouble>&) = 0;
+	virtual void optimize(ctrl_cmd<adept::adouble>*, int) = 0;
 	virtual void reset() = 0;
 };
 
@@ -29,7 +29,7 @@ public:
 	GradStep(){reset();};
 	GradStep(HyperParams p) : params(p) {reset();};
 	void reset(){lr_set = params.lr_set ; lr_tol = params.lr_tol;};
-	void optimize(ctrl_cmd<adept::adouble>&);
+	void optimize(ctrl_cmd<adept::adouble>*, int);
 	HyperParams params;
 
 	double lr_set;

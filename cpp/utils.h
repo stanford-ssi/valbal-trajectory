@@ -9,6 +9,7 @@
 #include <queue>
 #include <functional>
 #include <condition_variable>
+#include "trajtypes.h"
 
 using namespace std;
 

@@ -7,7 +7,10 @@ using adept::adouble;
 #include "data.h"
 #include "sim.h"
 #include "utils.h"
+#include "planners.h"
+#include "trajtypes.h"
 #include <random>
+#include <dirent.h>
 #define STORE_ALTITUDE
 
 using namespace std;
@@ -48,54 +51,32 @@ void demo() {
 }
 
 void stochasticGradients(){
-	DataHandler data;
-	data.load_data(get_data_path("../ignored/proc/gfs_pred_0deg5/20181129_12/"), 1500000000,1600000000);
-    //load_data(get_data_path("../ignored/proc/gfs_anl_0deg5"), 1500000000,1600000000);
-    //int t0 = 1537196400;
-    int t0 = 1543492800;
-	float lat0 = 36.84;
-	float lon0 =  -121.43 + 360;
-	int dt = 3600*6;
-	const int N_RUNS = 50;
-	const int N_IT = 300;
-	adept::Stack stack;
-	GradStep step;
-	TemporalParameters<adouble> params(t0, dt, 120*dt, 14000, 2000);
-	for (int it=0; it<N_IT; it++){
-		clock_t timer0 = clock();
-		adouble obj_sum = 0;
-		stack.new_recording();
-		adouble objectives[N_RUNS];
-		float meanbal = 0;
-		float meantime = 0;
-		for (int run=0; run<N_RUNS; run++) {
-			StochasticControllerApprox<adouble> controller(params, rand());
-			LinInterpWind<adouble> wind(data);
-            wind.sigma = 0;
-			//FinalLongitude<adouble> obj;
-			MinDistanceToPoint<adouble> obj(13.589181, -85.584796+360);
-			EulerIntBal<adouble> in;
-			int fname = -1;
-			if (it == 0 || it == N_IT-1) { printf("saving!\n"); fname = run + N_RUNS*(it == 0); }
-			Simulation<adouble> sim(controller, wind, obj, in, fname);
-			sim.tmax=60*60*120;
-			sim_state<adouble> sf = sim.run(t0, lat0, lon0);
-			meanbal += VAL(sf.bal);
-			meantime += (sf.t - t0);
-			objectives[run] = -obj.getObjective();
-		}
-		meanbal /= N_RUNS;
-		meantime /= N_RUNS;
+	const char* db = get_data_path("/proc/gfs_pred_0deg5/20181129_12/");
+	sim_state<float> state0;
+	state0.lat = 36.84;
+	state0.lon = -121.43 + 360;
+	state0.t = 1543492800;
+	StocasticMPC controller(db,state0);
+	//controller.conf.opt_sign = -1;
+	controller.run();
+}
 
-		for (int run=0; run<N_RUNS; run++) obj_sum += objectives[run];
-		obj_sum = obj_sum/((float)N_RUNS);
-		obj_sum.set_gradient(1.0);
-		stack.compute_adjoint();
-		params.apply_gradients(step);
+void evaluator(){
+	DataHandler anldata;
+	anldata.load_data(get_data_path("proc/gfs_anl_0deg5/"),1500000000,1600000000);
+	sim_state<float> state;
+	state.lat = 36.84;
+	state.lon = -121.43 + 360;
+	state.t = 1543492801;
+	state.bal = 4.5;
 
-		float dt = (clock() - timer0)/((double)CLOCKS_PER_SEC)*1000;
-		printf("Took %.2f ms, obj: %f, bal: %f, days: %f\n",dt,VAL(obj_sum), meanbal, meantime/86400.);
-	}
+
+
+	char recentdir[PATH_MAX];
+	getRecentDir(recentdir,get_data_path("proc/gfs_pred_0deg5/"),state.t);
+	printf("%s\n",recentdir);
+	StocasticMPC controller(recentdir,state);
+	controller.run();
 }
 
 int main() {
@@ -119,7 +100,8 @@ int main() {
 	//ssi71Sims();
 	//gradientsStuff();
 	//MLestimation();
-	stochasticGradients();
+	//stochasticGradients();
+	evaluator();
 	//saveSpaceshot();
 	//stocasticGradients();
 }

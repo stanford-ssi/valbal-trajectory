@@ -18,7 +18,56 @@
 #include <sstream>
 #include <algorithm>
 #include <vector>
+#include <time.h>
 #include "data.h"
+
+void getRecentDir(char* buf, const char* dname, int64_t time){
+	DIR *dir = opendir(dname);
+	assert(dir != 0);
+	struct dirent *entry;	
+	std::vector<int64_t> times;
+	int64_t newest = 0;
+	char dname2[PATH_MAX];
+	while ((entry = readdir(dir)) != 0) {
+		struct tm tm;
+		time_t epoch;
+		if ( strptime(entry->d_name, "%Y%m%d_%H", &tm) != NULL ){
+  			tm.tm_isdst = 0;
+  			epoch = mktime(&tm) - timezone;
+			//printf("%s, %lu\n",entry->d_name, epoch);
+			if(time > epoch){
+				if(epoch > newest){
+					newest = epoch;
+					strcpy(dname2,entry->d_name);
+				}
+			}
+
+		} else continue;
+	}
+	if((time - newest) > 60*60*6){
+		printf("Warning, prediction data is %fhrs old\n", (time - newest)/60./60.);
+	}
+	//printf("%s, %lu\n",dname2,newest);
+	strcpy(buf,dname);
+	strcat(buf,dname2);
+	DIR *dir2 = opendir(buf);
+	std::vector<int64_t> timestamps;	
+	while ((entry = readdir(dir2)) != 0) {
+		if (entry->d_name[0] < '0' || entry->d_name[0] > '9') {
+			continue;
+		}
+		timestamps.push_back(atoll(entry->d_name));
+	}
+	std::sort(timestamps.begin(), timestamps.end());
+	assert((timestamps.front() == newest) && "lol m8 get fked you prolly have a timezone issue.");
+};
+
+int64_t utc2epoch(const char* c){
+	struct tm tm;
+	strptime(c, "%Y-%m-%d_%H", &tm);
+	tm.tm_isdst = 0;
+	return mktime(&tm) - timezone;
+}
 
 
 void DataHandler::load_data(const char *dname, uint64_t start, uint64_t end) {
@@ -91,7 +140,7 @@ void DataHandler::load_data(const char *dname, uint64_t start, uint64_t end) {
 		fstat(files[i].fd, &s);
 		int mmap_flags = MAP_SHARED;
 		#if __linux__
-			mmap_flags |= MAP_POPULATE; /* Possibly only if SHOULD_PRELOAD? */
+		//	mmap_flags |= MAP_POPULATE; /* Possibly only if SHOULD_PRELOAD? */
 		#endif
 		files[i].data = (wind_t*)((char*)mmap(NULL, s.st_size, PROT_READ, mmap_flags, files[i].fd, 0) + 4);
 		assert(files[i].data != MAP_FAILED);

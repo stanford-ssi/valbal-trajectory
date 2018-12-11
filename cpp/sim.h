@@ -117,7 +117,8 @@ public:
 	bool calc_obj = false;
 
 	sim_state<Float> run(int, Float, Float);
-
+	void run(sim_state<Float>& state);
+	
 	int cur_file = 0;
 	//const int tmax = 60*60*103;
 	int tmax = 60*60*100;

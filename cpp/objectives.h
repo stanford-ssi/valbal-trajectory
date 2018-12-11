@@ -16,6 +16,7 @@ class ObjectiveFn {
 public:
 	virtual Float update(sim_state<Float>& state, bool save = true) = 0;
 	virtual Float getObjective() = 0;
+	virtual void clear() = 0;
 };
 
 template <class Float>
@@ -24,6 +25,7 @@ public:
 	FinalLongitude(){};
 	Float update(sim_state<Float>& state, bool save = true);
 	Float getObjective();
+	void clear(){lon = 0;};
 	Float lon = 0;
 };
 
@@ -33,6 +35,7 @@ public:
 	MinDistanceToPoint(float lat, float lon) : loc{lat,lon} {};
 	Float update(sim_state<Float>& state, bool save = true);
 	Float getObjective();
+	void clear(){min_dist = 1000000;};
 	float loc[2];
 	Float min_dist = 1000000;
 };
@@ -43,6 +46,7 @@ public:
 	DirectionToTarget(float lat, float lon) : loc{lat,lon} {};
 	Float update(sim_state<Float>& state, bool save = true);
 	Float getObjective();
+	void clear(){};
 	float loc[2];
 };
 
@@ -52,6 +56,7 @@ public:
 	NoOp(){};
 	Float update(sim_state<Float>& state, bool save = true){Float ret = 0; return ret;};
 	Float getObjective(){Float ret = 0; return ret;};
+	void clear(){};
 };
 
 

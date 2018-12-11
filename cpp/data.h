@@ -10,6 +10,8 @@
 #include "config.h"
 #include "trajtypes.h"
 
+void getRecentDir(char* buf, const char* dname, int64_t time);
+
 class DataHandler {
 public:
 	void load_data(const char *dname, uint64_t start, uint64_t end);
@@ -17,7 +19,7 @@ public:
 	point get_base_neighbor(float, float);
 	point get_nearest_neighbor(float, float);
 	~DataHandler(){
-		delete[] LEVELS;
+		if(loaded) delete[] LEVELS;
 	}
 
 	data_file *files;

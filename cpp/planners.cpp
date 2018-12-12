@@ -7,8 +7,8 @@ StocasticMPC::StocasticMPC(const char* input_db, sim_state<float> state0)
 	conf.state0 = state0;
 }
 
-TemporalParameters<adouble>  StocasticMPC::run(){
-	TemporalParameters<adouble> params(conf.state0.t, conf.cmd_dt, conf.state0.t+conf.tmax, 14000, 2000);
+TemporalParameters<float>  StocasticMPC::run(){
+	TemporalParameters<adouble> params(conf.state0.t, conf.cmd_dt, conf.tmax, 12000, 2000);
 	for (int it=0; it<conf.n_iters; it++){
 		clock_t timer0 = clock();
 		adouble obj_sum = 0;
@@ -17,7 +17,8 @@ TemporalParameters<adouble>  StocasticMPC::run(){
 		float meanbal = 0;
 		float meantime = 0;
 		for (int run=0; run<conf.n_samples; run++) {
-			objfn.clear();
+
+			MinDistanceToPoint<adouble> objfn(19.805777, 13.702091+360);
 			StochasticControllerApprox<adouble> controller(params, rand());
 			LinInterpWind<adouble> wind(data);
             wind.sigma = 0;
@@ -25,10 +26,11 @@ TemporalParameters<adouble>  StocasticMPC::run(){
 			//MinDistanceToPoint<adouble> obj(13.589181, -85.584796+360);
 			EulerIntBal<adouble> in;
 			int fname = -1;
-			if (it == 0 || it == conf.n_iters-1) { printf("saving!\n"); fname = conf.fname_offset + run + conf.n_samples*(it == 0); }
+			if (conf.write_files && (it == 0 || it == conf.n_iters-1)) { printf("saving!\n"); fname = conf.fname_offset + run + conf.n_samples*(it == 0); }
 			Simulation<adouble> sim(controller, wind, objfn, in, fname);
-			sim.tmax=60*60*120;
-			sim_state<adouble> sf = sim.run(conf.state0.t, conf.state0.lat, conf.state0.lon);
+			sim.tmax=conf.tmax;
+			sim_state<adouble> sf = conf.state0.cast<adouble>();
+			sim.run(sf);
 			meanbal += VAL(sf.bal);
 			meantime += (sf.t - conf.state0.t);
 			objectives[run] = conf.opt_sign*objfn.getObjective();
@@ -45,7 +47,8 @@ TemporalParameters<adouble>  StocasticMPC::run(){
 		float dt = (clock() - timer0)/((double)CLOCKS_PER_SEC)*1000;
 		printf("Took %.2f ms, obj: %f, bal: %f, days: %f\n",dt,VAL(obj_sum), meanbal, meantime/86400.);
 	}
-	//TemporalParameters<float> fparams(conf.state0.t, conf.cmd_dt, conf.state0.t+conf.tmax, 14000, 2000);
-	//fparams = params
-	return params;
+	TemporalParameters<float> fparams(conf.state0.t, conf.cmd_dt, conf.tmax, 14000, 2000);
+	fparams = params;
+	//printf("%d\n",params.T);
+	return fparams;
 }

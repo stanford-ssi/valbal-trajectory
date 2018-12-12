@@ -51,13 +51,14 @@ void demo() {
 }
 
 void stochasticGradients(){
-	const char* db = get_data_path("/proc/gfs_pred_0deg5/20181129_12/");
+	//const char* db = get_data_path("/proc/gfs_pred_0deg5/20181129_12/");
+	const char* db = get_data_path("/proc/gfs_anl_0deg5/");
 	sim_state<float> state0;
 	state0.lat = 36.84;
 	state0.lon = -121.43 + 360;
-	state0.t = 1543492800;
+	state0.t = 1543492801;
 	StocasticMPC controller(db,state0);
-	//controller.conf.opt_sign = -1;
+	controller.conf.opt_sign = -1;
 	controller.run();
 }
 
@@ -67,16 +68,51 @@ void evaluator(){
 	sim_state<float> state;
 	state.lat = 36.84;
 	state.lon = -121.43 + 360;
-	state.t = 1543492801;
+	int t0= 1543492801;
+	state.t = t0;
 	state.bal = 4.5;
+	state.p = alt2p(13000);
+	float lift = 0; 
+	const int command_intval = 60*60;
+
+	sim_state<float> statecpy = state;
+	TemporalParameters<float> cmds(statecpy.t, 60*60*6, 60*60*150, 13000, 2000);
+	LasSim<float> alt_sim(0,p2alt(statecpy.p),lift,cmds);
+	EulerIntBal<float> in;
+	alt_sim.dt = in.dt; 
+	NoOp<float> obj;
+	LinInterpWind<float> anlwind(anldata);
+	Simulation<float> sim(alt_sim,anlwind,obj,in,0);
+	sim.tmax = 60*60*150;
+	sim.run(statecpy);
 
 
+	int i = 0;
+	while(state.bal > 0){
+		char recentdir[PATH_MAX];
+		getRecentDir(recentdir,get_data_path("proc/gfs_pred_0deg5/"),state.t);
+		printf("%s\n",recentdir);
+		StocasticMPC controller(recentdir,state);
+		controller.conf.n_iters = 20;
+		controller.conf.n_samples = 50;
+		controller.conf.write_files = true;
+		controller.conf.opt_sign = -1;
+		controller.conf.fname_offset = 100+i*2*controller.conf.n_samples;
+		TemporalParameters<float> cmds = controller.run();
+		LasSim<float> alt_sim(i+1,p2alt(state.p),lift,cmds);
+		EulerIntBal<float> in;
+		alt_sim.dt = in.dt; 
+		NoOp<float> obj;
+		LinInterpWind<float> anlwind(anldata);
+		Simulation<float> sim(alt_sim,anlwind,obj,in,i+1);
+		sim.tmax = command_intval;
+		sim.run(state);
+		lift = alt_sim.sim.l;
+		printf("###############################################################\n[real state] %d lat:%f, lon:%f, bal:%f, alt:%f\n",i,state.lat,state.lon,state.bal,p2alt(state.p));
+		i++;
+	}
 
-	char recentdir[PATH_MAX];
-	getRecentDir(recentdir,get_data_path("proc/gfs_pred_0deg5/"),state.t);
-	printf("%s\n",recentdir);
-	StocasticMPC controller(recentdir,state);
-	controller.run();
+
 }
 
 int main() {
@@ -100,7 +136,7 @@ int main() {
 	//ssi71Sims();
 	//gradientsStuff();
 	//MLestimation();
-	//stochasticGradients();
+//	stochasticGradients();
 	evaluator();
 	//saveSpaceshot();
 	//stocasticGradients();

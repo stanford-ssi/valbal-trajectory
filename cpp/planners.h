@@ -16,15 +16,15 @@ public:
 		int n_starts;						// Numer of random starts to try
 		int opt_sign = 1;					// sign on the optimization
 		int fname_offset = 0;				// offset on the file name numbers
+		bool write_files = true;
 	} Config;
 	StocasticMPC(const char* input_db, sim_state<float> state0);
 	adept::Stack stack;
-	TemporalParameters<adouble> run();
+	TemporalParameters<float> run();
 	DataHandler data;
 	GradStep step;
 	Config conf;
-	//MinDistanceToPoint<adouble> objfn;
-	FinalLongitude<adouble> objfn;
+	//FinalLongitude<adouble> objfn;
 };
 
 

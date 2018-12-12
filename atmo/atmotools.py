@@ -375,14 +375,17 @@ print(df.index[0])
 procWindData(df.index[0],df.index[-1] + timedelta(2),db="gfs_anl_0deg5",overwrite=False)
 '''
 
-''' reprocess old files
-di = "../ignored/raw/gfs_pred_0deg5/20181129_12/"
-#di = "../ignored/raw/gfs_anl_0deg5/"
-files = os.listdir(di)
-for i in range(len(files)):
-	files[i] = di+files[i] 
-	print(files[i])
-procWindData("0","0",files=files,overwrite=False)
+'''
+#reprocess old files
+for di in os.listdir("../ignored/raw/gfs_pred_0deg5/"):
+	#di = "../ignored/raw/gfs_anl_0deg5/"
+	if datetime.strptime(di,"%Y%m%d_%H") < datetime.strptime("20181120_00","%Y%m%d_%H"):
+		continue
+	print(di)
+	files = os.listdir("../ignored/raw/gfs_pred_0deg5/"+di+"/")
+	for i in range(len(files)):
+		files[i] = "../ignored/raw/gfs_pred_0deg5/"+ di+"/"+files[i] 
+	procWindData("0","0",files=files,overwrite=False)
 '''
 
 #fetchWindData("2018-10-20_00","2018-10-22_00",db="gfs_pred_0deg5")

@@ -10,6 +10,8 @@
 #include <functional>
 #include <condition_variable>
 #include "trajtypes.h"
+#include <adept.h>
+using adept::adouble;
 
 using namespace std;
 

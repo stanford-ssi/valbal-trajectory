@@ -30,12 +30,15 @@ void getRecentDir(char* buf, const char* dname, int64_t time){
 	char dname2[PATH_MAX];
 	while ((entry = readdir(dir)) != 0) {
 		struct tm tm;
-		time_t epoch;
+		time_t epoch = 0;
 		if ( strptime(entry->d_name, "%Y%m%d_%H", &tm) != NULL ){
   			tm.tm_isdst = 0;
+  			tm.tm_sec = 0;
+  			tm.tm_min = 0;
   			epoch = mktime(&tm) - timezone;
-			//printf("%s, %lu\n",entry->d_name, epoch);
+			//printf("%s, %lu, %lu, %d\n",entry->d_name, epoch, timezone, tm.tm_sec);
 			if(time > epoch){
+				//printf("yo %lu\n",epoch);
 				if(epoch > newest){
 					newest = epoch;
 					strcpy(dname2,entry->d_name);
@@ -47,7 +50,7 @@ void getRecentDir(char* buf, const char* dname, int64_t time){
 	if((time - newest) > 60*60*6){
 		printf("Warning, prediction data is %fhrs old\n", (time - newest)/60./60.);
 	}
-	//printf("%s, %lu\n",dname2,newest);
+	//printf("%s, %lu, %lu\n",dname2,newest,time);
 	strcpy(buf,dname);
 	strcat(buf,dname2);
 	DIR *dir2 = opendir(buf);
@@ -69,6 +72,17 @@ int64_t utc2epoch(const char* c){
 	return mktime(&tm) - timezone;
 }
 
+DataHandler::~DataHandler(){
+	if(loaded){
+		delete[] LEVELS;
+		for(int i = 0; i < num_files; i++){
+			struct stat s;
+			fstat(files[i].fd, &s);
+			munmap((char*)files[i].data - 4, s.st_size);
+			close(files[i].fd);
+		}
+	}
+}
 
 void DataHandler::load_data(const char *dname, uint64_t start, uint64_t end) {
 	assert(!loaded && "bruh don't load data more than once with the same object");

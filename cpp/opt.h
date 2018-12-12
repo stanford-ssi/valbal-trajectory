@@ -19,8 +19,8 @@ class GradStep : public StepRule{
 public:
 	typedef struct {
 		double lr_set  = 200000;
-		double lr_tol  = 20000;
-		double alpha   = 0.999;
+		double lr_tol  = 100000;
+		double alpha   = 0.996;
 		double tol_min = 200;
 		double tol_max = 4000;
 		double set_min = 10000;

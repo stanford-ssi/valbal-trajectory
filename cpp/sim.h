@@ -167,42 +167,12 @@ public:
 	int N_levels = 100;
 };
 
-/**
- * Simulator for a valbal using a LasagnaController and a PastaSim from the balloons-VALBAL repo.
- */
-template <class Float>
-class LasSim : public PressureSource<Float> {
-public: 
-	LasSim(int seed);
-	LasSim(int seed, float h);
-	LasSim(int seed, float h, float l);
-	void get_pressure(sim_state<Float>& state);
-	void get_altitude(sim_state<Float>& state);
-	const float freq = 1/60.;
-	LasagnaController las;
-	PastaSim sim;
-	int t_last;
-	bool is_first_run = true;
-private: 
-	void evolve(sim_state<Float>& state); 
-};
 
 template<class Float>
 class ParameterServer {
 public:
 	virtual ctrl_cmd<Float> get_param(sim_state<Float>&) = 0;
 	virtual double apply_gradients(StepRule&) = 0;
-};
-
-template <class Float>
-class StochasticControllerApprox : public PressureSource<Float> {
-public: 
-	StochasticControllerApprox(ParameterServer<Float>& ps_, int seed);
-	void get_pressure(sim_state<Float>&);
-	LasSim<float> las_sim;
-	float h_mid;
-	float tol0;
-	ParameterServer<Float>& params;
 };
 
 /* I hate C++. --Joan */
@@ -215,16 +185,58 @@ public:
 	~TemporalParameters();
 	ctrl_cmd<Float> get_param(sim_state<Float>&);
 	double apply_gradients(StepRule&);
-
-private:
+	template <class FFloat> TemporalParameters& operator = (const TemporalParameters<FFloat>& tp){
+		for(int i=0; i < int(T/dt); i++){
+			this->cmds[i].h = VAL(tp.cmds[i].h);
+			this->cmds[i].tol = VAL(tp.cmds[i].tol);
+		}
+		return *this;
+	}
+	ctrl_cmd<Float> *cmds;
 	int t0;
 	int dt;
 	int T;
-	ctrl_cmd<Float> *cmds;
+private:
 	double default_h;
 	double default_tol;
 	double apply_gradients(StepRule&, tag<TemporalParameters<float>>);
 	double apply_gradients(StepRule&, tag<TemporalParameters<adouble>>);
+};
+
+/**
+ * Simulator for a valbal using a LasagnaController and a PastaSim from the balloons-VALBAL repo.
+ */
+template <class Float>
+class LasSim : public PressureSource<Float> {
+public: 
+	LasSim(int seed);
+	LasSim(int seed, float h);
+	LasSim(int seed, float h, float l);
+	LasSim(int seed, float h, float l, TemporalParameters<float>& cmds);
+	void get_pressure(sim_state<Float>& state);
+	void get_altitude(sim_state<Float>& state);
+	const float freq = 1/60.;
+	LasagnaController las;
+	PastaSim sim;
+	int t_last = 0;
+	int dt = 0;
+	bool changing_cmds = false;
+	LasagnaController::Constants lasconst;
+	TemporalParameters<float> cmds_defualt;
+	TemporalParameters<float>& cmds;
+private: 
+	void evolve(sim_state<Float>& state); 
+};
+
+template <class Float>
+class StochasticControllerApprox : public PressureSource<Float> {
+public: 
+	StochasticControllerApprox(ParameterServer<Float>& ps_, int seed);
+	void get_pressure(sim_state<Float>&);
+	LasSim<float> las_sim;
+	float h_mid;
+	float tol0;
+	ParameterServer<Float>& params;
 };
 
 template<class Float>

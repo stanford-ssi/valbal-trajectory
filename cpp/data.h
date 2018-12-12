@@ -18,10 +18,7 @@ public:
 	wind_t *get_data_at_point(data_file*, point);
 	point get_base_neighbor(float, float);
 	point get_nearest_neighbor(float, float);
-	~DataHandler(){
-		if(loaded) delete[] LEVELS;
-	}
-
+	~DataHandler();
 	data_file *files;
 	int num_files;
 	uint32_t conf_hash;

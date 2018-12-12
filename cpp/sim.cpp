@@ -86,38 +86,55 @@ void LasSim<Float>::get_altitude(sim_state<Float>& state){
 
 template<class Float>
 void LasSim<Float>::evolve(sim_state<Float>& state){
-	if(is_first_run){
-		is_first_run = false;
+	if(!(t_last || dt)){
 	} else {
-		const int N = int((state.t-t_last)*freq);
+		const int N = dt ? int(dt*freq) : int((state.t-t_last)*freq);
 		sim.conf.lat = VAL(state.lat);
 		sim.conf.lon = VAL(state.lon);
 		LasagnaController::Input input;
 		for(int i = 0; i < N; i++){
+			if(changing_cmds){
+				sim_state<float> statef = state.template cast<float>();
+				lasconst.setpoint = cmds.get_param(statef).h;
+				lasconst.tolerance = cmds.get_param(statef).tol;
+				las.updateConstants(lasconst);
+				state.bal_rate = 0.03/60./60.*750/lasconst.tolerance + 0.04/60./60.;
+				//printf("[cmds] t:%f tol:%f set:%f\n",(state.t-1543492801)/60./60.,lasconst.tolerance,lasconst.setpoint);
+			}
 			input.h_abs = sim.evolve(double(las.getAction()));
 			input.h_rel = input.h_abs;
 			input.dldt_ext = sim.sunset_dldt*3;
 			las.update(input);
 		}
+		state.cmd.h = lasconst.setpoint;
+		state.cmd.tol = lasconst.tolerance;
 	}
 	t_last = state.t;
 }
 
 template<class Float>
-LasSim<Float>::LasSim(int seed, float h, float l) : las(this->freq), sim(seed) {
+LasSim<Float>::LasSim(int seed, float h, float l,TemporalParameters<float>& cmds) : las(this->freq), sim(seed), cmds_defualt(0,1,0,1.,1.), cmds(cmds){
+	sim.h = h;
+	sim.l = l;
+	sim.conf.freq = freq;
+	changing_cmds = true;
+}
+
+template<class Float>
+LasSim<Float>::LasSim(int seed, float h, float l) : las(this->freq), sim(seed), cmds_defualt(0,1,0,1.,1.), cmds(cmds_defualt) {
 	sim.h = h;
 	sim.l = l;
 	sim.conf.freq = freq;
 }
 
 template<class Float>
-LasSim<Float>::LasSim(int seed,float h) : las(this->freq), sim(seed) {
+LasSim<Float>::LasSim(int seed,float h) : las(this->freq), sim(seed), cmds_defualt(0,1,0,1.,1.), cmds(cmds_defualt) {
 	sim.h = h;
 	sim.conf.freq = freq;
 }
 
 template<class Float>
-LasSim<Float>::LasSim(int seed) : las(this->freq), sim(seed) {
+LasSim<Float>::LasSim(int seed) : las(this->freq), sim(seed),cmds_defualt(0,1,0,1.,1.), cmds(cmds_defualt)  {
 	sim.conf.freq = freq;
 }
 
@@ -142,6 +159,7 @@ void StochasticControllerApprox<Float>::get_pressure(sim_state<Float>& state){
 	las_sim.get_altitude(state_val);
 	float las_h = state_val.p;
 	Float alt = cmd_h + (las_h - h_mid)*cmd_tol/tol0;
+	state.cmd = cmd; 
 	state.p = alt2p(alt);
 }
 
@@ -343,6 +361,8 @@ void Simulation<Float>::run(sim_state<Float>& state) {
 		if (save_to_file) {
 			float actual_lat = VAL(state.lat);
 			float actual_lon = VAL(state.lon);
+			float actual_set = VAL(state.cmd.h);
+			float actual_tol = VAL(state.cmd.tol);
 			fwrite(&actual_lat, sizeof(float), 1, file);
 			fwrite(&actual_lon, sizeof(float), 1, file);
 
@@ -356,6 +376,8 @@ void Simulation<Float>::run(sim_state<Float>& state) {
 			debugf("[sim state] time:%d lat:%.4f lon:%.4f alt:%.1f bal:%.2f\n",state.t, actual_lat, actual_lon, actual_p, VAL(state.bal));
 
 			fwrite(&actual_p, sizeof(float), 1, file);
+			fwrite(&actual_set, sizeof(float), 1, file);
+			fwrite(&actual_tol, sizeof(float), 1, file);
 		}
 		wind_vector<Float> w = wind.get_wind(state);
 		intg.integrate(state,w);

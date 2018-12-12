@@ -12,6 +12,8 @@ PATHS += -I /usr/local/include
 
 default: $(TARGET)
 all: default
+run: default
+	./traj
 
 OBJECTS = $(patsubst %.cpp, %.o, $(filter-out extra.cpp, $(wildcard *.cpp)))
 HEADERS = $(wildcard *.h)

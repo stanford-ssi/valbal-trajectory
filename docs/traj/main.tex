@@ -17,6 +17,9 @@
 \usepackage{pgfplots}
 \usepackage{multicol}
 \usepackage[bf]{caption}
+\usepackage{biblatex}
+\bibliography{traj}
+
 \captionsetup{format=plain}
 \usetikzlibrary{calc}
 \usetikzlibrary{shapes,arrows,positioning}
@@ -102,6 +105,10 @@ $V(\theta)$ & value function to be optimized for trajectory planning \\
 $\hat V(\theta; \lambda)$ & stochastic evaluation of the value function under parametrized randomness $\lambda$ \\
 $(u,v)$ & wind vector in longitude and latitude, respectively.`
 \end{tabular}
+
+\subsection*{Forward}
+
+This paper is not written to be like a conventional conference or journal paper with the typical introduction to high altitude balloons or what the potential applications are. Rather, this document jumps right into technical details, as there was a lot to cover and we felt that at this point in time we should focus on just that, rather than the additional info to make it accessible to a wider audience.
 
 \section{Altitude control}
 \subsection{System dynamics}
@@ -287,15 +294,21 @@ A plot of an example simulation output is shown in \ref{lsim}. In this instance,
 
 \subsection{Introduction}
 
-ValBal has no direct control over its lateral movement around the globe, but rather is always drifting with the air currents of Earth's atmosphere. However, by changing the altitude that it flies at, it can choose different wind currents moving in a range of directions in a given column of air. The high-level goal of trajectory planning is to come up with these altitudes that the balloon should fly at in order to achieve some mission outcome in the lateral trajectory of the balloon.
+ValBal has no direct control over its lateral movement around the globe, but rather is always drifting with the air currents of Earth's atmosphere. However, by changing the altitude that it flies at, it can choose different wind currents moving in a range of directions in a given column of air. The high-level goal of trajectory planning is to come up with these altitudes that the balloon should fly at in order to achieve some mission outcome in the lateral trajectory of the balloon. This problem has been previously tackled in a number of a ways, primarily relying on either discretization of the state space to handle the nonlinear nature of the wind field, or linearizing a portion of of the wind field to simplify the processes of obtaining a control law. 
 
-\todo[inline]{Literature review goes here}
+A recent method for station keeping was proposed in \cite{DBorn}, which utilized a receding horizon tree search with a discretized state space to find altitude sequences that would keep the balloon in one lateral location. This approach uses Gaussian Processes to model uncertainties in the wind field, and a novel method to discretize altitude ranges into currents of air moving in similar direction. In 2010, this problem was tackled for Montgolfiere balloon navigation on Titan \cite{wolf2010}, in which the surface of the planet was discretized into regions and a Markov decision process (MDP) was used to solve for minimum Time-to-Goal. Transition probabilities between discrete states were determined through a monte carlo method on the wind field distributions. 
 
+\cite{das2003optimal} Linearize the wind field to allow blah blah
 
+We don't wanna discretize or linearize
+
+Furthermore we want a state-feedback policy
+
+Look at some fucked up nonlinear state feedback MPC examples in literature
 \subsection{Formulation}
 The physical system is represented by continuous states $s\in\States$ defined at discrete times $t_k=t_s + k \Delta t$, for $k=0,1,\dots$ In the case of ValBal, we can let $\States=\Altitudes\times\Lambda\times\Phi$, if we're considering altitudes, latitudes, and longitudes; we could extend this to include the ballast levels $\mathcal{B}$, or lifts $\Lifts$.
 % This might want to go in an introduction subsection
-The altitude changes with respect to time according to the setpoint altitudes given to the control algorithm, with some randomness due to atmospheric noise. Latitude and longitude change according to Euler integration of the wind field, evaluated at every given time, altitude, and coordinates. Our goal is to find a policy to maximize some objection function, which might, for instance, be the total horizontal distance travelled.
+The altitude changes with respect to time according to the setpoint altitudes given to the control algorithm, with some randomness due to atmospheric noise. Latitude and longitude change according to Euler integration of the wind field, evaluated at every given time, altitude, and coordinates. Our goal is to find a control policy policy  to maximize some objection function, which might, for instance, be the total horizontal distance travelled.
 
 While traditional methods of finding a policy to optimize a physical system rely on discretizing the state space, we note that this is highly intractable to do in this situation, for various reasons:
 \begin{itemize}

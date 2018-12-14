@@ -57,8 +57,24 @@ void stochasticGradients(){
 	state0.lat = 36.84;
 	state0.lon = -121.43 + 360;
 	state0.t = 1543492801;
-	StocasticMPC controller(db,state0);
-	controller.conf.opt_sign = -1;
+	state0.bal = 4.5;
+	state0.t = 1541041200;
+	StochasticMPC controller(db,state0);
+	controller.conf.opt_sign = 1;
+	controller.run();
+}
+
+void spatialGradients(){
+	//const char* db = get_data_path("/proc/gfs_pred_0deg5/20181129_12/");
+	const char* db = get_data_path("/proc/gfs_anl_0deg5/");
+	sim_state<float> state0;
+	state0.lat = 36.84;
+	state0.lon = -121.43 + 360;
+	state0.t = 1543492801;
+	state0.t = 1541041200;
+	state0.bal = 4.5;
+	SpatialPlanner controller(db,state0);
+	controller.conf.opt_sign = 1;
 	controller.run();
 }
 
@@ -92,7 +108,7 @@ void evaluator(){
 		char recentdir[PATH_MAX];
 		getRecentDir(recentdir,get_data_path("proc/gfs_pred_0deg5/"),state.t);
 		printf("%s\n",recentdir);
-		StocasticMPC controller(recentdir,state);
+		StochasticMPC controller(recentdir,state);
 		controller.conf.n_iters = 20;
 		controller.conf.n_samples = 50;
 		controller.conf.write_files = true;
@@ -112,6 +128,40 @@ void evaluator(){
 		i++;
 	}
 
+}
+
+sim_state<adept::adouble> mkstate(float lat, float lon) {
+	sim_state<adept::adouble> out;
+	out.lat = lat;
+	out.lon = lon;
+	return out;
+}
+
+void print(ctrl_cmd<adept::adouble> s) {
+	printf("got command (%f, %f)\n", VAL(s.h), VAL(s.tol));
+}
+
+void test_spatial() {
+
+	adept::Stack stack;
+	cmd_tree<adept::adouble> tree;
+	tree.cmd.h = 14000;
+	tree.cmd.tol = 1500;
+
+	auto s = mkstate(42, 2);
+	print(tree.get_cmd(s));
+	s = mkstate(44, 2);
+	print(tree.get_cmd(s));
+	s = mkstate(44.1, 3);
+	print(tree.get_cmd(s));
+
+	adept::adouble obj = 3.1;
+	stack.new_recording();	
+	obj.set_gradient(1.0);
+
+	stack.compute_adjoint();
+	GradStep step;
+	tree.gradients_and_split(step);
 
 }
 
@@ -137,6 +187,9 @@ int main() {
 	//gradientsStuff();
 	//MLestimation();
 	stochasticGradients();
+	//test_spatial();
+	//spatialGradients();
+
 //	evaluator();
 	//saveSpaceshot();
 	//stocasticGradients();

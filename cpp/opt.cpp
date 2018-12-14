@@ -1,9 +1,11 @@
 #include "opt.h"
 
-
-void GradStep::optimize(ctrl_cmd<adept::adouble>* cmd, int N) {
+void GradStep::new_step() {
 	lr_set *= params.alpha;
 	lr_tol *= params.alpha;
+}
+
+void GradStep::optimize(ctrl_cmd<adept::adouble>* cmd, int N) {
 
 	for(int i = 0; i < N; i++){
 		double grad_h = cmd[i].h.get_gradient();

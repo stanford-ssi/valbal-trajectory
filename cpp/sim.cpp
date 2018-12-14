@@ -127,6 +127,7 @@ LasSim<Float>::LasSim(int seed, float h, float l) : las(this->freq), sim(seed), 
 	sim.conf.freq = freq;
 }
 
+
 template<class Float>
 LasSim<Float>::LasSim(int seed,float h) : las(this->freq), sim(seed), cmds_defualt(0,1,0,1.,1.), cmds(cmds_defualt) {
 	sim.h = h;
@@ -205,6 +206,7 @@ double TemporalParameters<Float>::apply_gradients(StepRule& opt, tag<TemporalPar
 template <class Float>
 double TemporalParameters<Float>::apply_gradients(StepRule& step_rule, tag<TemporalParameters<adouble>>) {
 	ctrl_cmd<adouble> *cmds_ = (ctrl_cmd<adouble>*)(&cmds[0]);
+	step_rule.new_step();
 	step_rule.optimize(cmds_,(int)(T/dt));
 	return 0.0;
 }
@@ -354,7 +356,7 @@ void Simulation<Float>::init(int i){
 
 template<class Float>
 void Simulation<Float>::run(sim_state<Float>& state) {
-	debugf("Starting from (%f, %f)\n", VAL(lat), VAL(lon));
+	debugf("Starting from (%f, %f)\n", VAL(state.lat), VAL(state.lon));
 	int Tmax = tmax + state.t;
 	while (state.t < Tmax) {
 		pressure.get_pressure(state);
@@ -421,12 +423,159 @@ SpatiotemporalParameters<Float>::~SpatiotemporalParameters() {
 template<class Float>
 ctrl_cmd<Float> SpatiotemporalParameters<Float>::get_param(sim_state<Float>& state){
 	unsigned int idx = (state.t-t0)/dt;
+	//printf("heyyy %d %f %f\n", state.t, VAL(state.lat), VAL(state.lon));
 	float theta = (state.t - (t0 + dt*idx))/((float)dt);
 	ctrl_cmd<Float> cmd;
-	cmd.h = cmds[idx].cmd.h + theta * (cmds[idx+1].cmd.h - cmds[idx].cmd.h);
-	cmd.tol = cmds[idx].cmd.tol + theta * (cmds[idx+1].cmd.tol - cmds[idx].cmd.tol);
+	ctrl_cmd<Float>& cmd_0 = cmds[idx].get_cmd(state);
+	ctrl_cmd<Float>& cmd_1 = cmds[idx+1].get_cmd(state);
+	cmd.h = cmd_0.h + theta * (cmd_1.h - cmd_0.h);
+	cmd.tol = cmd_0.tol + theta * (cmd_1.tol - cmd_0.tol);
 	return cmd;
 }
+
+template<class Float>
+ctrl_cmd<Float>& cmd_tree<Float>::get_cmd(sim_state<Float>& state) {
+	if (upper == 0 || lower == 0) {
+		//printf("Made it to bottom of tree! %f %f\n", VAL(state.lat), VAL(state.lon));
+		array<float, D> arr;
+		arr[0] = VAL(state.lat);
+		arr[1] = VAL(state.lon);
+		requests.push_back(arr);
+		for (int i=0; i<D; i++) {
+			mins[i] = min(mins[i], arr[i]);
+			maxs[i] = max(maxs[i], arr[i]);
+		}
+		return cmd;
+	}
+	double v = a * VAL(state.lat) + b * VAL(state.lon);
+	if (v >= c) {
+		return upper->get_cmd(state);	
+	} else {
+		return lower->get_cmd(state);
+	}
+}
+
+template<int D>
+float L2dist(array<float, D> a, array<float, D> b) {
+	float o = 0;
+	for (int i=0; i<D; i++) {
+		o += (a[i]-b[i])*(a[i]-b[i]);
+	}
+	return sqrt(o);
+}
+
+template<int D>
+void kmeans(int k, vector<array<float, D>>& requests, array<float, D+1>& hyperplane) {
+	assert(requests.size() >= (unsigned int)k);
+	vector<int> cluster(requests.size());
+	vector<array<float, D>> centers(k);
+	vector<array<float, D>> newcenters(k);
+	vector<int> assignments(requests.size());
+	for (size_t i=0; i<requests.size(); i++) {
+		assignments[i] = -1;
+	}
+	vector<int> ncenters(k);
+	for (int i = 0; i < k; i++) {
+		centers[i] = requests[i];
+	}
+	for (int it = 0; it<10; it++) {
+		for (int i=0; i<k; i++) {
+			for (int j=0; j<D; j++) {
+				newcenters[i][j] = 0;
+			}
+			ncenters[i] = 0;
+		}
+		bool changed = false;
+		for (size_t i=0; i<requests.size(); i++) {
+			int bestcluster = -1;
+			float bestL2 = 1e20;
+			for (int j=0; j<k; j++) {
+				float dst = L2dist<D>(requests[i], centers[j]);
+				if (dst < bestL2) {
+					bestcluster = j;
+					bestL2 = dst;
+				}
+			}
+			debugf("request %lu assigned to %d\n", i, bestcluster);
+			for (int j=0; j<D; j++) {
+				newcenters[bestcluster][j] += requests[i][j];
+			}
+			ncenters[bestcluster]++;
+			if (bestcluster != assignments[i]) changed = true;
+			assignments[i] = bestcluster;
+		}
+		debugf("Centers:\n");
+		for (int i=0; i<k; i++) {
+			debugf(" (");
+			for (int j=0; j<D; j++) {
+				centers[i][j] = newcenters[i][j]/ncenters[i];
+				debugf(" %f", centers[i][j]);
+			}
+			debugf("\n");
+		}
+		if (!changed) {
+			debugf("converged!\n");
+			break;
+		}
+	}
+	/* Voronoi time
+		\sum (x_i - a_i)^2 > \sum (x_i - b_i)^2
+		\sum (x_i^2 - 2*x_i*a_i + a_i^2) > \sum (x_i^2 - 2*x_i*b_i + b_i^2)
+		lat * 2*(-a_1 + b_1) + lon * 2*(-a_2 + b_2) > b_1^2 + b_2^2 - a_1^2 - a_2^2
+	*/
+	if (D == 2) {
+		hyperplane[0] = 2*(-centers[0][0] + centers[1][0]);
+		hyperplane[1] = 2*(-centers[0][1] + centers[1][1]);
+		hyperplane[2] = centers[1][0]*centers[1][0] + centers[1][1]*centers[1][1] \
+						 - centers[0][0]*centers[0][0] - centers[0][1]*centers[0][1];
+	} else {
+		printf("not computing hyperplane!\n");
+	}
+	
+}
+
+template<class Float>
+void cmd_tree<Float>::gradients_and_split(StepRule& opt) {
+	if (upper == 0 || lower == 0) {
+		assert(sizeof(*this) == sizeof(cmd_tree<adept::adouble>));
+		//debugf("Made it to bottom of tree while looking for gradidents!\n");
+		opt.optimize((ctrl_cmd<adept::adouble>*)&cmd, 1);
+		//printf("got %lu requests\n", requests.size());
+		if (requests.size() == 0) return;
+		// L1 distance
+		if (((maxs[0]-mins[0]) + (maxs[1]-mins[1])) > 50) {
+			debugf("time to split things up! %f %f\n", maxs[0]-mins[0], maxs[1]-mins[1]);
+			array<float, 3> hyperplane;	
+			for (size_t i=0; i<requests.size(); i++) {
+				debugf("%f,%f\n", requests[i][0], requests[i][1]);
+			}
+			kmeans<D>(2, requests, hyperplane);
+			debugf("%f * lat + %f * lon >= %f\n", hyperplane[0], hyperplane[1], hyperplane[2]);
+			a = hyperplane[0];
+			b = hyperplane[1];
+			c = hyperplane[2];
+			upper = new cmd_tree;
+			upper->cmd.h = cmd.h;
+			upper->cmd.tol = cmd.tol;
+			lower = new cmd_tree;
+			lower->cmd.h = cmd.h;
+			lower->cmd.tol = cmd.tol;
+			debugf("just created %p and %p\n", upper, lower);
+		} else {
+			debugf("no need to split things up! %f %f\n", maxs[0]-mins[0], maxs[1]-mins[1]);
+		}
+		for (int i=0; i<D; i++) {
+			mins[i] = 1e20;
+			maxs[i] = -1e20;
+		}
+		requests.clear();
+		return;
+	}
+	assert(requests.size() == 0); // We should only touch leaf nodes!
+	upper->gradients_and_split(opt);	
+	lower->gradients_and_split(opt);
+}
+
 
 template <class Float>
 double SpatiotemporalParameters<Float>::apply_gradients(StepRule& opt) {
@@ -442,6 +591,10 @@ double SpatiotemporalParameters<Float>::apply_gradients(StepRule &opt, tag<Spati
 
 template <class Float>
 double SpatiotemporalParameters<Float>::apply_gradients(StepRule &opt, tag<SpatiotemporalParameters<adouble>>) {
+	opt.new_step();
+	for (int i=0; i<(T/dt); i++) {
+		cmds[i].gradients_and_split(opt);
+	}
     /********* NOT SURE WHAT THIS SHOULD DO WITH NEW SYNTAX TO I JUST DISABLED IT @JCREUS*******/
 	//cmd_tree<adouble> *cmds_ = (cmd_tree<adouble>*)(&cmds[0]);
 	//opt.optimize(cmds_,(int)(T/dt));

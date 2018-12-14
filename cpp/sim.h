@@ -242,14 +242,55 @@ public:
 template<class Float>
 class cmd_tree {
 public:
-	cmd_tree() : upper(0), lower(0) { printf("Initializing cmd tree!\n"); };
+	cmd_tree() : upper(0), lower(0) {
+		printf("Initializing cmd tree!\n");
+		for (int i=0; i<D; i++) {
+			mins[i] = 1e20;
+			maxs[i] = -1e20;
+		}
+	};
+	~cmd_tree() {
+		delete upper;
+		delete lower;
+	}
+	template <class FFloat> cmd_tree& operator = (const cmd_tree<FFloat>& tp){
+		if (tp.upper != 0) {
+			cmd_tree<Float> *up = new cmd_tree<Float>;
+			*up = *tp.upper;
+			this->upper = up;
+		} else {
+			this->upper = 0;
+		}
+		if (tp.lower != 0) {
+			cmd_tree<Float> *lo = new cmd_tree<Float>;
+			*lo = *tp.lower;
+			this->lower = lo;
+		} else {
+			this->lower = 0;
+		}
+		this->a = tp.a;
+		this->b = tp.b;
+		this->c = tp.c;
+		this->cmd.h = VAL(tp.cmd.h);
+		this->cmd.tol = VAL(tp.cmd.tol);
+		return *this;
+	}
+
+	ctrl_cmd<Float>& get_cmd(sim_state<Float>&);
+	void gradients_and_split(StepRule&);
 
 	cmd_tree<Float> *upper;
 	cmd_tree<Float> *lower;
 
 	ctrl_cmd<Float> cmd;
 
-	// a*lat + b*lon >= c
+	static const int D = 2;
+
+	vector<array<float, D>> requests;
+	array<float, D> mins;
+	array<float, D> maxs;
+
+	// a*lat + b*lon >= c --> upper
 	double a;
 	double b;
 	double c;
@@ -259,11 +300,16 @@ template<class Float>
 class SpatiotemporalParameters : public ParameterServer<Float> {
 public:
 	SpatiotemporalParameters(int t0_, int dt_, int T_, double d_h, double d_t);
+	template <class FFloat> SpatiotemporalParameters& operator = (const SpatiotemporalParameters<FFloat>& tp){
+		for(int i=0; i < int(T/dt); i++){
+			this->cmds[i] = tp.cmds[i];
+		}
+		return *this;
+	}
 	~SpatiotemporalParameters();
 	ctrl_cmd<Float> get_param(sim_state<Float>&);
 	double apply_gradients(StepRule&);
 
-private:
 	int t0;
 	int dt;
 	int T;

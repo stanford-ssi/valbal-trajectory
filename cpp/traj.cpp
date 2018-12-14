@@ -136,8 +136,8 @@ int main() {
 	//ssi71Sims();
 	//gradientsStuff();
 	//MLestimation();
-//	stochasticGradients();
-	evaluator();
+	stochasticGradients();
+//	evaluator();
 	//saveSpaceshot();
 	//stocasticGradients();
 }

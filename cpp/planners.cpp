@@ -18,7 +18,7 @@ TemporalParameters<float>  StocasticMPC::run(){
 		float meantime = 0;
 		for (int run=0; run<conf.n_samples; run++) {
 
-			MinDistanceToPoint<adouble> objfn(19.805777, 13.702091+360);
+			MinDistanceToPoint<adouble> objfn(46.225336, -74.891043+360);
 			StochasticControllerApprox<adouble> controller(params, rand());
 			LinInterpWind<adouble> wind(data);
             wind.sigma = 0;

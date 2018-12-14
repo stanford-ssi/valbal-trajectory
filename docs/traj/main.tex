@@ -7,9 +7,10 @@
 \usepackage{microtype}
 \author{Joan Creus-Costa\and John Dean}
 %\date{}
+\usepackage[margin=1.5in]{geometry}
 \usepackage{amsmath}
 \usepackage{amssymb}
-\usepackage{todonotes} % lol
+\usepackage{todonotes}\setlength{\marginparwidth}{1.3in}
 \usepackage{graphicx}
 \usepackage{wrapfig}
 \usepackage{xcolor}
@@ -17,6 +18,9 @@
 \usepackage{pgfplots}
 \usepackage{multicol}
 \usepackage[bf]{caption}
+\usepackage[sorting=none]{biblatex}
+\bibliography{traj}
+
 \captionsetup{format=plain}
 \usetikzlibrary{calc}
 \usetikzlibrary{shapes,arrows,positioning}
@@ -102,6 +106,13 @@ $V(\theta)$ & value function to be optimized for trajectory planning \\
 $\hat V(\theta; \lambda)$ & stochastic evaluation of the value function under parametrized randomness $\lambda$ \\
 $(u,v)$ & wind vector in longitude and latitude, respectively.`
 \end{tabular}
+
+\subsection*{Forward}
+
+This paper is not written to be like a conventional conference or journal paper with the typical introduction to high altitude balloons or what the potential applications are. Rather, this document jumps right into technical details, as there was a lot to cover and we felt that at this point in time we should focus on just that, rather than the additional info to make it accessible to a wider audience.
+
+In addition, some of the figures on this report are not of sufficient quality for publication. This is because many of them were taken from screen shots posted in SSI's slack while developing this project. At this stage, going back and generating good looking versions of them would take an unnecessary amount of time while not providing much benefit, as this is still meant to be a draft. 
+
 
 \section{Altitude control}
 \subsection{System dynamics}
@@ -251,7 +262,7 @@ The parameter $\tau$ is set by $\tau = k_hk_ve_{\mathrm{tol}}$, where $e_{\n{tol
 
 For control, it is important that we have a reasonable estimate of the vertical velocity of the balloon, $\hat v$. However, the atmosphere has a large amount of turbulence and waves, which have a dramatic impact on the short-term velocity of the balloon. For control on the altitude ranges that ValBal flies in, we do not care about these effects; what we actually care about is the component the velocity of the balloon that is due to the net lift. For example, it is possible for the balloon to be rising at 1~m/s, and still be neutrally buoyant, as it is simply floating atop a wave in the atmosphere. In this case, we would not want the controller to act to this in the same way it would to the balloon rising steadily at 1~m/s due to a positive net lift.
 
-As a result, an estimator must be designed to calculate $\hat v$. A first order estimator such as a Kalman filter would suffice for this, if the noise on the velocity was Gaussian and uncorrelated in time. However, previous flight data and atmospheric literature \todo{cite} shows that this noise is dominated by large-amplitude waves at specific frequencies. Therefore, a second order low-pass filter, $H(s)$, is used to achieve better roll-off and reject the high frequency waves. In addition, actions of the controller are be integrated through the plan model to update the $\hat v$ estimate immediately after controller actions. The corner frequency of $H(s)$ is typically set around $($15~minutes$)^{-1}$ and is determined by looking at the spectral content of atmospheric waves in prior flight data.
+As a result, an estimator must be designed to calculate $\hat v$. A first order estimator such as a Kalman filter would suffice for this, if the noise on the velocity was Gaussian and uncorrelated in time. However, previous flight data and atmospheric literature \cite{waves} shows that this noise is dominated by large-amplitude waves at specific frequencies. Therefore, a second order low-pass filter, $H(s)$, is used to achieve better roll-off and reject the high frequency waves. In addition, actions of the controller are be integrated through the plan model to update the $\hat v$ estimate immediately after controller actions. The corner frequency of $H(s)$ is typically set around $($15~minutes$)^{-1}$ and is determined by looking at the spectral content of atmospheric waves in prior flight data.
 
 \subsubsection{Choosing gains}
 
@@ -287,22 +298,32 @@ A plot of an example simulation output is shown in \ref{lsim}. In this instance,
 
 \subsection{Introduction}
 
-ValBal has no direct control over its lateral movement around the globe, but rather is always drifting with the air currents of Earth's atmosphere. However, by changing the altitude that it flies at, it can choose different wind currents moving in a range of directions in a given column of air. The high-level goal of trajectory planning is to come up with these altitudes that the balloon should fly at in order to achieve some mission outcome in the lateral trajectory of the balloon.
+\todo[inline]{This section has gotten a bit long, but I wanted to lay out our reasoning for our choices. I only included three key citations to previous paper on high altitude balloon planning, as I only wanted to cite the most relevant work and be able to talk about each in a bit more detail, rather than just listing a bunch of tangentially-related work.}
 
-\todo[inline]{Literature review goes here}
+ValBal has no direct control over its lateral movement around the globe, but rather is always drifting with the air currents of Earth's atmosphere. However, by changing the altitude that it flies at, it can choose different wind currents moving in a range of directions in a given column of air. In addition, being a low-cost and small balloon platform, ValBal's control authority is a finite resource that ultimately limits the duration of most missions. The high-level goal of trajectory planning is to come up with a set of altitudes that the balloon should fly at in order to achieve some mission outcome in the lateral trajectory of the balloon, conserving the amount of ballast used such that the flight does not end prematurely. Variations of this problem have been previously tackled in a number of a ways, primarily relying on either discretization of the state space to handle the nonlinear nature of the wind field, or linearizing a portion of of the wind field to simplify the processes of obtaining a control law. 
 
+A recent method for station keeping was proposed in \cite{DBorn}, which utilized a receding horizon tree search with a discretized state space to find altitude sequences that would keep the balloon in one lateral location. This approach uses Gaussian Processes to model uncertainties in the wind field, and a novel method to discretize altitude ranges into currents of air moving in similar direction. In 2010, this problem was tackled for Montgolfiere balloon navigation on Titan \cite{wolf2010}, in which the surface of the planet was discretized into regions and a Markov decision process (MDP) was used to solve for minimum Time-to-Goal. Transition probabilities between discrete states were determined through a monte carlo method on the wind field distributions. 
+
+In both of the above methods, the authors do not worry about minimizing the control action of the balloon. For large platforms with a regenerative method of adjusting lift this is sufficient, but for many objectives to be pursued by a ValBal, running out of ballast is a limiting factor on performance. As such, and trajectory planner for this platform must take ballast use into account. In a paper from 2003  \cite{das2003optimal}, the authors attempt to solve the problem of getting the balloon to a target location while minimizing fuel consumption of the balloon (in this case it's hot air balloon, in which fuel is analogous to ballast on valbal). They do so by solving the two-point boundary-value problem given by the Hamiltonian system of an optimal control problem that they formulate. However this formulation relies on linearizing the wind field in order to be tractable, which works in their case as they only attempt to solve the problem on instances on the order of kilometers in size, in which a linear approximation for the wind field works. The authors also to not account for uncertainty in the wind field.
+
+For our problem, we must deal with the non-linear wind field as we operate over significant portions of the globe. In addition, we must account for not only uncertainty in the wind field, but also uncertainty in the altitude of the balloon, as it is impossible for the altitude controller to efficiently track a precise commanded altitude. Furthermore, the planner needs to keep track of at least one additional state: remaining ballast, as this effects how long the balloon can stay aloft. We also would like to retian high precision over states so that we can aim to fly the balloon with kilometers of desired destinations. This makes discretization of the state-space much more difficult that previous attempts, as we have more dimensions and desire fine precision.
+
+So, we decided to take a different approach, using two key insights:
+\begin{enumerate}
+\item All dynamics of the system are fundamentally continuous and smooth due to the nature of wind being a continuous vector field.
+\item The wind field of the atmosphere is highly structured, as it is the result of macro-scale thermodynamic and inertial effects on the globe. As such, large regions of the globe will have  winds all moving in the similar directions with slow changes
+\end{enumerate}
+The first point means that the dynamics of the system are easily integrable by simple Euler integration, as the second derivative of the dynamics are well-behaved. The second point leads us to hypothesize that most reasonably formed objective functions in the lateral location of the balloon will have much fewer local minima with respect to the altitude parameters than there are possible states of the system. \todo{I don't know how to say this well, but I think it's an extremely important point and is precisely the reason that it makes sense to solve the problem the way that we are solving it} That is to say, while we may care about the position of the balloon to a precision on the order of kilometers, the wind field structure likely results in there being only a relatively small number of locally quasi-convex regions in the space of control parameters. Consider these points in contrast to say a robot motion planning problem in a room with objects, which may be highly non-smooth and unstructured, where a search or value iteration on a discretized system often works well. 
+
+So, our proposed solution to this problem is to use a fully continuous state and discretized time to perform a gradient-based optimization over the control parameters. We computing trajectories of the system in an analytically differentiable manner (implemented efficiently in software with automatic-differentiation). Expectations of the trajectory under the various forms of uncertainty are obtained through monte-carlo sampling and average. This formulation is both flexible to a range of different models for various effects on the altitude of the system, as well as computationally tractable for finding locally-optimal trajectories. It's major drawback is that it does not solve for a global optimum, but this mitigated by running the optmization from a set of random initial conditions, in attempt to find all local minima for a given scenario. 
+
+We would then apply this in a Stochastic Model Predictive Control fashion, at each planning timestep of the system we take the current state of the balloon, optimize the control parameters entire duration or the mission, and then upload them to the balloon.
 
 \subsection{Formulation}
+\todo[inline]{This section needs to be reworked to be made consistent with the presentation. I also removed a large part as it is now covered in the introduction}
 The physical system is represented by continuous states $s\in\States$ defined at discrete times $t_k=t_s + k \Delta t$, for $k=0,1,\dots$ In the case of ValBal, we can let $\States=\Altitudes\times\Lambda\times\Phi$, if we're considering altitudes, latitudes, and longitudes; we could extend this to include the ballast levels $\mathcal{B}$, or lifts $\Lifts$.
-% This might want to go in an introduction subsection
-The altitude changes with respect to time according to the setpoint altitudes given to the control algorithm, with some randomness due to atmospheric noise. Latitude and longitude change according to Euler integration of the wind field, evaluated at every given time, altitude, and coordinates. Our goal is to find a policy to maximize some objection function, which might, for instance, be the total horizontal distance travelled.
 
-While traditional methods of finding a policy to optimize a physical system rely on discretizing the state space, we note that this is highly intractable to do in this situation, for various reasons:
-\begin{itemize}
-\item The state space is extremely large, even if we restrict ourselves to the bare minimum and discretize coarsely. Methods such as policy iteration would likely take unbearably long.
-\item The underlying dynamics are continuous, and in fact very easy to integrate. If we discretize the state space, we would lose resolution in the integration. Furthermore, the noise between discretized time steps is correlated; therefore, unless we take very large time steps, or increase the size of the state space, the Markov assumption will not hold, and the policy will not properly handle uncertainty.
-\end{itemize}
-While clearly keeping the state space continuous (only discretizing time) makes integration a lot easier, it makes finding a policy harder: the optimal policy is highly nonlinear due to the characteristics of atmospheric wind patterns, and our desired map $(t,h,\phi,\lambda)\to (h_s, \Delta_s)$ (from time, altitude, and coordinates, to a setpoint altitude and a tolerance around it) is high dimensional. A key realization is that, while the map is highly nonlinear, it is generally smooth, and doesn't have many local minima: wind patterns are generally spatially large and temporally slow moving.
+The altitude changes with respect to time according to the setpoint altitudes given to the control algorithm, with some randomness due to atmospheric noise. Latitude and longitude change according to Euler integration of the wind field, evaluated at every given time, altitude, and coordinates. Our goal is to find a control policy policy  to maximize some objection function, which might, for instance, be the total horizontal distance travelled.
 
 This results in another advantage that comes from keeping the state space continuous. By picking some fixed set of parameters $\theta$ (that might be the setpoint altitudes and tolerances at various points of the flight) and integrating the trajectory as a function of those parameters, we can take the gradient of the cost function (that is a function of the trajectory) with respect to the parameters, and optimize our objective. We expand upon a formulation in the following section.
 
@@ -319,7 +340,7 @@ This allows us to consider a stochastic evaluation of our value function that re
 \[\tilde V(\theta)=\sum_{\textrm{random}~\lambda} F(t_f, \lambda; \theta)\]
 
 \subsubsection{Differentiable horizontal trajectory} \label{sec:horizontal}
-The section above only handled altitude; however, the objective function for ValBal relies on maximizing spatial parameters, and not altitude. The horizontal integration needs to preserve differentiability to be able to compute a full gradient with respect to every optimization parameter. We use atmospheric data provided by \textsc{noaa} which, in particular, includes the velocity field $w(h, \lambda, \phi, t)\to(u, v)$, where $h$ is the altitude defined on a set of forecast altitudes;\footnote{The data from \textsc{noaa} is defined at barometric pressures, which can be mapped monotonically to altitude.} $\lambda$ and $\phi$ are the coordinates defined on a (not necessarily regular) grid of latitudes and longitudes;\footnote{Some models are more regular than others; for instance, NAM is defined on a rather annoying Lambert conformal grid.} $t$ is a forecast time (usually separated by 1 to 3 hours) and $(u, v)$ are the two horizontal components of wind.
+The section above only handled altitude; however, the objective function for ValBal relies on maximizing spatial parameters, and not altitude. The horizontal integration needs to preserve differentiability to be able to compute a full gradient with respect to every optimization parameter. We use atmospheric data provided by \textsc{noaa} \cite{GFS} which, in particular, includes the velocity field $w(h, \lambda, \phi, t)\to(u, v)$, where $h$ is the altitude defined on a set of forecast altitudes;\footnote{The data from \textsc{noaa} is defined at barometric pressures, which can be mapped monotonically to altitude.} $\lambda$ and $\phi$ are the coordinates defined on a (not necessarily regular) grid of latitudes and longitudes;\footnote{Some models are more regular than others; for instance, NAM is defined on a rather annoying Lambert conformal grid.} $t$ is a forecast time (usually separated by 1 to 3 hours) and $(u, v)$ are the two horizontal components of wind.
 
 For completely regular grids, bilinear interpolation will suffice. For irregular grids, a scheme such interpolation weighted by inverse distance $(\sum^K \alpha_i w_i)/(\sum^K \alpha_i)$ for the closest $K$ points would do the job. The weights of each nearby point are a function of altitude, latitude, and longitude; therefore, when we take the weighted sum, we preserve a differentiability path through the (differentiable) altitude. In other words, the final velocities $(u_k, v_k)$ are themselves a function of $\theta$, which we use to find the new coordinates:
 \[x_{k+1} = x_k + u_k\Delta t\quad y_{k+1} = y_k + v_k\Delta t\]
@@ -342,8 +363,9 @@ V = \sum_{k=0}^{K-1} u_k \Delta t\label{eqn:value}
 where $\Delta t$ is a constant that does not affect the result. Other valid objective functions could include the distance to a particular point:
 \[V = \sum_{k=0}^{K-1} \lVert r_k - r_\text{target}\rVert\]
 
-\subsubsection{Full algorthim}
-\todo[inline]{Full algorithm written out explicitly}
+
+\subsubsection{Simple Example}
+\todo[inline]{Joan can you write a text version of what you did for the slides}
 
 \newpage
 \subsection{Preliminary results}
@@ -373,7 +395,7 @@ We notice a few things from this result. First, we note that in this particular 
 \subsubsection{Location-feedback altitude policy}
 \todo[inline]{Still working through implementation}
 \subsubsection{Flight tests}
-\todo[inline]{Is it worth adding to this? Due to valve stuff it seems maybe not worth it}
+\todo[inline]{As we don't have quality plots from the last flight, we didn't write up things about it in this section as I expect to have a much better opportunity to do so next quarter. For plots, see the presentation slides we made about it.}
 
 
 \newpage
@@ -387,7 +409,8 @@ Having been designed with optimization in mind, another key feature of the simul
 
 We also built several Python scripts to fetch the data and process the results. We can retrieve wind data from either the Global Forecast System (\textsc{gfs}) model from \textsc{noaa}, or the European \textsc{ecmwf} model. We preprocess the data, that comes in \textsc{grib} files, into binary files that are loaded directly by C++. This is key to the speed of the C++ codebase, by using the \texttt{mmap} system call from Linux, the data will end up cached in the comparatively faster RAM, and wind table lookups require merely the computation of an offset (as opposed to searching through a database, with various levels of indirection). In particular, we only store relevant variables at the altitudes ValBal normally flies, in order to save space and improve cache performance. Several Python scripts are used to plot the trajectories found by the C++ script (saved to a binary file) using the Matplotlib library.
 
-
+\newpage
+\printbibliography
 
 \end{document}
 

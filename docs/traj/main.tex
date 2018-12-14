@@ -99,12 +99,19 @@
 $h$ & altitude  \\
 $v$ & vertical velocity\\
 $\ell$ & net lift \\
+$k_d$ & linearized drag constant of altitude; $\Delta v =k_d \Delta \ell$\\
 $w_{\dot \ell}$ & disturbance on lift \\
 $w_{v}$ & disturbance on the vertical velocity of the balloon (wind) \\
-$\theta$ & parameters to differentiable trajectory planner, e.g. (altitude, setpoint) pairs\\
+$k_v$ & altitude controller velocity gain \\
+$k_h$ & altitude controller altitude gain \\
+$h_c$ & commanded altitude \\
+$e_{\n{tol}}$ & allowable steady-state deviation around from set altitude \\ 
+$\theta$ & parameters to differentiable trajectory planner, e.g. $(h_c,e_{\n{tol}})$ pairs\\
 $V(\theta)$ & value function to be optimized for trajectory planning \\
 $\hat V(\theta; \lambda)$ & stochastic evaluation of the value function under parametrized randomness $\lambda$ \\
-$(u,v)$ & wind vector in longitude and latitude, respectively.`
+$(u,v)$ & wind vector in longitude and latitude, respectively.\\
+$\phi$ & longitude \\
+$\lambda$ & latitude \\
 \end{tabular}
 
 \subsection*{Forward}
@@ -135,10 +142,8 @@ Using the following substitution we can write the a state-space representation o
 %\newpage
 \subsection{Control system}
 \subsubsection{Overview}
-The altitude control system has an unconventional objective for a feedback control system. On every ValBal flight, there is an essential trade-off between tracking closely to a target and system ballast use, as ballast is typically the endurance-limiting factor on a flight. Furthermore, this trade-off can not be usually be conveniently represented as a quadratic relationship between state errors and control inputs to allow for an LQG-style optimal control design. In addition, a more complex SMPC-based optimal control approach would not be feasible due to the constraints that the control law run on a low power embedded processor. Further more, the control objectives are typically given (or well-approximated by) a range of equally equally appealing altitudes, with a lower and upper bound. For instance, on an endurance flight with no location objectives, the lower bound is set by aircraft altitudes and the upper bound is set by latex degradation balloon latex degradation. 
 
-As such a linear control law that is of the form $u = K \hat x$ for some $K \in \mathbf{R}^{1 \times 2}$, and a state estimate $\hat x$, would not be sufficient. Instead, a nested feedback loop structure is used, where an altitude loop commands a velocity loop which commands a change in lift, which allows for the easy addition of two key nonlinearities. The full control system structure is show in Figure~\ref{bd}.
-\begin{figure}[h!]
+\begin{figure}[h]
 \caption{Altitude control system block diagram}
 \begin{center}
 \begin{tikzpicture}[scale=2,
@@ -215,6 +220,10 @@ $\hat v$ & estimate of velocity\\
 \label{bd}
 \end{figure}
 
+The altitude control system has an unconventional objective for a feedback control system. On every ValBal flight, there is an essential trade-off between tracking closely to a target and system ballast use, as ballast is typically the endurance-limiting factor on a flight. Furthermore, this trade-off can not be usually be conveniently represented as a quadratic relationship between state errors and control inputs to allow for an LQG-style optimal control design. In addition, a more complex SMPC-based optimal control approach would not be feasible due to the constraints that the control law run on a low power embedded processor. Further more, the control objectives are typically given (or well-approximated by) a range of equally equally appealing altitudes, with a lower and upper bound. For instance, on an endurance flight with no location objectives, the lower bound is set by aircraft altitudes and the upper bound is set by latex degradation balloon latex degradation. 
+
+As such a linear control law that is of the form $u = K \hat x$ for some $K \in \mathbf{R}^{1 \times 2}$, and a state estimate $\hat x$, would not be sufficient. Instead, a nested feedback loop structure is used, where an altitude loop commands a velocity loop which commands a change in lift, which allows for the easy addition of two key nonlinearities. The full control system structure is show in Figure~\ref{bd}.
+
 \subsubsection{Nonlinearities}
 
 The two non-linearities in the controller are given by $f_1$ and $f_2$. The first function $f_1(v\,;v_{\mathrm{lim}})$ is simply a clamping function that limits the velocity commanded by the altitude loop to $\pm v_{\mathrm{lim}}$. This prevents the controller from overreacting when it is far from it's command. The second non-linearity $f_2(\dot \ell \, ; \tau)$ is a deadband on the output of the controller. It is defined by 
@@ -286,11 +295,24 @@ A plot of an example simulation output is shown in \ref{lsim}. In this instance,
 \begin{figure}[h]
 \includegraphics[width=1\linewidth]{lsim.png}
 \label{lsim}
-\caption{Plot of a simulated ValBal flight, showing altitude (blue, left vertical axis) as a function time, along with various velocity terms (right vertical axis). Valve events (green vertical lines), ballast events (blue vertical lines), and controller bounds (gray horizontal lines) are shown.}
+\caption{Plot of a simulated ValBal flight, showing altitude (blue, left vertical axis) versus time, along with various velocity terms (right vertical axis). Valve events (green vertical lines), ballast events (blue vertical lines), and controller bounds (gray horizontal lines) are shown.}
 \end{figure}
 
 \subsection{Flight results}
-\todo[inline]{show plots of newer flights that used new controller}
+
+The control algorithm is always being tweaked and added to after each flight, so each flight uses a slightly different version of the algorithm. Also, as the platform is in development there are typically a number of anomalies each flight. The below plot shows a 1 day segment of flight from June 2018. On this flight, there were sensor issues during the day, causing bad altitude measurements.
+
+\begin{figure}[h]
+\includegraphics[width=1\linewidth]{../../figs/flightperf/fig.png}
+\caption{Plot of a real ValBal flight, showing altitude (blue) versus time. Raw measured altitude is shown as well (light red) where it at times is sporadic. Valve events (green vertical lines), ballast events (blue vertical lines), and controller bounds (gray horizontal lines) are shown.}
+\label{rea}
+\end{figure}
+
+During the period of bad altitude measurements, which can be seen where the light read does not match the blue altitude line, the controller id shut off by an automated system, and no re-enabled until a human flight controller manually turns it back on.
+
+This was one of the earlier flights of the algorithm, and from it, we can notice a few things. First, nightfall occurred at approximately 6-15 20:00, causing the balloon to loose a lot of lift and ballast a lot. It also fell further outside the bounds than desired, and as can be seen, the controller bounds were temporarily manually raised in attempt to get the controller back into the desired range. This issue has since been mitigated by including the estimated effect of nightfall in the controller \todo{This is still in progress, and a hefty section to write about, so I decided to leave it out of this document for now} and adding that estimate into the controller's velocity estimator.
+
+Another thing that we can see from this plot is that during the relatively turbulent period around 6-15 15:00, the controller acted sooner than necessary to disturbances, causing it to waste ballast. this can be mitigated through tuning of the gains.
 
 \newpage
 \section{Trajectory planning}
@@ -392,6 +414,11 @@ Results of this method on a sample of \textsc{noaa} analysis wind data are shown
 \end{figure}
 
 We notice a few things from this result. First, we note that in this particular scenario the initial commands resulted in a large variation in the resulting flight path. This was due to large changes in wind direction within the command tolerance over the Atlantic Ocean. We see that in the optimized open-loop trajectory, policies are picked such that there is not much variation in the resulting outcome. 
+
+\subsubsection{MPC Simulation}
+
+
+
 \subsubsection{Location-feedback altitude policy}
 \todo[inline]{Still working through implementation}
 \subsubsection{Flight tests}

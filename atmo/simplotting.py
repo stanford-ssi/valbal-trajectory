@@ -265,7 +265,7 @@ def plotflights():
 
 def plotmc():
 	#used for plotting and comparing with real flights
-	files = list(map(load_file, range(1,100)))
+	files = list(map(load_file, range(1,2000)))
 	minlat = files[0][:,0].min()
 	maxlat = files[0][:,0].max()
 	minlon = files[0][:,1].min()
@@ -277,7 +277,6 @@ def plotmc():
 	m.drawcountries()
 	m.drawstates()
 	for i,f in enumerate(files[1:]):
-		print(f[:,1])
 		xpred,ypred = m(f[:,1], f[:,0])
 		plt.plot(xpred,ypred,c="blue",alpha=0.5)
 	plt.show()
@@ -360,3 +359,4 @@ def plot6():
 
 #plotmc()
 plot6()
+

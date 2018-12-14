@@ -12,16 +12,81 @@
 #include <assert.h>
 #include <string.h>
 #include <sys/resource.h>
-
+#include <iostream>
+#include <fstream>
+#include <jsoncpp/json/json.h>
+#include <sstream>
 #include <algorithm>
 #include <vector>
-
+#include <time.h>
 #include "data.h"
 
-data_file *files;
-int num_files;
+void getRecentDir(char* buf, const char* dname, int64_t time){
+	DIR *dir = opendir(dname);
+	assert(dir != 0);
+	struct dirent *entry;	
+	std::vector<int64_t> times;
+	int64_t newest = 0;
+	char dname2[PATH_MAX];
+	while ((entry = readdir(dir)) != 0) {
+		struct tm tm;
+		time_t epoch = 0;
+		if ( strptime(entry->d_name, "%Y%m%d_%H", &tm) != NULL ){
+  			tm.tm_isdst = 0;
+  			tm.tm_sec = 0;
+  			tm.tm_min = 0;
+  			epoch = mktime(&tm) - timezone;
+			//printf("%s, %lu, %lu, %d\n",entry->d_name, epoch, timezone, tm.tm_sec);
+			if(time > epoch){
+				//printf("yo %lu\n",epoch);
+				if(epoch > newest){
+					newest = epoch;
+					strcpy(dname2,entry->d_name);
+				}
+			}
 
-void load_data(const char *dname, uint64_t start, uint64_t end) {
+		} else continue;
+	}
+	if((time - newest) > 60*60*6){
+		printf("Warning, prediction data is %fhrs old\n", (time - newest)/60./60.);
+	}
+	//printf("%s, %lu, %lu\n",dname2,newest,time);
+	strcpy(buf,dname);
+	strcat(buf,dname2);
+	DIR *dir2 = opendir(buf);
+	std::vector<int64_t> timestamps;	
+	while ((entry = readdir(dir2)) != 0) {
+		if (entry->d_name[0] < '0' || entry->d_name[0] > '9') {
+			continue;
+		}
+		timestamps.push_back(atoll(entry->d_name));
+	}
+	std::sort(timestamps.begin(), timestamps.end());
+	assert((timestamps.front() == newest) && "lol m8 get fked you prolly have a timezone issue.");
+};
+
+int64_t utc2epoch(const char* c){
+	struct tm tm;
+	strptime(c, "%Y-%m-%d_%H", &tm);
+	tm.tm_isdst = 0;
+	return mktime(&tm) - timezone;
+}
+
+DataHandler::~DataHandler(){
+	if(loaded){
+		delete[] LEVELS;
+		for(int i = 0; i < num_files; i++){
+			struct stat s;
+			fstat(files[i].fd, &s);
+			munmap((char*)files[i].data - 4, s.st_size);
+			close(files[i].fd);
+		}
+	}
+}
+
+void DataHandler::load_data(const char *dname, uint64_t start, uint64_t end) {
+	assert(!loaded && "bruh don't load data more than once with the same object");
+	loaded = true;
 	#ifdef SHOULD_PRELOAD
 		struct rlimit rl;
 		rl.rlim_cur = rl.rlim_max = 1024*1024*512;
@@ -29,6 +94,36 @@ void load_data(const char *dname, uint64_t start, uint64_t end) {
 	#endif
 	DIR *dir = opendir(dname);
 	assert(dir != 0);
+
+	char confp[PATH_MAX];
+	snprintf(confp, PATH_MAX, "%s/config.json", dname);
+	std::ifstream configf(confp);
+	assert(!configf.fail());
+	Json::Reader reader;
+	Json::Value obj;
+	reader.parse(configf,obj);
+	std::istringstream converter(obj["hash"].asString());
+	converter >> std::hex >> conf_hash; 
+
+	LON_MIN =   obj["LON_MIN"].asFloat();		
+	LON_MAX =   obj["LON_MAX"].asFloat();		
+	LON_D =   	obj["LON_D"].asFloat();	
+	NUM_LONS =  obj["NUM_LONS"].asInt(); 		
+	LAT_MIN =   obj["LAT_MIN"].asFloat();		
+	LAT_MAX =   obj["LAT_MAX"].asFloat();		
+	LAT_D =   	obj["LAT_D"].asFloat();	
+	NUM_LATS =  obj["NUM_LATS"].asInt(); 		
+	NUM_LEVELS = obj["NUM_LEVELS"].asInt();
+	LEVELS = new float[NUM_LEVELS];
+	const char* l1 = obj["LEVELS"].asCString(); l1 = l1 +1;
+	for(int i = 0;i<NUM_LEVELS-1;i++){
+		LEVELS[i] = atof(l1);
+		const char* l2 = strchr(l1,',');
+		l1 = l2+1;
+	}
+	LEVELS[NUM_LEVELS-1] = atof(l1);
+
+	NUM_VARIABLES = obj["NUM_VARIABLES"].asInt();
 
 	std::vector<uint64_t> timestamps;
 	struct dirent *entry;	
@@ -59,9 +154,9 @@ void load_data(const char *dname, uint64_t start, uint64_t end) {
 		fstat(files[i].fd, &s);
 		int mmap_flags = MAP_SHARED;
 		#if __linux__
-			mmap_flags |= MAP_POPULATE; /* Possibly only if SHOULD_PRELOAD? */
+		//	mmap_flags |= MAP_POPULATE; /* Possibly only if SHOULD_PRELOAD? */
 		#endif
-		files[i].data = (wind_data*)mmap(NULL, s.st_size, PROT_READ, mmap_flags, files[i].fd, 0);
+		files[i].data = (wind_t*)((char*)mmap(NULL, s.st_size, PROT_READ, mmap_flags, files[i].fd, 0) + 4);
 		assert(files[i].data != MAP_FAILED);
 		#ifdef SHOULD_PRELOAD
 			assert(mlock(files[i].data, s.st_size) == 0);
@@ -71,22 +166,30 @@ void load_data(const char *dname, uint64_t start, uint64_t end) {
 	printf("Loaded %d wind data files.\n", num_files);
 }
 
-wind_data *get_data_at_point(data_file *file, point p) {
+wind_t* DataHandler::get_data_at_point(data_file *file, point p) {
 	//printf("%d %d %lu %p\n", latidx, lonidx, sizeof(wind_data), file);
+	if (!file->verified){
+		//printf("checking file\n");
+		uint32_t fhash = *(uint32_t*)((char*)file->data-4);
+		fhash = (fhash & 0x000000FFU) << 24 | (fhash & 0x0000FF00U) << 8 | (fhash & 0x00FF0000U) >> 8 | (fhash & 0xFF000000U) >> 24; //god damn it
+		//printf("[file hash] %x,%x\n",fhash,conf_hash);
+		assert(fhash == conf_hash);
+		file->verified = true;
+	}
 	if (p.lon >= NUM_LONS) p.lon -= NUM_LONS;
 	if (p.lon < 0) p.lon += NUM_LONS;
 	if (p.lat >= NUM_LATS) p.lat -= NUM_LATS;
 	if (p.lat < 0) p.lat += NUM_LATS;
-	return &file->data[NUM_LONS * p.lat + p.lon];
+	return &file->data[NUM_LEVELS*NUM_VARIABLES*(NUM_LONS * p.lat + p.lon)];
 }
 
-point get_base_neighbor(float lat, float lon) {
+point DataHandler::get_base_neighbor(float lat, float lon) {
 	int lat0 = (int)((lat - LAT_MIN)/LAT_D);
 	int lon0 = (int)((lon - LON_MIN)/LON_D);
 	return {lat0, lon0};
 }
 
-point get_nearest_neighbor(float lat, float lon) {
+point DataHandler::get_nearest_neighbor(float lat, float lon) {
 	int lat0 = (int)round((lat - LAT_MIN)/LAT_D);
 	int lon0 = (int)round((lon - LON_MIN)/LON_D);
 	return {lat0, lon0};

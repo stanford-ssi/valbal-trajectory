@@ -7,33 +7,38 @@ using adept::adouble;
 #include "data.h"
 #include "sim.h"
 #include "utils.h"
+#include "planners.h"
+#include "trajtypes.h"
 #include <random>
+#include <dirent.h>
 #define STORE_ALTITUDE
 
 using namespace std;
 
 void demo() {
-	load_data(get_data_path("/proc/gfs_anl_0deg5"), 1500000000,1600000000);
-	int t0 = 1541052000;
-	float lat0 = 37.4241;
-	float lon0 =  -122.1661 + 360;
+	DataHandler data;
+	data.load_data(get_data_path("/proc/gfs_anl_0deg5"), 1500000000,1600000000);
+	int t0 = 1540755060;
+	float lat0 = 36.84;
+	float lon0 =  -121.43 + 360;
 
 	/* Fly at constant 14 km. This is the most simple controller. Other controllers
      * include simulating the Lasagna controller, or having a differentiable controller
      * that can be optimized. */
-	float pressures[120];
-	for (int i=0; i<120; i++) pressures[i] = alt2p(14000);
+	float pressures[150];
+	for (int i=0; i<150; i++) pressures[i] = alt2p(14000);
 	WaypointController<float> controller(t0, 3600, pressures);
 
     TIMEIT("Running simple sims",
-        const int N = 200;
+        const int N = 5000000;
 		/* This is just to run it faster, on multiplee threads. The scheduler isn't
          * strictly necessary. */
-        Scheduler<float> sched(-1, N);
+        Scheduler<float> sched(-2, N);
         for (int i=0; i<N; i++) {
-            sched.add([&controller, i, t0, lat0, lon0]() {
-                Simulation<float> sim(controller, i);
-                sim.wind_default.sigma = 1;
+            sched.add([&controller, i, t0, lat0, lon0, &data]() {
+                Simulation<float> sim(controller, data, -1);
+                sim.wind_default.sigma = 0;
+				sim.tmax = 60*60*60;
                 return sim.run(t0, lat0, lon0).lon;
             });
         }
@@ -46,51 +51,126 @@ void demo() {
 }
 
 void stochasticGradients(){
-	load_data(get_data_path("/proc/gfs_anl_0deg5"), 1500000000,1600000000);
-	int t0 = 1541045606;
-	int dt = 3600*6;
-	const int N_RUNS = 50;
-	float LR_H = 200000;
-	const float alpha = 0.995;
-	adept::Stack stack;
-	TemporalParameters<adouble> params(t0, dt, 120*dt, 16000, 1000);
-	for (int it=0; it<3000; it++){
-		LR_H = LR_H*alpha;
-		clock_t timer0 = clock();
-		adouble obj_sum = 0;
-		stack.new_recording();
-		adouble objectives[N_RUNS];
-		printf("active stack %p\n", adept::active_stack());
+	//const char* db = get_data_path("/proc/gfs_pred_0deg5/20181129_12/");
+	const char* db = get_data_path("/proc/gfs_anl_0deg5/");
+	sim_state<float> state0;
+	state0.lat = 36.84;
+	state0.lon = -121.43 + 360;
+	state0.t = 1543492801;
+	state0.bal = 4.5;
+	state0.t = 1541041200;
+	StochasticMPC controller(db,state0);
+	controller.conf.opt_sign = 1;
+	controller.run();
+}
 
-		for (int run=0; run<N_RUNS; run++) {
-		printf("active stack %p\n", adept::active_stack());
-			StochasticControllerApprox<adouble> controller(params, run*1019);
-			LinInterpWind<adouble> wind;
-			FinalLongitude<adouble> obj;
-			EulerIntBal<adouble> in;
-			Simulation<adouble> sim(controller, wind, obj, in, run + N_RUNS*(it==0));
-			sim.tmax=60*60*100;
-			sim.run(t0, 47.4289, -19.6931+360);
-			objectives[run] = obj.getObjective();
-		}
+void spatialGradients(){
+	//const char* db = get_data_path("/proc/gfs_pred_0deg5/20181129_12/");
+	const char* db = get_data_path("/proc/gfs_anl_0deg5/");
+	sim_state<float> state0;
+	state0.lat = 36.84;
+	state0.lon = -121.43 + 360;
+	state0.t = 1543492801;
+	state0.t = 1541041200;
+	state0.bal = 4.5;
+	SpatialPlanner controller(db,state0);
+	controller.conf.opt_sign = 1;
+	controller.run();
+}
 
-		for (int run=0; run<N_RUNS; run++) obj_sum += objectives[run];
-		obj_sum = obj_sum/((float)N_RUNS);
-		obj_sum.set_gradient(1.0);
-		stack.compute_adjoint();
-		double grad_mag = params.apply_gradients(LR_H);
 
-		float dt = (clock() - timer0)/((double)CLOCKS_PER_SEC)*1000;
-		printf("Took %.2f ms, obj: %f, gradient norm %e\n",dt,VAL(obj_sum), grad_mag);
+void evaluator(){
+	DataHandler anldata;
+	anldata.load_data(get_data_path("proc/gfs_anl_0deg5/"),1500000000,1600000000);
+	sim_state<float> state;
+	state.lat = 36.84;
+	state.lon = -121.43 + 360;
+	int t0= 1543492801;
+	state.t = t0;
+	state.bal = 4.5;
+	state.p = alt2p(13000);
+	float lift = 0; 
+	const int command_intval = 60*60;
+
+	sim_state<float> statecpy = state;
+	TemporalParameters<float> cmds(statecpy.t, 60*60*6, 60*60*150, 13000, 2000);
+	LasSim<float> alt_sim(0,p2alt(statecpy.p),lift,cmds);
+	EulerIntBal<float> in;
+	alt_sim.dt = in.dt; 
+	NoOp<float> obj;
+	LinInterpWind<float> anlwind(anldata);
+	Simulation<float> sim(alt_sim,anlwind,obj,in,0);
+	sim.tmax = 60*60*150;
+	sim.run(statecpy);
+
+
+	int i = 0;
+	while(state.bal > 0){
+		char recentdir[PATH_MAX];
+		getRecentDir(recentdir,get_data_path("proc/gfs_pred_0deg5/"),state.t);
+		printf("%s\n",recentdir);
+		StochasticMPC controller(recentdir,state);
+		controller.conf.n_iters = 20;
+		controller.conf.n_samples = 50;
+		controller.conf.write_files = true;
+		controller.conf.opt_sign = -1;
+		controller.conf.fname_offset = 100+i*2*controller.conf.n_samples;
+		TemporalParameters<float> cmds = controller.run();
+		LasSim<float> alt_sim(i+1,p2alt(state.p),lift,cmds);
+		EulerIntBal<float> in;
+		alt_sim.dt = in.dt; 
+		NoOp<float> obj;
+		LinInterpWind<float> anlwind(anldata);
+		Simulation<float> sim(alt_sim,anlwind,obj,in,i+1);
+		sim.tmax = command_intval;
+		sim.run(state);
+		lift = alt_sim.sim.l;
+		printf("###############################################################\n[real state] %d lat:%f, lon:%f, bal:%f, alt:%f\n",i,state.lat,state.lon,state.bal,p2alt(state.p));
+		i++;
 	}
+
+
+}
+
+sim_state<adept::adouble> mkstate(float lat, float lon) {
+	sim_state<adept::adouble> out;
+	out.lat = lat;
+	out.lon = lon;
+	return out;
+}
+
+void print(ctrl_cmd<adept::adouble> s) {
+	printf("got command (%f, %f)\n", VAL(s.h), VAL(s.tol));
+}
+
+void test_spatial() {
+
+	adept::Stack stack;
+	cmd_tree<adept::adouble> tree;
+	tree.cmd.h = 14000;
+	tree.cmd.tol = 1500;
+
+	auto s = mkstate(42, 2);
+	print(tree.get_cmd(s));
+	s = mkstate(44, 2);
+	print(tree.get_cmd(s));
+	s = mkstate(44.1, 3);
+	print(tree.get_cmd(s));
+
+	adept::adouble obj = 3.1;
+	stack.new_recording();	
+	obj.set_gradient(1.0);
+
+	stack.compute_adjoint();
+	GradStep step;
+	tree.gradients_and_split(step);
+
 }
 
 int main() {
 	printf("ValBal trajectory optimization.\n");
 	printf("This program is highly cunning and, on the face of it, not entirely wrong.\n");
 
-	demo();
-	exit(1);
 
 	//load_data(get_data_path("/proc/gfs_pred_0deg5/20181021_12"), 1500000000,1600000000);
 	//load_data("../ignored/proc/euro_anl", 1500000000,1600000000);
@@ -109,6 +189,10 @@ int main() {
 	//gradientsStuff();
 	//MLestimation();
 	stochasticGradients();
+	//test_spatial();
+	//spatialGradients();
+
+//	evaluator();
 	//saveSpaceshot();
 	//stocasticGradients();
 }

@@ -1,37 +1,23 @@
-
-
 #include "opt.h"
 
-template<class Float>
-Float FinalLongitude<Float>::update(sim_state<Float>& state, bool save) {
-	this->lon = state.lon;
-	return lon;
+void GradStep::new_step() {
+	lr_set *= params.alpha;
+	lr_tol *= params.alpha;
 }
 
-template<class Float>
-Float FinalLongitude<Float>::getObjective() {
-	return lon;
+void GradStep::optimize(ctrl_cmd<adept::adouble>* cmd, int N) {
+
+	for(int i = 0; i < N; i++){
+		double grad_h = cmd[i].h.get_gradient();
+		double grad_tol = cmd[i].tol.get_gradient();
+
+		double val = VAL(cmd[i].h) + lr_set * grad_h;
+		val = min(params.set_max, max(params.set_min, val));
+		cmd[i].h.set_value(val);
+
+		double tval = VAL(cmd[i].tol) + lr_tol * grad_tol;
+		tval = min(params.tol_max, max(params.tol_min, tval));
+		cmd[i].tol.set_value(tval);
+	}
+	//printf("[cmds] setpoint:%f, tol:%f\n",val,tval);
 }
-
-
-template<class Float>
-Float MinDistanceToPoint<Float>::update(sim_state<Float>& state, bool save) {
-	Float dist = sqrt(pow(loc[0]-state.lat,2.) + pow(loc[1]-state.lon,2.));
-	if(save) min_dist = min(min_dist,dist);
-	return dist;
-	//printf("%f,%f : %f,%f\n",VAL(lat),VAL(lon),VAL(loc[0]),VAL(loc[1]));
-}
-
-template<class Float>
-Float MinDistanceToPoint<Float>::getObjective() {
-	return min_dist;
-}
-
-
-#define INIT_OPT(type) \
-		template class NoOp<type>;\
-		template class FinalLongitude<type>;\
-		template class MinDistanceToPoint<type>;
-
-INIT_OPT(adept::adouble)
-INIT_OPT(float)

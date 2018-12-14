@@ -1,59 +1,41 @@
 #ifndef OPT_H
 #define OPT_H
 
-#include <random>
-#include <stdint.h>
-#include <stdio.h>
-#include <assert.h>
 #include <adept.h>
+#include "trajtypes.h"
 using adept::adouble;
+
 #include "utils.h"
-#include "data.h"	
 
 
-template <class Float>
-class ObjectiveFn {
+class StepRule {
 public:
-	virtual Float update(sim_state<Float>& state, bool save = true) = 0;
-	virtual Float getObjective() = 0;
-};
-
-template <class Float>
-class FinalLongitude : public ObjectiveFn<Float> {
-public:
-	FinalLongitude(){};
-	Float update(sim_state<Float>& state, bool save = true);
-	Float getObjective();
-	Float lon = 0;
-};
-
-template <class Float>
-class MinDistanceToPoint : public ObjectiveFn<Float> {
-public:
-	MinDistanceToPoint(float lat, float lon) : loc{lat,lon} {};
-	Float update(sim_state<Float>& state, bool save = true);
-	Float getObjective();
-	float loc[2];
-	Float min_dist = 1000000;
-};
-
-template <class Float>
-class DirectionToTarget : public ObjectiveFn<Float> {
-public:
-	DirectionToTarget(float lat, float lon) : loc{lat,lon} {};
-	Float update(sim_state<Float>& state, bool save = true);
-	Float getObjective();
-	float loc[2];
-};
-
-template <class Float>
-class NoOp : public ObjectiveFn<Float> {
-public:
-	NoOp(){};
-	Float update(sim_state<Float>& state, bool save = true){Float ret = 0; return ret;};
-	Float getObjective(){Float ret = 0; return ret;};
+	virtual void optimize(ctrl_cmd<adept::adouble>*, int) = 0;
+	virtual void reset() = 0;
+	virtual void new_step() = 0;
 };
 
 
+class GradStep : public StepRule{
+public:
+	typedef struct {
+		double lr_set  = 200000;
+		double lr_tol  = 100000;
+		double alpha   = 0.996;
+		double tol_min = 200;
+		double tol_max = 3000;
+		double set_min = 10000;
+		double set_max = 16000;
+	} HyperParams;
+	GradStep(){reset();};
+	GradStep(HyperParams p) : params(p) {reset();};
+	void reset(){lr_set = params.lr_set ; lr_tol = params.lr_tol;};
+	void optimize(ctrl_cmd<adept::adouble>*, int);
+	void new_step();
+	HyperParams params;
+
+	double lr_set;
+	double lr_tol;
+};
 
 #endif

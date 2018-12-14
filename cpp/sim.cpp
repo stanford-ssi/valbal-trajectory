@@ -86,38 +86,55 @@ void LasSim<Float>::get_altitude(sim_state<Float>& state){
 
 template<class Float>
 void LasSim<Float>::evolve(sim_state<Float>& state){
-	if(is_first_run){
-		is_first_run = false;
+	if(!(t_last || dt)){
 	} else {
-		const int N = int((state.t-t_last)*freq);
+		const int N = dt ? int(dt*freq) : int((state.t-t_last)*freq);
 		sim.conf.lat = VAL(state.lat);
 		sim.conf.lon = VAL(state.lon);
 		LasagnaController::Input input;
 		for(int i = 0; i < N; i++){
+			if(changing_cmds){
+				sim_state<float> statef = state.template cast<float>();
+				lasconst.setpoint = cmds.get_param(statef).h;
+				lasconst.tolerance = cmds.get_param(statef).tol;
+				las.updateConstants(lasconst);
+				state.bal_rate = 0.03/60./60.*750/lasconst.tolerance + 0.04/60./60.;
+				//printf("[cmds] t:%f tol:%f set:%f\n",(state.t-1543492801)/60./60.,lasconst.tolerance,lasconst.setpoint);
+			}
 			input.h_abs = sim.evolve(double(las.getAction()));
 			input.h_rel = input.h_abs;
 			input.dldt_ext = sim.sunset_dldt*3;
 			las.update(input);
 		}
+		state.cmd.h = lasconst.setpoint;
+		state.cmd.tol = lasconst.tolerance;
 	}
 	t_last = state.t;
 }
 
 template<class Float>
-LasSim<Float>::LasSim(int seed, float h, float l) : las(this->freq), sim(seed) {
+LasSim<Float>::LasSim(int seed, float h, float l,TemporalParameters<float>& cmds) : las(this->freq), sim(seed), cmds_defualt(0,1,0,1.,1.), cmds(cmds){
+	sim.h = h;
+	sim.l = l;
+	sim.conf.freq = freq;
+	changing_cmds = true;
+}
+
+template<class Float>
+LasSim<Float>::LasSim(int seed, float h, float l) : las(this->freq), sim(seed), cmds_defualt(0,1,0,1.,1.), cmds(cmds_defualt) {
 	sim.h = h;
 	sim.l = l;
 	sim.conf.freq = freq;
 }
 
 template<class Float>
-LasSim<Float>::LasSim(int seed,float h) : las(this->freq), sim(seed) {
+LasSim<Float>::LasSim(int seed,float h) : las(this->freq), sim(seed), cmds_defualt(0,1,0,1.,1.), cmds(cmds_defualt) {
 	sim.h = h;
 	sim.conf.freq = freq;
 }
 
 template<class Float>
-LasSim<Float>::LasSim(int seed) : las(this->freq), sim(seed) {
+LasSim<Float>::LasSim(int seed) : las(this->freq), sim(seed),cmds_defualt(0,1,0,1.,1.), cmds(cmds_defualt)  {
 	sim.conf.freq = freq;
 }
 
@@ -134,7 +151,7 @@ void StochasticControllerApprox<Float>::get_pressure(sim_state<Float>& state){
 	ctrl_cmd<Float> cmd = params.get_param(state);
 	Float cmd_h = cmd.h;
 	Float cmd_tol = cmd.tol;
-	state.bal_rate = 0.03/60./60.*750/cmd_tol + 0.03/60./60.;  
+	state.bal_rate = 0.03/60./60.*750/cmd_tol + 0.04/60./60.;  
 	sim_state<float> state_val;
 	state_val.lat = VAL(state.lat);
 	state_val.lon = VAL(state.lon);
@@ -142,6 +159,7 @@ void StochasticControllerApprox<Float>::get_pressure(sim_state<Float>& state){
 	las_sim.get_altitude(state_val);
 	float las_h = state_val.p;
 	Float alt = cmd_h + (las_h - h_mid)*cmd_tol/tol0;
+	state.cmd = cmd; 
 	state.p = alt2p(alt);
 }
 
@@ -173,29 +191,23 @@ ctrl_cmd<Float> TemporalParameters<Float>::get_param(sim_state<Float>& state){
 }
 
 template <class Float>
-double TemporalParameters<Float>::apply_gradients(double lr) {
-	return apply_gradients(lr, tag<TemporalParameters>());
+double TemporalParameters<Float>::apply_gradients(StepRule& opt) {
+	return apply_gradients(opt, tag<TemporalParameters>());
 }
 
 template <class Float>
-double TemporalParameters<Float>::apply_gradients(double lr, tag<TemporalParameters<float>>) {
+double TemporalParameters<Float>::apply_gradients(StepRule& opt, tag<TemporalParameters<float>>) {
 	printf("You what mate, what are you trying to take the gradient of\n");
 	exit(1);
 	return M_PI;
 }
 
 template <class Float>
-double TemporalParameters<Float>::apply_gradients(double lr, tag<TemporalParameters<adouble>>) {
+double TemporalParameters<Float>::apply_gradients(StepRule& step_rule, tag<TemporalParameters<adouble>>) {
 	ctrl_cmd<adouble> *cmds_ = (ctrl_cmd<adouble>*)(&cmds[0]);
-	double norm = 0.0;
-	for (int i=0; i<(T/dt); i++) {
-		double grad = cmds_[i].h.get_gradient();
-		norm += grad*grad;
-		double val = VAL(cmds_[i].h) + lr * grad;
-		val = min(16500., max(10000., val));
-		cmds_[i].h.set_value(val);
-	}
-	return sqrt(norm);
+	step_rule.new_step();
+	step_rule.optimize(cmds_,(int)(T/dt));
+	return 0.0;
 }
 
 template<class Float>
@@ -217,35 +229,35 @@ void GreedySearch<Float>::get_pressure(sim_state<Float>& state){
 
 template<class Float>
 wind_vector<Float> LinInterpWind<Float>::get_wind(sim_state<Float>& s) {
-	while (files[cur_file+1].time < s.t) {
+	while (dat.files[cur_file+1].time < s.t) {
 		cur_file++;
 	}
-	assert(cur_file < num_files && "file requested out of range");
-	debugf("%d cur file %d %d %d pres %f\n", s.t, cur_file, ((int)(s.t-files[cur_file].time)), (int)(files[cur_file].time), VAL(s.p));
+	assert(cur_file < dat.num_files && "file requested out of range");
+	debugf("%d cur file %d %d %d pres %f\n", s.t, cur_file, ((int)(s.t-dat.files[cur_file].time)), (int)(dat.files[cur_file].time), VAL(s.p));
 
 	/* Get pressure level. Here a simple linear search is faster, although it
 	 * can probably be vectorized. */
 	int i;
-	for (i=0; i<NUM_LEVELS; i++) {
-		if (s.p <= LEVELS[i]) break;
+	for (i=0; i<dat.NUM_LEVELS; i++) {
+		if (s.p <= dat.LEVELS[i]) break;
 	}
-	assert(i > 0 && i < NUM_LEVELS);
-	Float theta_pr = (s.p-LEVELS[i-1])/(LEVELS[i] - LEVELS[i-1]);
+	assert(i > 0 && i < dat.NUM_LEVELS);
+	Float theta_pr = (s.p-dat.LEVELS[i-1])/(dat.LEVELS[i] - dat.LEVELS[i-1]);
 
 	#define INTERP_ALT(dst, src, idx) \
-		Float dst = src->data[i-1][idx] + theta_pr*(src->data[i][idx] - src->data[i-1][idx]);
-	#define LAT(x) (LAT_MIN + LAT_D * (x))
-	#define LON(x) (LON_MIN + LON_D * (x))
+		Float dst = src[dat.NUM_VARIABLES*(i-1) + idx] + theta_pr*(src[dat.NUM_VARIABLES*i + idx] - src[dat.NUM_VARIABLES*(i-1) + idx]);
+	#define LAT(x) (dat.LAT_MIN + dat.LAT_D * (x))
+	#define LON(x) (dat.LON_MIN + dat.LON_D * (x))
 
-	point pt = get_base_neighbor(VAL(s.lat), VAL(s.lon));
-	Float theta_lat = (s.lat - LAT(pt.lat))/LAT_D;
-	Float theta_lon = (s.lon - LON(pt.lon))/LON_D;
-	float theta_t = s.t-files[cur_file].time;
-	theta_t /= (files[cur_file+1].time-files[cur_file].time);
+	point pt = dat.get_base_neighbor(VAL(s.lat), VAL(s.lon));
+	Float theta_lat = (s.lat - LAT(pt.lat))/dat.LAT_D;
+	Float theta_lon = (s.lon - LON(pt.lon))/dat.LON_D;
+	float theta_t = s.t-dat.files[cur_file].time;
+	theta_t /= (dat.files[cur_file+1].time-dat.files[cur_file].time);
 	debugf("theta t %f\n", theta_t);
 	assert(theta_t >= 0 && theta_t <= 1);
 
-	data_file *f = files + cur_file;
+	data_file *f = dat.files + cur_file;
 	Float us[2];
 	Float vs[2];
 	#ifdef INTERPOLATE_IN_TIME
@@ -253,17 +265,18 @@ wind_vector<Float> LinInterpWind<Float>::get_wind(sim_state<Float>& s) {
 	#else
 	{ int j = 0;
 	#endif
-		wind_data *p11 = get_data_at_point(f+j, {pt.lat, pt.lon});
-		wind_data *p12 = get_data_at_point(f+j, {pt.lat, pt.lon + 1});
-		wind_data *p21 = get_data_at_point(f+j, {pt.lat + 1, pt.lon});
-		wind_data *p22 = get_data_at_point(f+j, {pt.lat + 1, pt.lon + 1});
+
+		wind_t *p11 = dat.get_data_at_point(f+j, {pt.lat, pt.lon});
+		wind_t *p12 = dat.get_data_at_point(f+j, {pt.lat, pt.lon + 1});
+		wind_t *p21 = dat.get_data_at_point(f+j, {pt.lat + 1, pt.lon});
+		wind_t *p22 = dat.get_data_at_point(f+j, {pt.lat + 1, pt.lon + 1});
 
 		INTERP_ALT(u11, p11, 0);
 		INTERP_ALT(u21, p21, 0);
 		Float ulat1 = u11 + theta_lat * (u21 - u11);
 		debugf("v11! @ %f %d %d %f %f\n", VAL(s.p), pt.lat, pt.lon, LAT(pt.lat), LON(pt.lon));
-		for (int k=0; k<NUM_LEVELS; k++) {
-			debugf("%f: %d\n", LEVELS[k], p11->data[k][1]);
+		for (int k=0; k<dat.NUM_LEVELS; k++) {
+			debugf("%f: %d\n", dat.LEVELS[k], p11[dat.NUM_LEVELS*k+1]);
 		}
 
 		INTERP_ALT(u12, p12, 0);
@@ -311,19 +324,19 @@ wind_vector<Float> LinInterpWind<Float>::get_wind(sim_state<Float>& s) {
 
 template<class Float>
 Simulation<Float>::Simulation(PressureSource<Float>& s, WindSource<Float>& w, ObjectiveFn<Float>& o, Integrator<Float>& in, int i)
-		: pressure(s), wind(w), intg(in), objfn(o) {
+		: wind_default(dat_default), pressure(s), wind(w), intg(in), objfn(o) {
 	init(i);
 }
 
 template<class Float>
 Simulation<Float>::Simulation(PressureSource<Float>& s, WindSource<Float>& w, ObjectiveFn<Float>& o, int i)
-		: intg_default(), pressure(s), wind(w), intg(intg_default), objfn(o) {
+		: wind_default(dat_default), intg_default(), pressure(s), wind(w), intg(intg_default), objfn(o) {
 	init(i);
 }
 
 template<class Float>
-Simulation<Float>::Simulation(PressureSource<Float>& s, int i)
-		: wind_default(), obj_default(), intg_default(), pressure(s), wind(wind_default), intg(intg_default), objfn(obj_default) {
+Simulation<Float>::Simulation(PressureSource<Float>& s, DataHandler& d, int i)
+		: wind_default(d), obj_default(), intg_default(), pressure(s), wind(wind_default), intg(intg_default), objfn(obj_default) {
 	init(i);
 }
 
@@ -340,21 +353,17 @@ void Simulation<Float>::init(int i){
 	}
 }
 
-
 template<class Float>
-sim_state<Float> Simulation<Float>::run(int t, Float lat, Float lon) {
-	int Tmax = tmax + t;
-	sim_state<Float> state;
-	state.lat = lat;
-	state.lon = lon;
-	state.t = t;
-	state.bal = 10;
-	debugf("Starting from (%f, %f)\n", VAL(lat), VAL(lon));
+void Simulation<Float>::run(sim_state<Float>& state) {
+	debugf("Starting from (%f, %f)\n", VAL(state.lat), VAL(state.lon));
+	int Tmax = tmax + state.t;
 	while (state.t < Tmax) {
 		pressure.get_pressure(state);
 		if (save_to_file) {
 			float actual_lat = VAL(state.lat);
 			float actual_lon = VAL(state.lon);
+			float actual_set = VAL(state.cmd.h);
+			float actual_tol = VAL(state.cmd.tol);
 			fwrite(&actual_lat, sizeof(float), 1, file);
 			fwrite(&actual_lon, sizeof(float), 1, file);
 
@@ -368,6 +377,8 @@ sim_state<Float> Simulation<Float>::run(int t, Float lat, Float lon) {
 			debugf("[sim state] time:%d lat:%.4f lon:%.4f alt:%.1f bal:%.2f\n",state.t, actual_lat, actual_lon, actual_p, VAL(state.bal));
 
 			fwrite(&actual_p, sizeof(float), 1, file);
+			fwrite(&actual_set, sizeof(float), 1, file);
+			fwrite(&actual_tol, sizeof(float), 1, file);
 		}
 		wind_vector<Float> w = wind.get_wind(state);
 		intg.integrate(state,w);
@@ -378,8 +389,217 @@ sim_state<Float> Simulation<Float>::run(int t, Float lat, Float lon) {
 	if (save_to_file) {
 		fclose(file);
 	}
+}
+
+template<class Float>
+sim_state<Float> Simulation<Float>::run(int t, Float lat, Float lon) {
+	sim_state<Float> state;
+	state.lat = lat;
+	state.lon = lon;
+	state.t = t;
+	state.bal = 4.5;
+	run(state);
 	return state;
 }
+
+template<class Float>
+SpatiotemporalParameters<Float>::SpatiotemporalParameters(int t0_, int dt_, int T_, double default_h_, double default_tol_) : 
+t0(t0_), dt(dt_), T(T_), default_h(default_h_), default_tol(default_tol_)
+{ 
+	int N = T_/dt_;
+	cmds = new cmd_tree<Float>[N];
+	for (int i=0; i<N; i++) {
+		cmds[i].cmd.h = default_h_;
+		cmds[i].cmd.tol = default_tol_;
+	}
+}
+
+template<class Float>
+SpatiotemporalParameters<Float>::~SpatiotemporalParameters() {
+	delete[] cmds;
+}
+
+template<class Float>
+ctrl_cmd<Float> SpatiotemporalParameters<Float>::get_param(sim_state<Float>& state){
+	unsigned int idx = (state.t-t0)/dt;
+	//printf("heyyy %d %f %f\n", state.t, VAL(state.lat), VAL(state.lon));
+	float theta = (state.t - (t0 + dt*idx))/((float)dt);
+	ctrl_cmd<Float> cmd;
+	ctrl_cmd<Float>& cmd_0 = cmds[idx].get_cmd(state);
+	ctrl_cmd<Float>& cmd_1 = cmds[idx+1].get_cmd(state);
+	cmd.h = cmd_0.h + theta * (cmd_1.h - cmd_0.h);
+	cmd.tol = cmd_0.tol + theta * (cmd_1.tol - cmd_0.tol);
+	return cmd;
+}
+
+template<class Float>
+ctrl_cmd<Float>& cmd_tree<Float>::get_cmd(sim_state<Float>& state) {
+	if (upper == 0 || lower == 0) {
+		//printf("Made it to bottom of tree! %f %f\n", VAL(state.lat), VAL(state.lon));
+		array<float, D> arr;
+		arr[0] = VAL(state.lat);
+		arr[1] = VAL(state.lon);
+		requests.push_back(arr);
+		for (int i=0; i<D; i++) {
+			mins[i] = min(mins[i], arr[i]);
+			maxs[i] = max(maxs[i], arr[i]);
+		}
+		return cmd;
+	}
+	double v = a * VAL(state.lat) + b * VAL(state.lon);
+	if (v >= c) {
+		return upper->get_cmd(state);	
+	} else {
+		return lower->get_cmd(state);
+	}
+}
+
+template<int D>
+float L2dist(array<float, D> a, array<float, D> b) {
+	float o = 0;
+	for (int i=0; i<D; i++) {
+		o += (a[i]-b[i])*(a[i]-b[i]);
+	}
+	return sqrt(o);
+}
+
+template<int D>
+void kmeans(int k, vector<array<float, D>>& requests, array<float, D+1>& hyperplane) {
+	assert(requests.size() >= (unsigned int)k);
+	vector<int> cluster(requests.size());
+	vector<array<float, D>> centers(k);
+	vector<array<float, D>> newcenters(k);
+	vector<int> assignments(requests.size());
+	for (size_t i=0; i<requests.size(); i++) {
+		assignments[i] = -1;
+	}
+	vector<int> ncenters(k);
+	for (int i = 0; i < k; i++) {
+		centers[i] = requests[i];
+	}
+	for (int it = 0; it<10; it++) {
+		for (int i=0; i<k; i++) {
+			for (int j=0; j<D; j++) {
+				newcenters[i][j] = 0;
+			}
+			ncenters[i] = 0;
+		}
+		bool changed = false;
+		for (size_t i=0; i<requests.size(); i++) {
+			int bestcluster = -1;
+			float bestL2 = 1e20;
+			for (int j=0; j<k; j++) {
+				float dst = L2dist<D>(requests[i], centers[j]);
+				if (dst < bestL2) {
+					bestcluster = j;
+					bestL2 = dst;
+				}
+			}
+			debugf("request %lu assigned to %d\n", i, bestcluster);
+			for (int j=0; j<D; j++) {
+				newcenters[bestcluster][j] += requests[i][j];
+			}
+			ncenters[bestcluster]++;
+			if (bestcluster != assignments[i]) changed = true;
+			assignments[i] = bestcluster;
+		}
+		debugf("Centers:\n");
+		for (int i=0; i<k; i++) {
+			debugf(" (");
+			for (int j=0; j<D; j++) {
+				centers[i][j] = newcenters[i][j]/ncenters[i];
+				debugf(" %f", centers[i][j]);
+			}
+			debugf("\n");
+		}
+		if (!changed) {
+			debugf("converged!\n");
+			break;
+		}
+	}
+	/* Voronoi time
+		\sum (x_i - a_i)^2 > \sum (x_i - b_i)^2
+		\sum (x_i^2 - 2*x_i*a_i + a_i^2) > \sum (x_i^2 - 2*x_i*b_i + b_i^2)
+		lat * 2*(-a_1 + b_1) + lon * 2*(-a_2 + b_2) > b_1^2 + b_2^2 - a_1^2 - a_2^2
+	*/
+	if (D == 2) {
+		hyperplane[0] = 2*(-centers[0][0] + centers[1][0]);
+		hyperplane[1] = 2*(-centers[0][1] + centers[1][1]);
+		hyperplane[2] = centers[1][0]*centers[1][0] + centers[1][1]*centers[1][1] \
+						 - centers[0][0]*centers[0][0] - centers[0][1]*centers[0][1];
+	} else {
+		printf("not computing hyperplane!\n");
+	}
+	
+}
+
+template<class Float>
+void cmd_tree<Float>::gradients_and_split(StepRule& opt) {
+	if (upper == 0 || lower == 0) {
+		assert(sizeof(*this) == sizeof(cmd_tree<adept::adouble>));
+		//debugf("Made it to bottom of tree while looking for gradidents!\n");
+		opt.optimize((ctrl_cmd<adept::adouble>*)&cmd, 1);
+		//printf("got %lu requests\n", requests.size());
+		if (requests.size() == 0) return;
+		// L1 distance
+		if (((maxs[0]-mins[0]) + (maxs[1]-mins[1])) > 50) {
+			debugf("time to split things up! %f %f\n", maxs[0]-mins[0], maxs[1]-mins[1]);
+			array<float, 3> hyperplane;	
+			for (size_t i=0; i<requests.size(); i++) {
+				debugf("%f,%f\n", requests[i][0], requests[i][1]);
+			}
+			kmeans<D>(2, requests, hyperplane);
+			debugf("%f * lat + %f * lon >= %f\n", hyperplane[0], hyperplane[1], hyperplane[2]);
+			a = hyperplane[0];
+			b = hyperplane[1];
+			c = hyperplane[2];
+			upper = new cmd_tree;
+			upper->cmd.h = cmd.h;
+			upper->cmd.tol = cmd.tol;
+			lower = new cmd_tree;
+			lower->cmd.h = cmd.h;
+			lower->cmd.tol = cmd.tol;
+			debugf("just created %p and %p\n", upper, lower);
+		} else {
+			debugf("no need to split things up! %f %f\n", maxs[0]-mins[0], maxs[1]-mins[1]);
+		}
+		for (int i=0; i<D; i++) {
+			mins[i] = 1e20;
+			maxs[i] = -1e20;
+		}
+		requests.clear();
+		return;
+	}
+	assert(requests.size() == 0); // We should only touch leaf nodes!
+	upper->gradients_and_split(opt);	
+	lower->gradients_and_split(opt);
+}
+
+
+template <class Float>
+double SpatiotemporalParameters<Float>::apply_gradients(StepRule& opt) {
+	return apply_gradients(opt, tag<SpatiotemporalParameters>());
+}
+
+template <class Float>
+double SpatiotemporalParameters<Float>::apply_gradients(StepRule &opt, tag<SpatiotemporalParameters<float>>) {
+	printf("You what mate, what are you trying to take the gradient of\n");
+	exit(1);
+	return M_PI;
+}
+
+template <class Float>
+double SpatiotemporalParameters<Float>::apply_gradients(StepRule &opt, tag<SpatiotemporalParameters<adouble>>) {
+	opt.new_step();
+	for (int i=0; i<(T/dt); i++) {
+		cmds[i].gradients_and_split(opt);
+	}
+    /********* NOT SURE WHAT THIS SHOULD DO WITH NEW SYNTAX TO I JUST DISABLED IT @JCREUS*******/
+	//cmd_tree<adouble> *cmds_ = (cmd_tree<adouble>*)(&cmds[0]);
+	//opt.optimize(cmds_,(int)(T/dt));
+	return 0;
+}
+
 
 #define INIT_SIM(type) \
 		template class PressureTable<type>; \
@@ -393,7 +613,8 @@ sim_state<Float> Simulation<Float>::run(int t, Float lat, Float lon) {
 		template class GreedySearch<type>;\
 		template class FinalLongitude<type>; \
 		template class StochasticControllerApprox<type>; \
-		template class TemporalParameters<type>;
+		template class TemporalParameters<type>; \
+		template class SpatiotemporalParameters<type>;
 
 #include <adept.h>
 INIT_SIM(adept::adouble)

@@ -78,7 +78,6 @@ void spatialGradients(){
 	controller.run();
 }
 
-
 void evaluator(){
 	DataHandler anldata;
 	anldata.load_data(get_data_path("proc/gfs_anl_0deg5/"),1500000000,1600000000);
@@ -128,7 +127,6 @@ void evaluator(){
 		printf("###############################################################\n[real state] %d lat:%f, lon:%f, bal:%f, alt:%f\n",i,state.lat,state.lon,state.bal,p2alt(state.p));
 		i++;
 	}
-
 
 }
 

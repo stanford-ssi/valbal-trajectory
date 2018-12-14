@@ -28,6 +28,9 @@
 \usepackage{pgfplots}
 \usepackage{defs}
 
+\usepackage{biblatex}
+\bibliography{traj}
+
 \lstset{
 basicstyle=\small\ttfamily,
 columns=flexible,
@@ -55,10 +58,16 @@ Problem setup is is precisely along the lines of what we originally intended, al
 Identification, and Control \cite{andrieu2004particle}}
 Particle methods for maximum likelyhood estimation. Some involve computing gradients from said samples.
  
-\subsection*{}
 
-\bibliographystyle{unsrt}
-\bibliography{traj}
+
+\subsection*{Stochastic model predictive control: An overview and perspectives for future research \cite{mesbah2016stochastic}}
+Nice overview of SMPC from 2016
+
+\subsection*{\citetitle{sehr2018stochastic} \cite{sehr2018stochastic}}
+Recommended by Schwager in phone call
+
+
+
+\printbibliography
 
 \end{document}
-

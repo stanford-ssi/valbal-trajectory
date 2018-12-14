@@ -23,6 +23,7 @@ TemporalParameters<float>  StochasticMPC::run(){
 			LinInterpWind<adouble> wind(data);
             wind.sigma = 0;
 			FinalLongitude<adouble> objfn;
+
 			//MinDistanceToPoint<adouble> obj(13.589181, -85.584796+360);
 			EulerIntBal<adouble> in;
 			int fname = -1;

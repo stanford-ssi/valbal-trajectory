@@ -127,6 +127,7 @@ LasSim<Float>::LasSim(int seed, float h, float l) : las(this->freq), sim(seed), 
 	sim.conf.freq = freq;
 }
 
+
 template<class Float>
 LasSim<Float>::LasSim(int seed,float h) : las(this->freq), sim(seed), cmds_defualt(0,1,0,1.,1.), cmds(cmds_defualt) {
 	sim.h = h;

@@ -19,7 +19,7 @@ hf = gaussian_filter1d(h,400)
 good = np.where(np.abs(hf-h) < 0.15)[0]
 hr = np.interp(np.arange(h.size),good,h[good])
 hrf = gaussian_filter1d(hr,60)
-
+ 
 for i,t in enumerate(df.index.values[st:-en][np.nonzero(np.diff(v('ballast_time_total')))]):
 	if i==0: plt.plot(t,0,c='b',alpha=1,label="ballast event", marker='|', linestyle='None', markersize=10, markeredgewidth=1.5) 
 	plt.axvline(t,c='b',alpha=0.1) 

@@ -1,6 +1,6 @@
 \documentclass[11pt]{scrartcl} % justified tufte-handout
 %Gummi|065|=)
-\title{\bfseries ValBal Altitude Control\\ and Trajectory Planning}
+\title{\bfseries ValBal Altitude Control\\ and Trajectory Planning!!!}
 \subtitle{\Large Master document} % TODO maybe remove this
 
 %\usepackage{classico}
@@ -10,6 +10,7 @@
 \usepackage[margin=1.5in]{geometry}
 \usepackage{amsmath}
 \usepackage{amssymb}
+\usepackage{verbatim}
 \usepackage{todonotes}\setlength{\marginparwidth}{1.3in}
 \usepackage{graphicx}
 \usepackage{wrapfig}
@@ -108,7 +109,7 @@ $h_c$ & commanded altitude \\
 $e_{\n{tol}}$ & allowable steady-state deviation around from set altitude \\ 
 $\theta$ & parameters to differentiable trajectory planner, e.g. $(h_c,e_{\n{tol}})$ pairs\\
 $V(\theta)$ & value function to be optimized for trajectory planning \\
-$\hat V(\theta; \lambda)$ & stochastic evaluation of the value function under parametrized randomness $\lambda$ \\
+$\hat V(\theta; \gamma)$ & stochastic evaluation of the value function under randomness $\gamma$ \\
 $(u,v)$ & wind vector in longitude and latitude, respectively.\\
 $\phi$ & longitude \\
 $\lambda$ & latitude \\
@@ -118,7 +119,9 @@ $\lambda$ & latitude \\
 
 This paper is not written to be like a conventional conference or journal paper with the typical introduction to high altitude balloons or what the potential applications are. Rather, this document jumps right into technical details, as there was a lot to cover and we felt that at this point in time we should focus on just that, rather than the additional info to make it accessible to a wider audience.
 
-In addition, some of the figures on this report are not of sufficient quality for publication. This is because many of them were taken from screen shots posted in SSI's slack while developing this project. At this stage, going back and generating good looking versions of them would take an unnecessary amount of time while not providing much benefit, as this is still meant to be a draft. 
+In addition, some of the figures on this report are not of sufficient quality for publication. This is because many of them were taken from screen shots posted in SSI's Slack while developing this project. At this stage, going back and generating good looking versions of them would take an unnecessary amount of time while not providing much benefit, as this is still meant to be a draft.
+
+Ultimately, the goal is to condense and generalize the important parts of this document and make a nicer, smaller, journal paper about it. For now, we were focused on getting raw research and experimentation done.
 
 
 \section{Altitude control}
@@ -287,6 +290,7 @@ With no uncertainty in the system, high gain would result better performance as 
 
 
 \subsection{Simulations}
+\label{simssec}
 Simulations are critical in the control system designs, as a means of testing new concepts, tuning parameters, checking flight-code for bugs, and for giving general intuition on the system, as each flight tests is expensive and it is not easy to radically change the control algorithm after the balloon is launched. While good control performance in simulation gives little guarantee on real-world performance, poor performance in simulation shows problems with the controller and misunderstandings of the system.
 
 A simulation of the plan model shown in Figure~\ref{bd} is implemented in C++ (the architecture is described in depth in section \ref{arch}). Models for $w_{\dot \ell}$ and $w_{v}$ are determined by analysis of previous flight data. The noise models contain white noise, nightfall/sunrise effects, atmospheric waves, and terrain elevation effects.\footnote{Waves and terrain elevation have not been added yet but are currently being analyzed.}
@@ -324,11 +328,11 @@ Another thing that we can see from this plot is that during the relatively turbu
 
 ValBal \cite{vb1} \cite{vb2} has no direct control over its lateral movement around the globe, but rather is always drifting with the air currents of Earth's atmosphere. However, by changing the altitude that it flies at, it can choose different wind currents moving in a range of directions in a given column of air. In addition, being a low-cost and small balloon platform, ValBal's control authority is a finite resource that ultimately limits the duration of most missions. The high-level goal of trajectory planning is to come up with a set of altitudes that the balloon should fly at in order to achieve some mission outcome in the lateral trajectory of the balloon, conserving the amount of ballast used such that the flight does not end prematurely. Variations of this problem have been previously tackled in a number of a ways, primarily relying on either discretization of the state space to handle the nonlinear nature of the wind field, or linearizing a portion of of the wind field to simplify the processes of obtaining a control law. 
 
-A recent method for station keeping was proposed in \cite{DBorn}, which utilized a receding horizon tree search with a discretized state space to find altitude sequences that would keep the balloon in one lateral location. This approach uses Gaussian Processes to model uncertainties in the wind field, and a novel method to discretize altitude ranges into currents of air moving in similar direction. In 2010, this problem was tackled for Montgolfiere balloon navigation on Titan \cite{wolf2010}, in which the surface of the planet was discretized into regions and a Markov decision process (MDP) was used to solve for minimum Time-to-Goal. Transition probabilities between discrete states were determined through a monte carlo method on the wind field distributions. 
+A recent method for station keeping was proposed in \cite{DBorn}, which utilized a receding horizon tree search with a discretized state space to find altitude sequences that would keep the balloon in one lateral location. This approach uses Gaussian Processes to model uncertainties in the wind field, and a novel method to discretize altitude ranges into currents of air moving in similar direction. In 2010, this problem was tackled for Montgolfiere balloon navigation on Titan \cite{wolf2010}, in which the surface of the planet was discretized into regions and a Markov decision process (MDP) was used to solve for minimum Time-to-Goal. Transition probabilities between discrete states were determined through a Monte Carlo method on the wind field distributions. 
 
-In both of the above methods, the authors do not worry about minimizing the control action of the balloon. For large platforms with a regenerative method of adjusting lift this is sufficient, but for many objectives to be pursued by a ValBal, running out of ballast is a limiting factor on performance. As such, and trajectory planner for this platform must take ballast use into account. In a paper from 2003  \cite{das2003optimal}, the authors attempt to solve the problem of getting the balloon to a target location while minimizing fuel consumption of the balloon (in this case it's hot air balloon, in which fuel is analogous to ballast on valbal). They do so by solving the two-point boundary-value problem given by the Hamiltonian system of an optimal control problem that they formulate. However this formulation relies on linearizing the wind field in order to be tractable, which works in their case as they only attempt to solve the problem on instances on the order of kilometers in size, in which a linear approximation for the wind field works. The authors also to not account for uncertainty in the wind field.
+In both of the above methods, the authors do not worry about minimizing the control action of the balloon. For large platforms with a regenerative method of adjusting lift this is sufficient, but for many objectives to be pursued by a ValBal, running out of ballast is a limiting factor on performance. As such, and trajectory planner for this platform must take ballast use into account. In a paper from 2003  \cite{das2003optimal}, the authors attempt to solve the problem of getting the balloon to a target location while minimizing fuel consumption of the balloon (in this case it's hot air balloon, in which fuel is analogous to ballast on ValBal). They do so by solving the two-point boundary-value problem given by the Hamiltonian system of an optimal control problem that they formulate. However this formulation relies on linearizing the wind field in order to be tractable, which works in their case as they only attempt to solve the problem on instances on the order of kilometers in size, in which a linear approximation for the wind field works. The authors also to not account for uncertainty in the wind field.
 
-For our problem, we must deal with the non-linear wind field as we operate over significant portions of the globe. In addition, we must account for not only uncertainty in the wind field, but also uncertainty in the altitude of the balloon, as it is impossible for the altitude controller to efficiently track a precise commanded altitude. Furthermore, the planner needs to keep track of at least one additional state: remaining ballast, as this effects how long the balloon can stay aloft. We also would like to retian high precision over states so that we can aim to fly the balloon with kilometers of desired destinations. This makes discretization of the state-space much more difficult that previous attempts, as we have more dimensions and desire fine precision.
+For our problem, we must deal with the non-linear wind field as we operate over significant portions of the globe. In addition, we must account for not only uncertainty in the wind field, but also uncertainty in the altitude of the balloon, as it is impossible for the altitude controller to efficiently track a precise commanded altitude. Furthermore, the planner needs to keep track of at least one additional state: remaining ballast, as this effects how long the balloon can stay aloft. We also would like to retain high precision over states so that we can aim to fly the balloon with kilometers of desired destinations. This makes discretization of the state-space much more difficult that previous attempts, as we have more dimensions and desire fine precision.
 
 So, we decided to take a different approach, using two key insights:
 \begin{enumerate}
@@ -337,29 +341,28 @@ So, we decided to take a different approach, using two key insights:
 \end{enumerate}
 The first point means that the dynamics of the system are easily integrable by simple Euler integration, as the second derivative of the dynamics are well-behaved. The second point leads us to hypothesize that most reasonably formed objective functions in the lateral location of the balloon will have much fewer local minima with respect to the altitude parameters than there are possible states of the system. \todo{I don't know how to say this well, but I think it's an extremely important point and is precisely the reason that it makes sense to solve the problem the way that we are solving it} That is to say, while we may care about the position of the balloon to a precision on the order of kilometers, the wind field structure likely results in there being only a relatively small number of locally quasi-convex regions in the space of control parameters. Consider these points in contrast to say a robot motion planning problem in a room with objects, which may be highly non-smooth and unstructured, where a search or value iteration on a discretized system often works well. 
 
-So, our proposed solution to this problem is to use a fully continuous state and discretized time to perform a gradient-based optimization over the control parameters. We computing trajectories of the system in an analytically differentiable manner (implemented efficiently in software with automatic-differentiation). Expectations of the trajectory under the various forms of uncertainty are obtained through monte-carlo sampling and average. This formulation is both flexible to a range of different models for various effects on the altitude of the system, as well as computationally tractable for finding locally-optimal trajectories. It's major drawback is that it does not solve for a global optimum, but this mitigated by running the optmization from a set of random initial conditions, in attempt to find all local minima for a given scenario. 
+So, our proposed solution to this problem is to use a fully continuous state and discretized time to perform a gradient-based optimization over the control parameters. We computing trajectories of the system in an analytically differentiable manner (implemented efficiently in software with automatic-differentiation). Expectations of the trajectory under the various forms of uncertainty are obtained through Monte Carlo sampling and average. This formulation is both flexible to a range of different models for various effects on the altitude of the system, as well as computationally tractable for finding locally-optimal trajectories. It's major drawback is that it does not solve for a global optimum, but this mitigated by running the optimization from a set of random initial conditions, in attempt to find all local minima for a given scenario. 
 
 We would then apply this in a Stochastic Model Predictive Control fashion, at each planning timestep of the system we take the current state of the balloon, optimize the control parameters entire duration or the mission, and then upload them to the balloon.
 
 \subsection{Formulation}
-\todo[inline]{This section needs to be reworked to be made consistent with the presentation. I also removed a large part as it is now covered in the introduction}
 The physical system is represented by continuous states $s\in\States$ defined at discrete times $t_k=t_s + k \Delta t$, for $k=0,1,\dots$ In the case of ValBal, we can let $\States=\Altitudes\times\Lambda\times\Phi$, if we're considering altitudes, latitudes, and longitudes; we could extend this to include the ballast levels $\mathcal{B}$, or lifts $\Lifts$.
 
-The altitude changes with respect to time according to the setpoint altitudes given to the control algorithm, with some randomness due to atmospheric noise. Latitude and longitude change according to Euler integration of the wind field, evaluated at every given time, altitude, and coordinates. Our goal is to find a control policy policy  to maximize some objection function, which might, for instance, be the total horizontal distance travelled.
+The altitude changes with respect to time according to the setpoint altitudes given to the control algorithm, with some randomness due to atmospheric noise. Latitude and longitude change according to Euler integration of the wind field, evaluated at every given time, altitude, and coordinates. Our goal is to find a control policy policy  to maximize some objection function, which might, for instance, be the total horizontal distance traveled.
 
 This results in another advantage that comes from keeping the state space continuous. By picking some fixed set of parameters $\theta$ (that might be the setpoint altitudes and tolerances at various points of the flight) and integrating the trajectory as a function of those parameters, we can take the gradient of the cost function (that is a function of the trajectory) with respect to the parameters, and optimize our objective. We expand upon a formulation in the following section.
 
 \subsubsection{Differentiable altitude trajectory}
-Ultimately, our goal is to come up with some continuous and differentiable function $V(\theta)$ that gives the value of the objective function. However, in many instances, the value of the objective function will be related to the integration of the trajectory---e.g. distance travelled, or final longitude. This means that we need to come up with a formulation of the trajectory that depends on the optimization parameters and is differentiable with respect to them.
+Ultimately, our goal is to come up with some continuous and differentiable function $V(\theta)$ that gives the value of the objective function. However, in many instances, the value of the objective function will be related to the integration of the trajectory---e.g. distance traveled, or final longitude. This means that we need to come up with a formulation of the trajectory that depends on the optimization parameters and is differentiable with respect to them.
 
 The parameters that form $\theta$ can, for instance, be a set of altitude waypoints defined at various points of the flight, or altitude tolerances at each of those points. If our state consisted only of altitudes, and we were to simply linearly interpolate between altitude waypoints $\theta_0, \theta_1, \dots$ (defined at $t^w_0, t^w_1, \dots$) we would find the parameters relevant to the current timestep $t_k$ such that $t^w_i < t_k < t^w_{i+1}$. Then we simply give:
 \[h(t_k; \theta) = \theta_i + (t_k - t_i^w) \frac{\theta_{i+1}-\theta_i}{t_{i+1}^w - t^w_i}\]
 which has a very simple derivative with respect to the optimization variables $\theta$. However, this assumes that we follow \emph{exactly} the trajectory defined by the optimization parameters. In reality, the value function $V(\theta)$ will be taken over an expectation ensemble of possible trajectories under noise.
 
-In other words, our trajectory integration needs to output a distribution of possible states it might end up, while remaining differentiable. We introduce a parameter $\lambda$ that can be interpreted as a percentile of the noise distribution that a given trajectory is under. At the beginning of a rollout, a sequence $\lambda_0, \lambda_1, \dots$ is randomly generated such that the variation results in a noise level consistent with flight data. In the limit where all $\lambda$ are 0.5, the median trajectory is selected; in a more realistic simulation, the percentile would slowly fluctuate between smaller and larger numbers such that a particular rollout would be flying low or high respectively with respect to a noise-free simulation. For instance, in the scenario given above, we could introduce $\lambda(t)$ as a random walk bounded between $-500~\textrm{m}$ and $500~\textrm{m}$, defined between $t_0$ and $t_f$. Then our position is given by:
-\[h(t_k; \theta) = \theta_i + (t_k - t_i^w) \frac{\theta_{i+1}-\theta_i}{t_{i+1}^w - t^w_i} + \lambda(t_k)\]
+In other words, our trajectory integration needs to output a distribution of possible states it might end up, while remaining differentiable. We introduce a parameter $\gamma$ that can be interpreted as a percentile of the noise distribution that a given trajectory is under. At the beginning of a rollout, a sequence $\gamma_0, \gamma_1, \dots$ is randomly generated such that the variation results in a noise level consistent with flight data. In the limit where all $\gamma$ are 0.5, the median trajectory is selected; in a more realistic simulation, the percentile would slowly fluctuate between smaller and larger numbers such that a particular rollout would be flying low or high respectively with respect to a noise-free simulation. For instance, in the scenario given above, we could introduce $\gamma(t)$ as a random walk bounded between $-500~\textrm{m}$ and $500~\textrm{m}$, defined between $t_0$ and $t_f$. Then our position is given by:
+\[h(t_k; \theta) = \theta_i + (t_k - t_i^w) \frac{\theta_{i+1}-\theta_i}{t_{i+1}^w - t^w_i} + \gamma(t_k)\]
 This allows us to consider a stochastic evaluation of our value function that remains differentiable.
-\[\tilde V(\theta)=\sum_{\textrm{random}~\lambda} F(t_f, \lambda; \theta)\]
+\[\tilde V(\theta)=\sum_{\textrm{random}~\gamma} F(t_f, \gamma; \theta)\]
 
 \subsubsection{Differentiable horizontal trajectory} \label{sec:horizontal}
 The section above only handled altitude; however, the objective function for ValBal relies on maximizing spatial parameters, and not altitude. The horizontal integration needs to preserve differentiability to be able to compute a full gradient with respect to every optimization parameter. We use atmospheric data provided by \textsc{noaa} \cite{GFS} which, in particular, includes the velocity field $w(h, \lambda, \phi, t)\to(u, v)$, where $h$ is the altitude defined on a set of forecast altitudes;\footnote{The data from \textsc{noaa} is defined at barometric pressures, which can be mapped monotonically to altitude.} $\lambda$ and $\phi$ are the coordinates defined on a (not necessarily regular) grid of latitudes and longitudes;\footnote{Some models are more regular than others; for instance, NAM is defined on a rather annoying Lambert conformal grid.} $t$ is a forecast time (usually separated by 1 to 3 hours) and $(u, v)$ are the two horizontal components of wind.
@@ -373,7 +376,7 @@ The viability of this method, as well as the quality of \textsc{noaa} data can d
 \begin{figure}[h]
 \includegraphics[width=0.45\linewidth]{winds.png}
 \includegraphics[width=0.45\linewidth]{spain.png}
-\caption{Comparison of real valbal flights (red) to valbal flights simulated using gfs data with added noise (blue)}
+\caption{Comparison of real ValBal flights (red) to ValBal flights simulated using \textsc{gfs} data with added noise (blue).}
 \label{winds}
 \end{figure}
 
@@ -386,30 +389,65 @@ where $\Delta t$ is a constant that does not affect the result. Other valid obje
 \[V = \sum_{k=0}^{K-1} \lVert r_k - r_\text{target}\rVert\]
 
 
-\subsubsection{Simple Example}
-\todo[inline]{Joan can you write a text version of what you did for the slides}
+\subsubsection{Simple example}
+To illustrate how the sections above can be built up to a completely differentiable objective as a function of flight parameters we give a simple example. Suppose, as is often the case, that our goal is to maximize longitude traveled eastwards (which corresponds to attempting to circumnavigate as quickly as possible), after $N$ simulation steps (say, $N=720$, which with Euler timesteps of 10~minutes corresponds to 5 days). Said final longitude will be the result of the Euler integrated rollout, so the value function is given by:
+\[V = \lambda_N\]
+Let's build up how we would compute $\lambda_N$. In a certainty equivalent simulation, altitude as a function of time is given by:
+\[h(t; \theta) = \begin{cases}
+\theta_1 + (t-t_1)\frac{\theta_2-\theta_1}{t_2-t_1} \qquad & t_1 \leq t < t_2\\
+\cdots\\
+\theta_{n-1} + (t-t_{n-1})\frac{\theta_n-\theta_{n-1}}{t_n-t_{n-1}} \qquad & t_{n-1} \leq t < t_n
+\end{cases}\]
+Here $\theta$ are the parameters we are optimizing over, defined at the points $t_1,\dots,t_n$. We will also need a way to compute the winds at a given point in spacetime. We can do so by looking at the grid element the balloon is at from the \textsc{noaa} wind data. We linearly interpolate in altitude at each corner of the grid element (thereby preserving continuity and differentiability), then bilinearly interpolate in latitude and longitude (also continuous in all variables), and finally linearly interpolate in time for the two \textsc{noaa} prediction times (usually separated by 3 or 6 hours). That gives us two functions $w_{\{\lambda,\phi\}}(\lambda,\phi,h,t)$, since the wind is defined in each coordinate direction.
 
-\newpage
+Having defined these helper functions, we are in a position to trace out the rollout. Say we start at some initial point $(h_0, t_0, \phi_0, \lambda_0)$. For the first timestep, we will compute:
+\begin{align*}
+\begin{cases}
+t_1 &= t_0 + \Delta t\\
+h_1 &= h(t_1; \theta)\\
+\lambda_1 &= \lambda_0 + \Delta t \cdot w_\lambda(\lambda_0, \phi_0, h_0, t_0)\\
+\phi_1 &= \phi_0 + \Delta t \cdot w_\phi(\lambda_0, \phi_0, h_0, t_0)
+\end{cases}
+\end{align*}
+Note that, for now, only $h_1$ is a function of the optimization parameters. At the second timestep, however, we will compute:
+\begin{align*}
+\begin{cases}
+t_2 &= t_1 + \Delta t\\
+h_2 &= h(t_2; \theta)\\
+\lambda_2 &= \lambda_1 + \Delta t \cdot w_\lambda(\lambda_1, \phi_1, h_1, t_1)\\
+&=\lambda_0 + \Delta t \cdot w_\lambda(\lambda_0, \phi_0, h_0, t_0) \\
+& \qquad + w_\lambda\left(\lambda_0 + w_\lambda(\lambda_0, \phi_0, h_0, t_0) \Delta t, \phi_0 +  w_\phi(\lambda_0, \phi_0, h_0, t_0)\Delta t, h(t_1; \theta), t_1\right)\Delta t 
+\end{cases}
+\end{align*}
+and similarly for $\phi_2$, the latitude at the second timestep. Note, now, that our latitude depends on the optimization parameters, by way of $h(t_1)$, and we can therefore compute $\partial \lambda_2/\partial\theta_i$. In subsequent timesteps, this dependence gets exponentially more complicated, because then $\phi$ and $\lambda$ themselves have dependence on $\theta$. Doing so manually would be rather tedious, which motivates the decision explained in Section~\ref{arch} below to use an automatic differentiation tool to keep track of these gradients in the implementation.
+
+As mentioned, this is the most simple of the possible formulations; however, it is unrealistic in that it does not account for noise and variance---the balloon can't hit linearly interpolated altitude waypoints exactly (not without wasting tonnes of ballast, anyway). It makes sense to reformulate it in terms of the control parameters $h_\text{cmd}$ (setpoint) and $e_\text{tol}$ (tolerance). One first formulation would be to approximate the balloon as being somewhere in $h_\text{cmd}\pm e_\text{tol}$ randomly. However, the position within the tolerance is correlated between timesteps: if the balloon was at $h_\text{cmd} - 0.98e_\text{tol}$ at $t=0$, it would be unlikely to be at $h_\text{cmd} + 0.5e_\text{tol}$ at $t=10~\text{min}$. Our solution is to perform (random) simulations of balloon altitude (as shown in Sec~\ref{simssec}) with an arbitrary fixed setpoint and tolerance (giving us random walks $\gamma(t, h_{\text{cmd},0}, e_{\text{tol},0})$, and then affinely scale it to the control parameters.
+
+This refined formulation for altitude as a function of time, used in the stochastic simulations below, is given by:
+\[h(t; \theta, \gamma) = \text{LinInterp}\left(t, t_i\to\theta_{2i} + \left(\gamma(t; h_{\text{cmd},0}, e_{\text{tol},0}\right)- h_{\text{cmd},0})\frac{\theta_{2i+1}}{e_{\text{tol},0}}\right)\]
+Note that now we have two parameters per timestep: $\theta_{2i}$, the setpoint, and $\theta_{2i+1}$, the tolerance.
+%\theta_1 + (t-t_1)\frac{\theta_2-\theta_1}{t_2-t_1} \qquad & t_1 \leq t < t_2\\
+
 \subsection{Preliminary results}
 \subsubsection{Certainty equivalent}
-Before running the full stochastic gradient decent on the monte-carlo problem, we developed and tested the algorithm on certainty-equivalent simulation with no noise. In this experiment, we optimized a single starting trajectory, assuming that we had complete control over 20 altitude way points, with the balloon linearly interpolating between them. The results of such a test are shown in Figure~\ref{ce}. 
+Before running the full stochastic gradient descent on the Monte Carlo problem, we developed and tested the algorithm on certainty-equivalent simulation with no noise. In this experiment, we optimized a single starting trajectory, assuming that we had complete control over 20 altitude way points, with the balloon linearly interpolating between them. The results of such a test are shown in Figure~\ref{ce}. 
 
 \begin{figure}[h!]
 \floatbox[{\capbeside\thisfloatsetup{capbesideposition={right,top},capbesidewidth=6cm}}]{figure}[\FBwidth]
-{\caption{Certainty equivalent optimization from a single trajectory of the total longitude traveled. Trajectories are depicted both in latitude vs longitude over a Mercator projection (top), and altitude vs time (middle). The launch site simulated was Hollister, California and flight endpoints are designated with a green star. Intermediate trajectories are shown in blue, with the final optimized result in red. A convergence plot of the objective function vs iteration number is shown (bottom).}\label{ce}}
+{\caption{Certainty equivalent optimization from a single trajectory of the total longitude traveled. Trajectories are depicted both in latitude vs longitude over a Mercator projection (top), and altitude vs time (middle). The launch site simulated was Hollister, California and flight endpoints are designated with a green star. Intermediate trajectories are shown in blue, with the final optimized result in red. A convergence plot of the objective function as a function of iteration number is shown (bottom).}\label{ce}}
 {\includegraphics[width=1\linewidth]{certaintyeq.png}}
 \end{figure}
 
 We can see from this Figure~\ref{ce} that the optimization behaves as expected. The final longitude slowly moves forward each iteration, until it reaches a local extremum. The path of green points over the map---the endpoints of each intermediate trajectory---always moves to the right as iteration number increases. Running a thousand iterations of certainty equivalent optimization on a 100 hour flight as in the example takes well under a second on our hardware.
 
-\subsubsection{Monte-Carlo runs}
+\subsubsection{Monte Carlo runs}
 
 To run our first test of this formulation, we opted to utilize the traditional Model Predictive Control approach, in which we optimize an open-loop policy over a finite horizon. In flight, this optimization would be run repeatedly as the balloon flies, using the most recently observed system state to optimize new trajectories, forming a feedback control law. 
 
 Results of this method on a sample of \textsc{noaa} analysis wind data are shown in Figure~\ref{openloop}.
 \begin{figure}[h]
 \includegraphics[width=\linewidth]{datasheetfig.png}
-\caption{Example result of optimizing an open loop trajectory. The initial settings were a 13.5km setpoint and a 0.75km tolerance (red), while the optimized trajectory shows both changing setpoints and tolerances (blue). The dark blue line gives an example possible altitude profile from the many possible altitudes profiles given the command settings}
+\caption{Example result of optimizing an open loop trajectory. The initial settings were a 13.5~km setpoint and a 0.75~km tolerance (red), while the optimized trajectory shows both changing setpoints and tolerances (blue). The dark blue line gives an example possible altitude profile from the many possible altitudes profiles given the command settings.}
 \label{openloop}
 \end{figure}
 
@@ -417,30 +455,30 @@ We notice a few things from this result. First, we note that in this particular 
 
 
 \newpage
-\subsubsection{Planner Simulation}
-To test performance of a the planner suing GFS prediction data, we implemented a simulation of the control system what would run a single trajectory evaluation simulation and at each planning timestep call the planner. The evaluation simulation would be ran with GFS analysis data. This provides us with an expectation of what performance with our planners may look like in real life.
+\subsubsection{Planner simulation}
+To test performance of a the planner using \textsc{gfs} prediction data, we implemented a simulation of the control system what would run a single trajectory evaluation simulation and at each planning timestep call the planner. The evaluation simulation would be ran with \textsc{gfs} analysis data. This provides us with an expectation of what performance with our planners may look like in real life.
 \begin{figure}[h!]
 \includegraphics[width=\linewidth]{../../figs/mpc/mpc1.png}
 \includegraphics[width=\linewidth]{../../figs/mpc/mpc2.png}
-\caption{Evaluation simulations for SPMC planners. Each set of plots shows a single simulation ran with GFS analysis data, using control commands generated by SMPC using only prediction data. The non-blue colored lines show MPC simulation runs and optimized controller command plans from the time step they were ran at.}
+\caption{Evaluation simulations for SMPC planners. Each set of plots shows a single simulation ran with \textsc{gfs} analysis data, using control commands generated by SMPC using only prediction data. The non-blue colored lines show MPC simulation runs and optimized controller command plans from the time step they were ran at.}
 \label{mpc}
 \end{figure}
 
-From the simulations shown in Figure~\ref{mpc}, we can immediately notice a few things. First, for a point that is outside the ballast-limited range of the system (top plots), we see that the planner commands relatively loose tolerance throughout the flight. This is to be expected, as if the flight is ballast-limited and the destination is just out of range, any conserved ballast will extend the flight time, thus bringing you closer to the destination. However, if the bounds are too loose, then final enpoints will be too spread out, resulting in a higher average expected distance to the goal. The planner attempts to find the ideal trade-off point to minimize expected minimum distance to the target, and it appears to do so quite well.
+From the simulations shown in Figure~\ref{mpc}, we can immediately notice a few things. First, for a point that is outside the ballast-limited range of the system (top plots), we see that the planner commands relatively loose tolerances throughout the flight. This is to be expected, as if the flight is ballast-limited and the destination is just out of range, any conserved ballast will extend the flight time, thus bringing the balloon closer to the destination. However, if the bounds are too loose, then final endpoints will be too spread out, resulting in a higher average expected distance to the goal. The planner attempts to find the ideal trade-off point to minimize expected minimum distance to the target, and it appears to do so quite well.
 
-Next, in the case where the target is within ballast-limited range, the planner is free to command much higher tolerances when needed, as there is no benefit to having ballast left over when reaching the desired location. As such, we can see large variations in the commanded tolerance throughout the flight, being very small in places where it needs to hit specific winds to come as close to the target as possible. In this simulation, the evaluation flight comes within a few km of the target location, a promising result future location-sensitive applications of the system.
+Next, in the case where the target is within ballast-limited range, the planner is free to command much tighter tolerances when needed, as there is no benefit to having ballast left over when reaching the desired location. As such, we can see large variations in the commanded tolerance throughout the flight, being very small in places where it needs to hit specific winds to come as close to the target as possible. In this simulation, the evaluation flight comes within a few km of the target location, a promising result future location-sensitive applications of the system.
 
 
 \subsubsection{Location-feedback altitude policy}
 \todo[inline]{Still working through implementation}
 \subsubsection{Flight tests}
-\todo[inline]{As we don't have quality plots from the last flight, we didn't write up things about it in this section as I expect to have a much better opportunity to do so next quarter. For plots, see the presentation slides we made about it.}
+\todo[inline]{As we don't have quality plots from the last flight, we didn't write up things about it in this section as we expect to have a much better opportunity to do so next quarter. For plots, see the presentation slides we made about it.}
 
 
 \newpage
 \section{Architecture}
 \label{arch}
-In this section we describe the architecture behind the simulations and trajectory optimization. It involves a complex pipeline, that involves fetching atmospheric data, a modular and fast simulation engine, and provisions for simulating with real flight code. It is mostly written more than two thousand lines of C++ and Python.
+In this section we describe the architecture behind the simulations and trajectory optimization. It involves a complex pipeline, that involves fetching atmospheric data, a modular and fast simulation engine, and provisions for simulating with real flight code. It is mostly written more than three thousand lines of C++ and Python.
 
 The core of the simulator is written in C++. This allows for extremely fast simulations; when performing direct rollouts, it can compute hundreds of thousands of three-day ValBal trajectories per second on a 6-core machine. The code is designed to be modular; one can easily use different objective functions (horizontal distance, distance to a given target\dots), different optimization methods (vanilla gradient descent, Adagrad, Adam\dots), various differentiable controllers (uniform distribution, approximate Lasagna, differentiable Lasagna\dots), and so on.
 

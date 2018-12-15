@@ -418,7 +418,7 @@ $w_v$: vertical velocity of surrounding air
 \vspace{0cm}
 $\dot \ell$: commanded change in lift (valve and ballast actions) \\
 $w_{\dot \ell}$: atmospheric lift disturbance \\
-$w_v$: atmosphereic velocity disturbance \\
+$w_v$: atmospheric velocity disturbance \\
 $h$: altitude 
 \[x = \mx{c}{h \\ v} \qquad u = \dot \ell\]
 \[\dot x = \mx{cc}{0 & 1 \\ 0 & 0}x + \mx{cc}{0 \\ k_d} u + \mx{c}{w_v \\ k_d w_{\dot \ell}}\]
@@ -464,7 +464,7 @@ f_2(\dot \ell \, ; \tau) = \left\{\begin{array}{cc}
 
 \end{multicols}
 \end{center}
-To set bounds on the altutude, we set $\tau = e_{\mathrm{tol}} k_v k_h$, where $e_{\mathrm{tol}}$ is the allowable distance from the altitude command.
+To set bounds on the altitude, we set $\tau = e_{\mathrm{tol}} k_v k_h$, where $e_{\mathrm{tol}}$ is the allowable distance from the altitude command.
 \end{frame}
 
 \include{blockdiagram}
@@ -489,14 +489,14 @@ $H(s)$ a 2nd order lowpass filter\\
 \include{blockdiagram}
 
 \begin{frame}{Picking gains}
-\emph{note:} while the deadband makes the controller non-linear, it still peicewise linear, thus linear analysis can be used.\\
+\emph{note:} while the deadband makes the controller non-linear, it still piecewise linear, thus linear analysis can be used.\\
 Transfer function for the linear system is\\
 \[T(s) = \frac{k_h k_v k_d}{s^2 + k_v k_d s + k_h k_v k_d}.\]
 So damping ratio is $\zeta = \frac{1}{2}\sqrt{\frac{k_d k_v}{k_h}}$. 
 \begin{itemize}
 \item We choose gains such that $\zeta > 1$ and we have over damping.
-\item This gives ratio between $k_v$ and $k_h$, but what about magnitiude?
-\item high gain $\to$ controller waits and acts agressively near $e_{\n{tol}}$
+\item This gives ratio between $k_v$ and $k_h$, but what about magnitude?
+\item high gain $\to$ controller waits and acts aggressively near $e_{\n{tol}}$
 \item low gain $\to$ controller acts cautiously before $e_{\n{tol}}$
 \end{itemize}
 demonstraited on next slide

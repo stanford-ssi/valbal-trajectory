@@ -276,6 +276,9 @@ public:
 		return *this;
 	}
 
+	void save_to_file(const char *fname);
+	void _save_to_file(FILE *f);
+
 	ctrl_cmd<Float>& get_cmd(sim_state<Float>&);
 	void gradients_and_split(StepRule&);
 

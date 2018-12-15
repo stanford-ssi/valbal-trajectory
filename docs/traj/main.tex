@@ -1,6 +1,6 @@
 \documentclass[11pt]{scrartcl} % justified tufte-handout
 %Gummi|065|=)
-\title{\bfseries ValBal Altitude Control\\ and Trajectory Planning!!!}
+\title{\bfseries ValBal Altitude Control\\ and Trajectory Planning}
 \subtitle{\Large Master document} % TODO maybe remove this
 
 %\usepackage{classico}
@@ -470,11 +470,30 @@ Next, in the case where the target is within ballast-limited range, the planner 
 
 
 \subsubsection{Location-feedback altitude policy}
-\todo[inline]{Still working through implementation}
+One limitation of the procedure given above is that we only have a single optimization variable for a given timestep. However, due to the inherent variance in the rollouts of the flights, two rollouts that were once close early on in the flight might wind up taking different wind patterns in the atmosphere, or one might slow down and lag behind the other. And, if their coordinates are very different, the guiding assumption for the algorithm---that the atmosphere is not totally random, and we can therefore take gradient steps to optimize our trajectory---will no longer hold: the algorithm will have to make a compromise between the winds in two potentially very different areas of the globe.
+
+We can see an example of this in Figure~\ref{openloop}, in the pre-optimized trajectories: after five days of flight, they are in very different places: the winds in the Mediterranean ocean and in northern Russia will be very different, so it will yield a meaningless unoptimized result. This led the single-variable-per-timestep optimizer to tighten the tolerance, in order to reduce variance and make the optimization meaningful again. However, this is wasteful, since in order to do that, it thought it had to tighten the tolerance and thereby waste ballast late in flight. That variance in the rollouts merely reflects the uncertainty in where the balloon will end up, but in reality, as time advances, our knowledge of the position of the balloon is updated, and we know what trajectory the balloon ends up following. In a sense, we want to be able to discount this future uncertainty, and assume that, as time passes and we know which way the balloon goes, we'll upload the best possible trajectory going down a given path (out of the various possible trajectories).
+
+This motivates the need to incorporate location feedback to our policy. For each of the possible final paths (as they diverge, for instance, by picking the clockwise or counter-clockwise sides of a hurricane) we create a different variable on a given timestep. This way, with more degrees of freedom, the optimizer will make sure that any scenario we possibly end up with will have the most optimized trajectory.
+
+In theory, given enough rollouts, we could simply assign one latitude and longitude to every one by one degree latitude-longitude grid element. This would reduce to solving the completely discretized Markov Decision Process; however, it would come with an exponential blowup in the number of variables, losing the advantage gained by using gradient descent. We want to create new variables lazily, only as they're needed: if we see that, for a given timestep, all the trajectories are in roughly the same place, there is no need to create new variables. However, if they start to diverge, we'll want to make sure that each branch has its separate variable, so the trajectories don't interfere with each other's optimization.
+
+The algorithm we built to lazily create new variables uses a binary space partitioning of the globe, which creates a tree of halfspaces, with a variable on each halfspace. We start with a single node of the tree, and keep track of all instances of the usage of that variable (i.e. for each rollout, see what coordinates the balloon was at when it made use of that variable); when those requests get too far (measured by the half perimeter of the rectangular hull of the requests), we decide to create a new variable. In order to decide what hyperplane gets used to create two halfspaces, we use k-means to cluster the points into two different clusters: the Voronoi description of the resulting two center points will give us a halfspace from which we create an upper and lower node, initialized with the current value of the parent node. Subsequent variable requests at that given timestep will walk down the tree until they reach a leaf, and use the variable stored at the leaf. At the end of each iteration, if any of the leaves has diverging trajectories, it gets split up according to the procedure above.
+
+\begin{figure}
+\includegraphics[width=0.8\linewidth]{sp3.png}
+\caption{Spatial policy for a given timestep of the simulation. The dots are requests of each variable at that timestep; dots with the same color used the same leaf node. Note that each individual rollout makes three requests (we can see small clusters of three dots); however, we did a hundred rollouts, so they end up having some spread. We see that some rollouts lag behind the main group, and therefore are optimized using a different set of variables.}
+\label{spatial}
+\end{figure}
+
+Preliminary tests show that more work is needed on deciding how to split up the space. Figure~\ref{spatial} shows a sample result from using the method above. Note that it is displayed flat, instead of as a tree. Each color corresponds to a different leaf node of the binary space partitioning; the lines correspond to the dividing hyperplanes. For now, in limited testing the performance is not worse than the temporal-only method; however, we have not seen instances of it outperforming it either. Further work will try to improve the splitting method, and try it out in weeks where the divergence of the wind field was bigger (since the method is not appreciably better if the wind field is rather uniform).
+
+Further extensions include further splitting according to other variables, such as ballast usage. That is, if we're at the same time and coordinates, but we have a lot more ballast in one rollout, it would make sense for that rollout to be less conservative about its use of ballast, whereas if it's running low it will want to loosen the tolerance.
+
 \subsubsection{Flight tests}
 \todo[inline]{As we don't have quality plots from the last flight, we didn't write up things about it in this section as we expect to have a much better opportunity to do so next quarter. For plots, see the presentation slides we made about it.}
 
-
+\clearpage
 \newpage
 \section{Architecture}
 \label{arch}

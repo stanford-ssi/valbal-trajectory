@@ -535,6 +535,29 @@ void kmeans(int k, vector<array<float, D>>& requests, array<float, D+1>& hyperpl
 }
 
 template<class Float>
+void cmd_tree<Float>::save_to_file(const char *fname) {
+	FILE *f = fopen(fname, "wb");
+	_save_to_file(f);
+	fclose(f);
+}
+
+template<class Float>
+void cmd_tree<Float>::_save_to_file(FILE *f) {
+	if (upper == 0 || lower == 0) {
+	fprintf(f, ":%lu", requests.size());
+	for (size_t i=0; i<requests.size(); i++) {
+		fprintf(f, " %f,%f", requests[i][0], requests[i][1]);
+	}
+	fprintf(f, "\n");
+	}
+	if (upper != 0 && lower != 0) {
+		fprintf(f, ";%f %f %f\n", a, b, c);
+		upper->_save_to_file(f);
+		lower->_save_to_file(f);
+	}
+}
+
+template<class Float>
 void cmd_tree<Float>::gradients_and_split(StepRule& opt) {
 	if (upper == 0 || lower == 0) {
 		assert(sizeof(*this) == sizeof(cmd_tree<adept::adouble>));
@@ -543,14 +566,14 @@ void cmd_tree<Float>::gradients_and_split(StepRule& opt) {
 		//printf("got %lu requests\n", requests.size());
 		if (requests.size() == 0) return;
 		// L1 distance
-		if (((maxs[0]-mins[0]) + (maxs[1]-mins[1])) > 50) {
+		if (((maxs[0]-mins[0]) + (maxs[1]-mins[1])) > 15) {
 			debugf("time to split things up! %f %f\n", maxs[0]-mins[0], maxs[1]-mins[1]);
 			array<float, 3> hyperplane;	
 			for (size_t i=0; i<requests.size(); i++) {
-				debugf("%f,%f\n", requests[i][0], requests[i][1]);
+				debugf("%f,%f ", requests[i][0], requests[i][1]);
 			}
 			kmeans<D>(2, requests, hyperplane);
-			debugf("%f * lat + %f * lon >= %f\n", hyperplane[0], hyperplane[1], hyperplane[2]);
+			debugf("\n%f * lat + %f * lon >= %f\n", hyperplane[0], hyperplane[1], hyperplane[2]);
 			a = hyperplane[0];
 			b = hyperplane[1];
 			c = hyperplane[2];
@@ -615,7 +638,8 @@ double SpatiotemporalParameters<Float>::apply_gradients(StepRule &opt, tag<Spati
 		template class FinalLongitude<type>; \
 		template class StochasticControllerApprox<type>; \
 		template class TemporalParameters<type>; \
-		template class SpatiotemporalParameters<type>;
+		template class SpatiotemporalParameters<type>; \
+		template class cmd_tree<type>;
 
 #include <adept.h>
 INIT_SIM(adept::adouble)

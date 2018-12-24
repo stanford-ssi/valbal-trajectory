@@ -58,9 +58,8 @@ void stochasticGradients(){
 	state0.lon = -121.43 + 360;
 	state0.t = 1543492801;
 	state0.bal = 4.5;
-	state0.t = 1541041200;
 	StochasticMPC controller(db,state0);
-	controller.conf.opt_sign = 1;
+	controller.conf.opt_sign = -1;
 	controller.run();
 }
 
@@ -190,7 +189,7 @@ int main() {
 	//test_spatial();
 	//spatialGradients();
 
-//	evaluator();
+	//evaluator();
 	//saveSpaceshot();
 	//stocasticGradients();
 }

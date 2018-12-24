@@ -62,7 +62,7 @@ struct sim_state {
         ret.cmd = cmd.template cast<NewType>();
         ret.t = t;
         return ret;
-    }     
+    } 
 };
 
 #endif

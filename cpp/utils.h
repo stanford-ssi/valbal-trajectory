@@ -79,7 +79,7 @@ public:
 		}
 		results = (ReturnType*)malloc(sizeof(ReturnType)*num_outputs);
 		for (int i=0; i<num_threads; i++) {
-			printf("starting %d %d\n", i, num_threads);
+			//printf("starting %d %d\n", i, num_threads);
 			pool.push_back(thread([this]() {
 				while (true) {
 					pair<int, function<ReturnType()>> fn;

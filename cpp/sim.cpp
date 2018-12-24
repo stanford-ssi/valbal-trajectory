@@ -168,7 +168,7 @@ template<class Float>
 TemporalParameters<Float>::TemporalParameters(int t0_, int dt_, int T_, double default_h_, double default_tol_) : 
 t0(t0_), dt(dt_), T(T_), default_h(default_h_), default_tol(default_tol_)
 { 
-	int N = T_/dt_;
+	N = T_/dt_;
 	cmds = new ctrl_cmd<Float>[N];
 	for (int i=0; i<N; i++) {
 		cmds[i].h = default_h_;

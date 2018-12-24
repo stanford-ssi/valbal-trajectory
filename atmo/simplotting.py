@@ -41,6 +41,7 @@ def plot1():
 	xt,yt = m(ll[1],ll[0])
 	axes[0].plot(xt,yt,"r*")
 	plt.show()
+	#plt.savefig("fig.png")
 
 def plot2():
 	# This function generates a nice plot of optimized montecarlo trajectories.
@@ -86,7 +87,8 @@ def plot2():
 		ax0.plot(xpred[-1],ypred[-1],"*",c="blue")
 		#ax0.plot(xpred[::6*10],ypred[::6*10],"*",c="blue",alpha=0.3)
 	#plt.savefig("../ignored/figs/plot1.png")
-	plt.show()
+	#plt.show()
+	plt.savefig("fig.png")
 
 
 def plot3():
@@ -358,5 +360,5 @@ def plot6():
 
 
 #plotmc()
-plot6()
+plot2()
 

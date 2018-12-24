@@ -19,10 +19,8 @@ public:
 		bool write_files = true;
 	} Config;
 	StochasticMPC(const char* input_db, sim_state<float> state0);
-	adept::Stack stack;
 	TemporalParameters<float> run();
 	DataHandler data;
-	GradStep step;
 	Config conf;
 	//FinalLongitude<adouble> objfn;
 };

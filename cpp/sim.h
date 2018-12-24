@@ -196,6 +196,7 @@ public:
 	int t0;
 	int dt;
 	int T;
+	int N;
 private:
 	double default_h;
 	double default_tol;

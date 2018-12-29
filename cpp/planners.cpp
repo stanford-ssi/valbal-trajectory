@@ -1,5 +1,7 @@
 #include "planners.h"
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <limits.h>
 StochasticMPC::StochasticMPC(const char* input_db, sim_state<float> state0)  
 	//: objfn(0, 360)
 {
@@ -9,16 +11,27 @@ StochasticMPC::StochasticMPC(const char* input_db, sim_state<float> state0)
 
 TemporalParameters<float>  StochasticMPC::run(){
 	TemporalParameters<float> params(conf.state0.t, conf.cmd_dt, conf.tmax, 12000, 2000);
+
+	double lr_set = hparams.lr_set;
+	double lr_tol = hparams.lr_tol;
+
+	if (save_to_file) {
+		char path[PATH_MAX];
+		snprintf(path, PATH_MAX, "../ignored/sim/opt.%03d.bin", 0);
+		file = fopen(path, "wb");
+		ensure(file != 0);
+		ensure(setvbuf(file, 0, _IOFBF, 16384) == 0);
+	}
+ 
 	for (int it=0; it<conf.n_iters; it++){
 		TIMEIT("Gradient Step",
-		ctrl_cmd<double> gradients[conf.n_samples][params.N];
-		sim_state<double> final_states[conf.n_samples];
-		double obj_vals[conf.n_samples];
+		ctrl_cmd<double>* gradients = new ctrl_cmd<double>[conf.n_samples*params.N];
+		sim_state<double>* final_states = new sim_state<double>[conf.n_samples];
+		double* obj_vals = new double[conf.n_samples];
 		Scheduler<float> sched(-1, conf.n_samples);
 		for (int run=0; run<conf.n_samples; run++) {
-			//ctrl_cmd<double>* run_gradient = &gradients[run][0];
 			sched.add([&,run]() {
-				/*
+				ctrl_cmd<double>* run_gradient = gradients+run*params.N;
 				adept::Stack stack;
 				TemporalParameters<adouble> run_params(conf.state0.t, conf.cmd_dt, conf.tmax, 12000, 2000);
 				run_params = params;
@@ -36,39 +49,63 @@ TemporalParameters<float>  StochasticMPC::run(){
 				sim_state<adouble> sf = conf.state0.cast<adouble>();
 				sim.run(sf);
 				adouble obj_val = conf.opt_sign*objfn.getObjective();
-				*/
-				//obj_val.set_gradient(1.0);
-				obj_vals[run] = run*0.34;//VAL(obj_val);
-				//final_states[run] = sf.cast<double>();
-				//stack.compute_adjoint();
-				//for(int j = 0; j<params.N; j++){
-				//	run_gradient[j].tol = run_params.cmds[j].tol.get_gradient(); 
-				//	run_gradient[j].h = run_params.cmds[j].h.get_gradient();
-				//}
-				printf("f;%f,%p,%d\n",(obj_vals[run]),&(obj_vals[run]),run);
+				
+				obj_val.set_gradient(1.0);
+				obj_vals[run] = VAL(obj_val);
+				final_states[run] = sf.cast<double>();
+				stack.compute_adjoint();
+				for(int j = 0; j<params.N; j++){
+					run_gradient[j].tol = run_params.cmds[j].tol.get_gradient(); 
+					run_gradient[j].h = run_params.cmds[j].h.get_gradient();
+				}
+				//printf("run:%d,p:%p\n",run,run_gradient);
+				//printf("f;%f,%p,%d\n",(obj_vals[run]),&(obj_vals[run]),run);
 				return 0.;
 			});
 		}
 		sched.finish();
 		ctrl_cmd<double> gradient[params.N];
-		double meanobj=0;
-		double meanbal=0;
-		double meantime=0;
+		for(int j = 0; j<params.N; j++){
+			gradient[j].h = 0;
+			gradient[j].tol = 0;
+		}
+		float meanobj=0;
+		float meanbal=0;
+		float meantime=0;
 		for (int run=0; run<conf.n_samples; run++){
 			for(int j = 0; j<params.N; j++){
-				gradient[run].h += gradients[run][j].h/conf.n_samples;
-				gradient[run].tol += gradients[run][j].tol/conf.n_samples;
-				//printf("d(%f,%f)\n",gradient[run].h,gradient[run].tol);
+				gradient[j].h += gradients[run*params.N+j].h/conf.n_samples;
+				gradient[j].tol += gradients[run*params.N+j].tol/conf.n_samples;
+				//printf("d[%d],%d = (%f,%f)\n",j,run,gradients[run*params.N+j].h,gradients[run*params.N+j].tol);
 			}
 			meanobj += obj_vals[run]/conf.n_samples;
-			printf("g;%f,%p,%d\n",(obj_vals[run]),&(obj_vals[run]),run);
 			meanbal += final_states[run].bal/conf.n_samples;
-			meantime += (final_states[run].t-conf.state0.t)/(float)conf.n_samples;
+			meantime += (final_states[run].t-conf.state0.t)/(float)conf.n_samples;		
 		}
+
+		lr_set = hparams.alpha*lr_set;
+		lr_tol = hparams.alpha*lr_tol;
+		for(int j = 0; j<params.N; j++){
+		//	printf("d[%d] = (%f,%f)\n",j,gradient[j].h,gradient[j].tol);
+			double set = params.cmds[j].h + lr_set * gradient[j].h;
+			set = min(hparams.set_max, max(hparams.set_min, set));
+			params.cmds[j].h = set;
+
+			double tol = params.cmds[j].tol + lr_tol * gradient[j].tol;
+			tol = min(hparams.tol_max, max(hparams.tol_min, tol));
+			params.cmds[j].tol = tol;
+		}
+		if (save_to_file) fwrite(&meanobj, sizeof(float), 1, file);
+
 		)
 		printf("obj: %f, bal: %f, days: %f\n",meanobj, meanbal, meantime/86400.);
+		delete gradients;
+		delete final_states;
+		delete obj_vals;
 	}
 	//printf("%d\n",params.T);
+
+	if (save_to_file) fclose(file);
 	return params;
 }
 

@@ -358,7 +358,13 @@ def plot6():
 	ax0.plot(xt,yt,"o",c="red")
 	plt.show()
 
+def plot_opt():
+	output = np.fromfile('../ignored/sim/opt.%03d.bin' % int(0), dtype=np.float32)
+	print(output)
+	plt.plot(output)
+	plt.show()
 
+plot_opt()
 #plotmc()
-plot2()
+#plot2()
 

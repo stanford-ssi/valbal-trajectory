@@ -5,6 +5,7 @@
 #include "sim.h"
 #include "objectives.h"
 
+
 class StochasticMPC {
 public: 
 	typedef struct{
@@ -18,13 +19,28 @@ public:
 		int fname_offset = 0;				// offset on the file name numbers
 		bool write_files = true;
 	} Config;
+
+	typedef struct {
+		double lr_set  = 200000;
+		double lr_tol  = 100000;
+		double alpha   = 0.996;
+		double tol_min = 200;
+		double tol_max = 3000;
+		double set_min = 10000;
+		double set_max = 16000;
+	} HyperParams;
+	HyperParams hparams;
+	FILE *file;
+	bool save_to_file = 1;
+
+
+
 	StochasticMPC(const char* input_db, sim_state<float> state0);
 	TemporalParameters<float> run();
 	DataHandler data;
 	Config conf;
 	//FinalLongitude<adouble> objfn;
 };
-
 
 class SpatialPlanner {
 public: 

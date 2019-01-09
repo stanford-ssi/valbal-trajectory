@@ -145,6 +145,17 @@ las_sim(seed), params(ps_)
 { 
 	h_mid = las_sim.las.getConstants().setpoint;
 	tol0 = las_sim.las.getConstants().tolerance;
+	//TODO: Load ballast coeffs from file
+}
+
+template<class Float>
+Float StochasticControllerApprox<Float>::get_ballast_rate(Float tol){
+	tol = tol/1000; // convert to km (should eventually have everything be km)
+	Float bal = 0;
+	for(int i = 0;i<8;i++){
+		bal += bal_coeffs[i]*pow(tol,7-i);
+	}
+	return bal;
 }
 
 template<class Float>
@@ -152,14 +163,22 @@ void StochasticControllerApprox<Float>::get_pressure(sim_state<Float>& state){
 	ctrl_cmd<Float> cmd = params.get_param(state);
 	Float cmd_h = cmd.h;
 	Float cmd_tol = cmd.tol;
-	state.bal_rate = 0.03/60./60.*750/cmd_tol + 0.04/60./60.;  
+	state.bal_rate = get_ballast_rate(cmd_tol); 
+	
+	//TODO: Add nighfall ballast use
+
 	sim_state<float> state_val;
 	state_val.lat = VAL(state.lat);
 	state_val.lon = VAL(state.lon);
 	state_val.t = state.t;
 	las_sim.get_altitude(state_val);
 	float las_h = state_val.p;
-	Float alt = cmd_h + (las_h - h_mid)*cmd_tol/tol0;
+	Float alt;
+	if(fabs(las_h - h_mid) > tol0){
+		alt = cmd_h + sgn(las_h - h_mid)*(cmd_tol + (fabs(las_h - h_mid) - tol0));
+	} else {
+		alt = cmd_h + (las_h - h_mid)*cmd_tol/tol0;
+	}
 	state.cmd = cmd; 
 	state.p = alt2p(alt);
 }
@@ -168,7 +187,7 @@ template<class Float>
 TemporalParameters<Float>::TemporalParameters(int t0_, int dt_, int T_, double default_h_, double default_tol_) : 
 t0(t0_), dt(dt_), T(T_), default_h(default_h_), default_tol(default_tol_)
 { 
-	N = T_/dt_;
+	N = ceil(T_/dt_) + 1; 
 	cmds = new ctrl_cmd<Float>[N];
 	for (int i=0; i<N; i++) {
 		cmds[i].h = default_h_;
@@ -182,9 +201,57 @@ TemporalParameters<Float>::~TemporalParameters() {
 }
 
 template<class Float>
+void TemporalParameters<Float>::rand_sets(double min_, double max_){
+    std::mt19937 random_gen(time(0));
+    std::uniform_real_distribution<double> dist(min_,max_);
+    for (int i=0; i<N; i++) {
+    	cmds[i].h = dist(random_gen);
+    };
+}
+
+template<class Float>
+void TemporalParameters<Float>::rand_tols(double min_, double max_){
+    std::mt19937 random_gen(time(0));
+    std::uniform_real_distribution<double> dist(min_,max_);
+    for (int i=0; i<N; i++) {
+    	cmds[i].tol = dist(random_gen);
+    };
+}
+
+template<class Float>
+void TemporalParameters<Float>::randn_tols(double mean_, double std_, double min_, double max_){
+    std::mt19937 random_gen(time(0));
+    std::normal_distribution<double> dist(mean_,std_);
+    for (int i=0; i<N; i++) {
+    	double val = dist(random_gen);
+    	cmds[i].tol = min(max_, max(min_, val));
+    };
+}
+
+template<class Float>
+void TemporalParameters<Float>::resample(int new_dt){
+	int new_N = ceil(T/new_dt) + 1;
+	ctrl_cmd<Float>* new_cmds = new ctrl_cmd<Float>[new_N];
+	sim_state<Float> state;
+	state.t = t0;
+	for (int i=0; i<new_N; i++) {
+		new_cmds[i] = this->get_param(state);
+		state.t += new_dt;
+		//printf("set:%f\n",VAL(new_cmds[i].h));
+	}
+	delete[] cmds;
+	cmds = new_cmds;
+	dt = new_dt;
+	N = new_N;
+}
+
+
+template<class Float>
 ctrl_cmd<Float> TemporalParameters<Float>::get_param(sim_state<Float>& state){
 	unsigned int idx = (state.t-t0)/dt;
 	float theta = (state.t - (t0 + dt*idx))/((float)dt);
+	//printf("idx:%d,theta:%f,N:%d\n",idx,theta,N);
+	if((int)idx+1 > N-1){theta = 1; idx = N-2;} 
 	ctrl_cmd<Float> cmd;
 	cmd.h = cmds[idx].h + theta * (cmds[idx+1].h - cmds[idx].h);
 	cmd.tol = cmds[idx].tol + theta * (cmds[idx+1].tol - cmds[idx].tol);

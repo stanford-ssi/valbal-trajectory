@@ -183,6 +183,10 @@ class TemporalParameters : public ParameterServer<Float> {
 public:
 	TemporalParameters(int t0_, int dt_, int T_, double d_h, double d_t);
 	~TemporalParameters();
+	void rand_sets(double min_ = 12000, double max_ = 18000);
+	void rand_tols(double min_ = 500, double max_ = 3000);
+	void randn_tols(double mean_ = 1500, double std_ = 200, double min_ = 300, double max_ = 3000);
+	void resample(int new_dt);
 	ctrl_cmd<Float> get_param(sim_state<Float>&);
 	double apply_gradients(StepRule&);
 	template <class FFloat> TemporalParameters& operator = (const TemporalParameters<FFloat>& tp){
@@ -234,10 +238,14 @@ class StochasticControllerApprox : public PressureSource<Float> {
 public: 
 	StochasticControllerApprox(ParameterServer<Float>& ps_, int seed);
 	void get_pressure(sim_state<Float>&);
+	Float get_ballast_rate(Float tol);
 	LasSim<float> las_sim;
 	float h_mid;
 	float tol0;
 	ParameterServer<Float>& params;
+	double bal_coeffs[8] = {-2.75138798e-02, 5.44807893e-01, -4.43322025e+00, 1.92223871e+01
+  -4.84480789e+01, 7.37552455e+01, -7.10817502e+01, 6.49353674e+01};
+
 };
 
 template<class Float>

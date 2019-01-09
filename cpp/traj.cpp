@@ -59,7 +59,7 @@ void stochasticGradients(){
 	state0.t = 1543492801;
 	state0.bal = 4.5;
 	StochasticMPC controller(db,state0);
-	controller.conf.opt_sign = -1;
+	controller.conf.opt_sign = 1;
 	controller.run();
 }
 
@@ -108,7 +108,7 @@ void evaluator(){
 		getRecentDir(recentdir,get_data_path("proc/gfs_pred_0deg5/"),state.t);
 		printf("%s\n",recentdir);
 		StochasticMPC controller(recentdir,state);
-		controller.conf.n_iters = 20;
+		//controller.conf.n_iters = 20;
 		controller.conf.n_samples = 50;
 		controller.conf.write_files = true;
 		controller.conf.opt_sign = -1;

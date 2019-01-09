@@ -45,11 +45,22 @@ inline long cputime() {
 	return clock()/((double)CLOCKS_PER_SEC)*1000000;
 }
 
-#define TIMEIT(s, blk) \
+#define GET_MACRO(_1,_2,_3,NAME,...) NAME
+#define TIMEIT(...) GET_MACRO(__VA_ARGS__, TIMEIT3, TIMEIT2)(__VA_ARGS__)
+
+#define TIMEIT2(s, blk) \
 	long JOIN(cputimer,__LINE__) = cputime(); \
 	long JOIN(walltimer,__LINE__) = walltime(); \
 	blk; \
 	printf("[%s] CPU %.2f ms, wall %.2f ms.\n", s, \
+			(cputime() - JOIN(cputimer,__LINE__))/1000., \
+			(walltime() - JOIN(walltimer,__LINE__))/1000.);
+
+#define TIMEIT3(s, b, blk) \
+	long JOIN(cputimer,__LINE__) = cputime(); \
+	long JOIN(walltimer,__LINE__) = walltime(); \
+	blk; \
+	if(b) printf("[%s] CPU %.2f ms, wall %.2f ms.\n", s, \
 			(cputime() - JOIN(cputimer,__LINE__))/1000., \
 			(walltime() - JOIN(walltimer,__LINE__))/1000.);
 
@@ -126,5 +137,9 @@ private:
 	vector<thread> pool;
 	queue<pair<int, function<ReturnType()>>> tasks;
 };
+
+template <typename T> int sgn(T val) {
+    return (T(0) < val) - (val < T(0));
+}
 
 #endif

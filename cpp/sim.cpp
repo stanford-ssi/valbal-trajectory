@@ -86,12 +86,16 @@ void LasSim<Float>::get_altitude(sim_state<Float>& state){
 
 template<class Float>
 void LasSim<Float>::evolve(sim_state<Float>& state){
+	//todo: make it so that the sunset predictor doesn't run each call.
 	if(!(t_last || dt)){
 	} else {
 		const int N = dt ? int(dt*freq) : int((state.t-t_last)*freq);
+		//printf("t:%ld, nt: %ld, dt:%d, N:%d\n",sim.time,(long int)(state.t - sim.unix_offset),dt,N);
+		sim.time = (long int)(state.t - sim.unix_offset)*1000;
 		sim.conf.lat = VAL(state.lat);
 		sim.conf.lon = VAL(state.lon);
 		LasagnaController::Input input;
+		avg_sunset_dldt = 0;
 		for(int i = 0; i < N; i++){
 			if(changing_cmds){
 				sim_state<float> statef = state.template cast<float>();
@@ -105,6 +109,8 @@ void LasSim<Float>::evolve(sim_state<Float>& state){
 			input.h_rel = input.h_abs;
 			input.dldt_ext = sim.sunset_dldt*3;
 			las.update(input);
+			avg_sunset_dldt += -sim.sunset_dldt/N; //negative sign is cause the dldt from sim is negative oops inconsistent convention.
+			//printf("st:%ld, %f\n",sim.time,sim.conf.freq);
 		}
 		state.cmd.h = lasconst.setpoint;
 		state.cmd.tol = lasconst.tolerance;
@@ -152,10 +158,13 @@ template<class Float>
 Float StochasticControllerApprox<Float>::get_ballast_rate(Float tol){
 	tol = tol/1000; // convert to km (should eventually have everything be km)
 	Float bal = 0;
-	for(int i = 0;i<8;i++){
-		bal += bal_coeffs[i]*pow(tol,7-i);
+	const int degree = 7;
+	for(int i = 0;i<degree+1;i++){
+		bal += bal_coeffs[i]*pow(tol,float(degree-i));
+		//printf("%f, %f\n",bal_coeffs[i],float(degree-i));
 	}
-	return bal;
+	//ballast coeffs are currently in grams/hour, so we convert to g/s
+	return bal/60./60;
 }
 
 template<class Float>
@@ -163,10 +172,9 @@ void StochasticControllerApprox<Float>::get_pressure(sim_state<Float>& state){
 	ctrl_cmd<Float> cmd = params.get_param(state);
 	Float cmd_h = cmd.h;
 	Float cmd_tol = cmd.tol;
-	state.bal_rate = get_ballast_rate(cmd_tol); 
-	
-	//TODO: Add nighfall ballast use
-
+	state.bal_rate = get_ballast_rate(cmd_tol) + las_sim.avg_sunset_dldt; 
+	printf("b: %f, br: %f \n",VAL(state.bal),VAL(state.bal_rate));
+	//printf("%f: %f\n",VAL(cmd_tol)/1000,VAL(get_ballast_rate(cmd_tol)));
 	sim_state<float> state_val;
 	state_val.lat = VAL(state.lat);
 	state_val.lon = VAL(state.lon);
@@ -453,7 +461,8 @@ void Simulation<Float>::run(sim_state<Float>& state) {
 		if(calc_obj) objfn.update(state);
 		if(state.bal < 0) break;
 	}
-	debugf("Ended up at (%f, %f)\n", VAL(state.lat), VAL(state.lon));
+	debugf("Ended up at (%f, %f) after %f days\n", VAL(state.lat), VAL(state.lon),(tmax - (Tmax - state.t))/60./60./24.);
+	printf("Ended up at (%f, %f) after %f days\n", VAL(state.lat), VAL(state.lon),(tmax - (Tmax - state.t))/60./60./24.);
 	if (save_to_file) {
 		fclose(file);
 	}
@@ -465,7 +474,7 @@ sim_state<Float> Simulation<Float>::run(int t, Float lat, Float lon) {
 	state.lat = lat;
 	state.lon = lon;
 	state.t = t;
-	state.bal = 4.5;
+	state.bal = 4500;
 	run(state);
 	return state;
 }

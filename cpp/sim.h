@@ -226,6 +226,7 @@ public:
 	int t_last = 0;
 	int dt = 0;
 	bool changing_cmds = false;
+	float avg_sunset_dldt = 0;
 	LasagnaController::Constants lasconst;
 	TemporalParameters<float> cmds_defualt;
 	TemporalParameters<float>& cmds;
@@ -243,7 +244,7 @@ public:
 	float h_mid;
 	float tol0;
 	ParameterServer<Float>& params;
-	double bal_coeffs[8] = {-2.75138798e-02, 5.44807893e-01, -4.43322025e+00, 1.92223871e+01
+	double bal_coeffs[8] = {-2.75138798e-02, 5.44807893e-01, -4.43322025e+00, 1.92223871e+01,
   -4.84480789e+01, 7.37552455e+01, -7.10817502e+01, 6.49353674e+01};
 
 };

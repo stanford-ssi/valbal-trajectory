@@ -57,9 +57,13 @@ void stochasticGradients(){
 	state0.lat = 36.84;
 	state0.lon = -121.43 + 360;
 	state0.t = 1543492801;
-	state0.bal = 4.5;
+	state0.bal = 3500;
 	StochasticMPC controller(db,state0);
 	controller.conf.opt_sign = 1;
+	controller.conf.n_starts = 1;
+	controller.conf.n_samples = 1;
+	controller.conf.n_iters_min = 1;
+	controller.conf.n_iters_max = 2;
 	controller.run();
 }
 

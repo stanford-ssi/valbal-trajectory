@@ -3,7 +3,7 @@ LIBS = -lm -ladept -lpthread -ljsoncpp
 CC = g++ -flto
 #-fprofile-generate
 #-fprofile-use -fprofile-correction
-CXXFLAGS = -g -Werror -Ofast -march=native -fno-strict-aliasing -Wall -ffast-math -std=c++14 -DTEST
+CXXFLAGS = -g -Werror -Ofast -march=native -fno-strict-aliasing -Wall -ffast-math -std=c++14 -DTEST -D JOHNSIM
 
 PATHS = -I ../ignored/balloons-VALBAL/lib/spa
 PATHS += -I ../ignored/balloons-VALBAL/src
@@ -38,7 +38,7 @@ HEADERS += ../ignored/balloons-VALBAL/hootl/lasagna/PastaSim.h
 .PRECIOUS: $(TARGET) $(OBJECTS)
 
 $(TARGET): $(OBJECTS)
-	$(CC) $(PATHS) $(OBJECTS) -g -Wall $(LIBS) -o $@
+	$(CC) $(CXXFLAGS) $(PATHS) $(OBJECTS) -g -Wall $(LIBS) -o $@
 
 diff: diff.o
 	$(CC) diff.o -o difftest

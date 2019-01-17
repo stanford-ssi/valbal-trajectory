@@ -239,13 +239,13 @@ class StochasticControllerApprox : public PressureSource<Float> {
 public: 
 	StochasticControllerApprox(ParameterServer<Float>& ps_, int seed);
 	void get_pressure(sim_state<Float>&);
-	Float get_ballast_rate(Float tol);
+	Float get_ballast_rate(Float& tol);
 	LasSim<float> las_sim;
 	float h_mid;
 	float tol0;
 	ParameterServer<Float>& params;
-	double bal_coeffs[8] = {-2.75138798e-02, 5.44807893e-01, -4.43322025e+00, 1.92223871e+01,
-  -4.84480789e+01, 7.37552455e+01, -7.10817502e+01, 6.49353674e+01};
+	double bal_coeffs[5] = {0.4004757,   -4.9951004,   22.55189941, -46.44858451,  62.46656826};	
+	//double bal_coeffs[8] = {-2.75138798e-02, 5.44807893e-01, -4.43322025e+00, 1.92223871e+01,-4.84480789e+01, 7.37552455e+01, -7.10817502e+01, 6.49353674e+01};
 
 };
 

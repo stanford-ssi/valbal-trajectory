@@ -4,12 +4,12 @@
 template<class Float>
 Float FinalLongitude<Float>::update(sim_state<Float>& state, bool save) {
 	this->lon = state.lon;
-	return lon;
+	return -lon;
 }
 
 template<class Float>
 Float FinalLongitude<Float>::getObjective() {
-	return lon;
+	return -lon;
 }
 
 

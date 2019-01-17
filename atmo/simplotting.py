@@ -46,9 +46,9 @@ def plot1():
 def plot2():
 	# This function generates a nice plot of optimized montecarlo trajectories.
 	# It was used to make the fig that's in the vb data sheet on Oct. 12th 2018.
-
-	files = list(map(load_file, range(50)))
-	files2 = list(map(load_file, range(50,100)))
+	fnum = 3
+	files = list(map(load_file, range(100*fnum,50+100*fnum)))
+	files2 = list(map(load_file, range(50+100*fnum,100+100*fnum)))
 	fig, ax = plt.subplots(2,2,gridspec_kw = {'height_ratios':[1,.63], "hspace":0,},figsize=(8,5))
 	gs = gridspec.GridSpec(2, 2, width_ratios=[0.1, 1],height_ratios=[1, 0.56])
 	gs.update(left=0.05,wspace=0,hspace=0.05)
@@ -62,9 +62,11 @@ def plot2():
 		N2 = f2.shape[0]
 		ax1.plot(np.arange(N2)/6,f2[:,2]/1000,c="#be1e2d",alpha=0.05)
 		ax1.plot(np.arange(N)/6,f[:,2]/1000,c="blue",alpha=0.05)
-	#ax1.legend(["initial","optimized"],loc=(.18,.05))
+	ax1.legend(["unoptimized","optimized"])#,loc=(.18,.05))
+
 	ax1.plot(np.arange(files[0].shape[0])/6,files[0][:,2]/1000,c="blue")	
-	ax1.set_xlabel("hours from " + datetime.fromtimestamp(1541045606).strftime("%Y-%m-%d %H:%M:%S"))
+	#ax1.set_xlabel("hours from " + datetime.fromtimestamp(1541045606).strftime("%Y-%m-%d %H:%M:%S"))
+	ax1.set_xlabel("hours from launch")
 	ax1.set_ylabel("altitude (km)")
 	ax1.grid()
 	all_vals = np.concatenate(files + files2)
@@ -87,8 +89,8 @@ def plot2():
 		ax0.plot(xpred[-1],ypred[-1],"*",c="blue")
 		#ax0.plot(xpred[::6*10],ypred[::6*10],"*",c="blue",alpha=0.3)
 	#plt.savefig("../ignored/figs/plot1.png")
-	#plt.show()
-	plt.savefig("fig.png")
+	plt.show()
+	#plt.savefig("fig.png")
 
 
 def plot3():
@@ -358,13 +360,72 @@ def plot6():
 	ax0.plot(xt,yt,"o",c="red")
 	plt.show()
 
+def plot7():
+	# used for plotting multiple random starts
+	fig, ax = plt.subplots(2,2,gridspec_kw = {'height_ratios':[1,.63], "hspace":0,},figsize=(8,5))
+	gs = gridspec.GridSpec(2, 2, width_ratios=[0.1, 1],height_ratios=[1, 0.56])
+	gs.update(left=0.05,wspace=0,hspace=0.05)
+	ax0 = plt.subplot(gs[0,0:2])
+	ax1 = plt.subplot(gs[1,1])
+	nstart = 5;
+	fnums = it.chain(*[[100*j + i for i in range(50)] for j in range(nstart)])
+	fnums2 = it.chain(*[[100*j + 50 + i for i in range(50)] for j in range(nstart)])
+	endfiles = list(map(load_file, fnums))
+	startfiles = list(map(load_file, fnums2))
+	all_vals = np.concatenate(endfiles + startfiles)
+	m = Basemap(projection='merc',llcrnrlat=np.min(all_vals[:,0])-5,urcrnrlat=np.max(all_vals[:,0])+5,
+            llcrnrlon=np.min(all_vals[:,1])-5 ,urcrnrlon=np.max(all_vals[:,1])+5,resolution='l',ax=ax0,)
+	m.drawcoastlines(color="grey")
+	m.drawcountries(color="grey")
+	m.drawstates(color="grey")
+
+	for j in range(nstart):
+		endf =  endfiles[50*j:50*(j+1)]
+		startf =  startfiles[50*j:50*(j+1)]
+		avgs = []
+		Ns = []
+		for f in [startf,endf]:
+			sizes = list(map(lambda x: x.shape[0],f))
+			avg = np.zeros((max(sizes),f[0].shape[1]))
+			for a in f:
+				a = np.pad(a,((0,avg.shape[0]-a.shape[0]),(0,0)),mode='edge')
+				print("yooo",a.shape,avg.shape)
+				avg += a
+			avg /= len(endf)
+			avgs.append(avg)
+			Ns.append(avg.shape[0])		
+		np.save("../ignored/misc/start.%03d"%j,avgs[0])
+		np.save("../ignored/misc/end.%03d"%j,avgs[0])
+
+		for i in [0,1]:
+			c=["black","blue"][i]
+			x,y = m(avgs[i][:,1], avgs[i][:,0])
+			ax0.plot(x,y,alpha=0.3,color=c)
+			ax1.plot(np.arange(Ns[i])/6,avgs[i][:,3]/1000,c=c,alpha=0.5)
+			#ax1.plot(np.arange(Ns[i])/6,avgs[i][:,3]/1000 + avgs[i][:,4]/1000,"--",c=c,alpha=0.5)
+	ax1.grid()
+	ax1.set_xlabel("hours from launch")
+	ax1.set_ylabel("altitude (km)")
+	ax1.legend(["unoptimized","optimized"])#,loc=(.18,.05))
+	plt.show()
+	#plt.savefig("fig.png")
+
 def plot_opt():
-	output = np.fromfile('../ignored/sim/opt.%03d.bin' % int(0), dtype=np.float32)
-	print(output)
-	plt.plot(output)
+	nvars = 3
+	for j in range(5):
+		output = np.fromfile('../ignored/sim/opt.%03d.bin' % int(j), dtype=np.float32).reshape(-1,nvars)
+		for i in range(nvars):
+			plt.subplot(nvars,1,i+1)
+			if i==2:
+				plt.plot(np.diff(output[:,i]))
+			else:
+				plt.plot(output[:,i])
+			plt.grid()
 	plt.show()
 
-plot_opt()
+
+#plot_opt()
+
 #plotmc()
-#plot2()
+plot2()
 

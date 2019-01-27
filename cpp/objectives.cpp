@@ -1,5 +1,8 @@
-
 #include "objectives.h"
+
+
+template<class Float>
+ObjectiveFn<Float>::~ObjectiveFn<Float>(){}
 
 template<class Float>
 Float FinalLongitude<Float>::update(sim_state<Float>& state, bool save) {
@@ -26,11 +29,29 @@ Float MinDistanceToPoint<Float>::getObjective() {
 	return min_dist;
 }
 
+template <class Float>
+ObjectiveFn<Float>& objParse(const std::string& conf){
+	Json::Reader reader;
+    Json::Value vals;
+    reader.parse(conf, vals);
+    string type = vals["type"].asString();
+    ObjectiveFn<Float>* objfn;
+    //printf("%s\n",type.c_str());
+    if(type.compare("MinDistanceToPoint")==0){
+    	assert(vals["lon"].isDouble() && vals["lat"].isDouble() && "Must have valid lat lon for MinDistanceToPoint objective");
+    	objfn = new MinDistanceToPoint<Float>(vals["lat"].asDouble(),vals["lon"].asDouble());
+    } else {
+    	objfn = new FinalLongitude<Float>;
+    }
+    return *objfn;
+}
 
 #define INIT_OPT(type) \
+		template class ObjectiveFn<type>;\
 		template class NoOp<type>;\
 		template class FinalLongitude<type>;\
-		template class MinDistanceToPoint<type>;
+		template class MinDistanceToPoint<type>;\
+		template ObjectiveFn<type>& objParse(const std::string&);\
 
 INIT_OPT(adept::adouble)
 INIT_OPT(float)

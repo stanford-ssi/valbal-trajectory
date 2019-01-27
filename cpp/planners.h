@@ -5,7 +5,6 @@
 #include "sim.h"
 #include "objectives.h"
 
-
 class StochasticMPC {
 public: 
 	typedef struct{
@@ -28,8 +27,10 @@ public:
 		double alpha   = 0.99999;
 		double tol_min = 200;
 		double tol_max = 3000;
-		double set_min = 10000;
-		double set_max = 16000;
+		double set_min = 12800;
+		double set_max = 19000;
+		double bound_min = 12500;
+		double bound_max = 19000;
 		double obj_filter_corner = 0.03;
 		double convergence_thresh = 0.1;
 	} HyperParams;
@@ -39,10 +40,11 @@ public:
 
 
 
-	StochasticMPC(const char* input_db, sim_state<float> state0);
+	StochasticMPC(const char* input_db, sim_state<float> state0, const std::string& objconf_);
 	TemporalParameters<float> run();
 	DataHandler data;
 	Config conf;
+	std::string objconf;
 	//FinalLongitude<adouble> objfn;
 };
 

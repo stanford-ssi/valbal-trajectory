@@ -174,37 +174,6 @@ void StochasticControllerApprox<Float>::get_pressure(sim_state<Float>& state){
 	Float cmd_h = cmd.h;
 	Float cmd_tol = cmd.tol;
 
-	#if 0
-	state.bal_rate = (
-	  bal_coeffs[4]
-	+ bal_coeffs[3]*cmd_tol/1000
-	+ bal_coeffs[2]*pow(cmd_tol/1000,2)
-	+ bal_coeffs[1]*pow(cmd_tol/1000,3)
-	+ bal_coeffs[0]*pow(cmd_tol/1000,4))/60/60;
-	#endif
-
-	#if 0
-    state.bal_rate = (
-    -0.99034342   * pow(cmd_tol/1000,3)	+	
-    9.81892186    *	pow(cmd_tol/1000,2) +
-    -32.84315906  *	cmd_tol/1000 		+
-    59.5847984   
-    )/60./60.;
-	#endif
-
-	#if 1
-    auto cmd_km = cmd_tol/1000;
-    state.bal_rate = (
-    2.39134625   *	cmd_km * cmd_km +
-    -18.23824323 *	cmd_tol/1000 	+
-    54.02074057   
-    )/60./60.*1;
-	#endif
-	
-	#if 0
-	state.bal_rate = (54.02074057+-18.23824323*cmd_tol/1000-2.39134625*pow(cmd_tol/1000.,2.))/60/60*3;
-	#endif
-
 
 	#if 0
 	state.bal_rate = (-1*pow(cmd_tol/1000.,2.) -0.0001*cmd_tol/1000. + 40.)/60./60.*3;
@@ -212,6 +181,7 @@ void StochasticControllerApprox<Float>::get_pressure(sim_state<Float>& state){
 	//state.bal_rate = (-10.*cmd_tol/1000. + 40.)/60./60.;
 	
 
+	state.bal_rate = (1/(0.02845321/1000*cmd_tol + 0.0174992)+13)/60./60. + las_sim.avg_sunset_dldt; 
 	//state.bal_rate =  (30/60./60.*750/cmd_tol + 40/60./60.); //THIS ONE IS NOT FUCKED
 	
 
@@ -229,9 +199,9 @@ void StochasticControllerApprox<Float>::get_pressure(sim_state<Float>& state){
 	float las_h = state_val.p;
 	Float alt;
 	if(fabs(las_h - h_mid) > tol0){
-		alt = cmd_h + sgn(las_h - h_mid)*(VAL(cmd_tol) + (fabs(las_h - h_mid) - tol0));
+		alt = cmd_h + sgn(las_h - h_mid)*(cmd_tol + (fabs(las_h - h_mid) - tol0));
 	} else {
-		alt = cmd_h + (las_h - h_mid)*VAL(cmd_tol)/tol0;
+		alt = cmd_h + (las_h - h_mid)*cmd_tol/tol0;
 	}
 	state.cmd = cmd; 
 	state.p = alt2p(alt);

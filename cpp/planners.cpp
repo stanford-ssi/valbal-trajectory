@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <limits.h>
 #include "Utils.h"
-StochasticMPC::StochasticMPC(const char* input_db, sim_state<float> state0)  
-	//: objfn(0, 360)
+StochasticMPC::StochasticMPC(const char* input_db, sim_state<float> state0, const std::string& objconf_)  
+	: objconf(objconf_)
 {
 	data.load_data(input_db, 1500000000,1600000000);
 	conf.state0 = state0;
@@ -36,7 +36,7 @@ TemporalParameters<float>  StochasticMPC::run(){
 			ctrl_cmd<double>* gradients = new ctrl_cmd<double>[conf.n_samples*params.N];
 			sim_state<double>* final_states = new sim_state<double>[conf.n_samples];
 			double* obj_vals = new double[conf.n_samples];
-			Scheduler<float> sched(-1, conf.n_samples);
+			Scheduler<float> sched(12, conf.n_samples);
 			for (int run=0; run<conf.n_samples; run++) {
 				sched.add([&,run]() {
 					ctrl_cmd<double>* run_gradient = gradients+run*params.N;
@@ -47,10 +47,7 @@ TemporalParameters<float>  StochasticMPC::run(){
 					StochasticControllerApprox<adouble> controller(run_params, rand());
 					LinInterpWind<adouble> wind(data);
 		            wind.sigma = 0;
-					//FinalLongitude<adouble> objfn;
-					//MinDistanceToPoint<adouble> objfn(15.638795, 16.970971+360);
-					MinDistanceToPoint<adouble> objfn(49.864438, 25.636905+360); //ukraine
-					//MinDistanceToPoint<adouble> objfn(42.278311, -83.737728+360); //ann arbor
+					ObjectiveFn<adouble>& objfn = objParse<adouble>(objconf);  //TODO finish this
 					EulerIntBal<adouble> in;
 					int fname = -1;
 					if (conf.write_files && (it == 0 || it == conf.n_iters_max-1 || converged)) { /*printf("saving!\n");*/ fname = conf.fname_offset + start*conf.n_samples*2 + run + conf.n_samples*(it == 0); }
@@ -71,6 +68,7 @@ TemporalParameters<float>  StochasticMPC::run(){
 					}
 					//printf("run:%d,p:%p\n",run,run_gradient);
 					//printf("f;%f,%p,%d\n",(obj_vals[run]),&(obj_vals[run]),run);
+					delete &objfn;
 					return 0.;
 				});
 			}
@@ -100,7 +98,7 @@ TemporalParameters<float>  StochasticMPC::run(){
 				smoothed_obj = obj_filt.update(meanobj);
 				if(smoothed_obj - smoothed_obj_last > 0 && it >= conf.n_iters_min) {
 					converged = true;
-					//printf("Converged after %d iterations. obj: %f\n",it,meanobj);
+					printf("Converged after %d iterations. obj: %f\n",it,meanobj);
 				}
 				smoothed_obj_last = smoothed_obj;
 			} else {
@@ -109,16 +107,27 @@ TemporalParameters<float>  StochasticMPC::run(){
 				is_fist_run = false;
 
 			}
-			printf("###%d\n",it);
+			//printf("###%d\n",it);
 			for(int j = 0; j<params.N; j++){
 			//	printf("d[%d] = (%f,%f)\n",j,gradient[j].h,gradient[j].tol);
 				double set = params.cmds[j].h + lr_set * gradient[j].h;
 				set = min(hparams.set_max, max(hparams.set_min, set));
-				params.cmds[j].h = set;
 
 				double tol = params.cmds[j].tol + lr_tol * gradient[j].tol;
 				tol = min(hparams.tol_max, max(hparams.tol_min, tol));
-				printf("t:%f, dt:%f \n",tol,lr_tol * gradient[j].tol);
+			//	printf("t:%f, dt:%f \n",tol,lr_tol * gradient[j].tol);
+				if(set - tol < hparams.bound_min){
+					float over = set - tol - hparams.bound_min;
+					set -= over/2;
+					tol -= over/2;
+				} 
+				if(set - tol > hparams.bound_max){
+					float over = set - tol - hparams.bound_max;
+					set -= over/2;
+					tol -= over/2;
+				}
+				//printf("%f,%f\n",set,tol);
+				params.cmds[j].h = set;
 				params.cmds[j].tol = tol;
 			}
 			if (save_to_file) {

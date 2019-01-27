@@ -52,18 +52,20 @@ void demo() {
 
 void stochasticGradients(){
 	//const char* db = get_data_path("/proc/gfs_pred_0deg5/20181129_12/");
-	const char* db = get_data_path("/proc/gfs_pred_0deg5/20190116_00/");
+	const char* db = get_data_path("/proc/gfs_pred_0deg5/20190119_18/");
 	sim_state<float> state0;
-	state0.lat = 36.84;
-	state0.lon = -121.43 + 360;
-	state0.t = 1547928000;
-	state0.bal = 2500;
-	StochasticMPC controller(db,state0);
+	state0.lat = 37.6122;
+	state0.lon = -116.7649 + 360;
+	state0.t = 1547956465; //yooootime
+	state0.bal = 4000;
+	char objfnstr[200];
+	sprintf(objfnstr,"{\"type\":\"MinDistanceToPoint\",\"lat\":%f ,\"lon\":%f}",27.788652,-82.578645+360);  // S A D
+	StochasticMPC controller(db,state0,objfnstr);
 	controller.conf.opt_sign = 1;
 	controller.conf.n_starts = 5;
-	controller.conf.n_samples = 1;
+	//controller.conf.n_samples = 1;
 	controller.conf.n_iters_min = 30;
-	//controller.conf.n_iters_max = 2;
+	controller.conf.n_iters_max = 500;
 	controller.run();
 }
 
@@ -111,7 +113,7 @@ void evaluator(){
 		char recentdir[PATH_MAX];
 		getRecentDir(recentdir,get_data_path("proc/gfs_pred_0deg5/"),state.t);
 		printf("%s\n",recentdir);
-		StochasticMPC controller(recentdir,state);
+		StochasticMPC controller(recentdir,state,"{ type:\"MinDistanceToPoint\"}");
 		//controller.conf.n_iters = 20;
 		controller.conf.n_samples = 50;
 		controller.conf.write_files = true;

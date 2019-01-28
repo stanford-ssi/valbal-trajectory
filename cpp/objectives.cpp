@@ -36,11 +36,12 @@ ObjectiveFn<Float>& objParse(const std::string& conf){
     reader.parse(conf, vals);
     string type = vals["type"].asString();
     ObjectiveFn<Float>* objfn;
-    //printf("%s\n",type.c_str());
     if(type.compare("MinDistanceToPoint")==0){
     	assert(vals["lon"].isDouble() && vals["lat"].isDouble() && "Must have valid lat lon for MinDistanceToPoint objective");
     	objfn = new MinDistanceToPoint<Float>(vals["lat"].asDouble(),vals["lon"].asDouble());
-    } else {
+    } else if(type.compare("FinalLongitude")==0) {
+    	objfn = new FinalLongitude<Float>;
+    } else { 
     	objfn = new FinalLongitude<Float>;
     }
     return *objfn;

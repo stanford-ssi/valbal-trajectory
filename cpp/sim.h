@@ -16,19 +16,6 @@ using adept::adouble;
 #include "../ignored/balloons-VALBAL/src/LasagnaController.h"
 #include "../ignored/balloons-VALBAL/hootl/lasagna/PastaSim.h"
 
-/**
- * Basic pressure to altitude conversion and back
- * Meters, Pascals
- */
-template<class Float>
-Float p2alt(Float p){
-	return (1.0-(pow((p/101350.0),0.190284)))*145366.45*0.3048;
-}
-
-template<class Float>
-Float alt2p(Float alt){
-	return pow(-((alt/145366.45/0.3048)-1.0),1.0/0.190284)*101350.0;
-}
 
 
 /**

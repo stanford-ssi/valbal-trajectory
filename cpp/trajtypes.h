@@ -2,6 +2,9 @@
 #define TRAJTYPES_H
 
 #include "utils.h"
+#include <jsoncpp/json/json.h>
+
+
 
 typedef short wind_t;
 
@@ -62,7 +65,18 @@ struct sim_state {
         ret.cmd = cmd.template cast<NewType>();
         ret.t = t;
         return ret;
-    } 
+    }  
+    void fromJson(std::string conf){
+    	Json::Reader reader;
+    	Json::Value obj;
+    	reader.parse(conf, obj);
+    	PARSE_D(lat);
+    	PARSE_D(lon);
+    	PARSE_D(p);
+    	else if(obj["alt"].isDouble()) this->p = alt2p<double>(obj["alt"].asDouble());
+    	PARSE_D(bal);
+    	PARSE_I(t);
+    };
 };
 
 #endif

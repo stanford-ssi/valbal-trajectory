@@ -9,7 +9,7 @@
 #include <queue>
 #include <functional>
 #include <condition_variable>
-#include "trajtypes.h"
+//#include "trajtypes.h"
 #include <adept.h>
 using adept::adouble;
 
@@ -30,6 +30,12 @@ inline adouble fastcos(adouble f) { return cos(f); }
 /* Allows for composite variable names in macros. */
 #define _JOIN(X,Y) X##Y
 #define JOIN(X,Y) _JOIN(X,Y)
+
+#define PARSE(var,test,type) if(obj[#var].is##test()) this->var = obj[#var].as##type()
+#define PARSE_D(var) PARSE(var,Double,Double)
+#define PARSE_I(var) PARSE(var,Numeric,Int)
+#define PARSE_B(var) PARSE(var,Numeric,Bool)
+
 
 /* Timing utilities. TIMEIT(name, block) can wrap around a block and give timing information for
  * it. walltime and cputime return wall and CPU time, respectively, in microseconds from an
@@ -140,6 +146,20 @@ private:
 
 template <typename T> int sgn(T val) {
     return (T(0) < val) - (val < T(0));
+}
+
+/**
+ * Basic pressure to altitude conversion and back
+ * Meters, Pascals
+ */
+template<class Float>
+Float p2alt(Float p){
+	return (1.0-(pow((p/101350.0),0.190284)))*145366.45*0.3048;
+}
+
+template<class Float>
+Float alt2p(Float alt){
+	return pow(-((alt/145366.45/0.3048)-1.0),1.0/0.190284)*101350.0;
 }
 
 #endif

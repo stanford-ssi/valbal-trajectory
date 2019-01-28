@@ -5,6 +5,8 @@
 #include "sim.h"
 #include "objectives.h"
 
+
+
 class StochasticMPC {
 public: 
 	typedef struct{
@@ -19,6 +21,21 @@ public:
 		int opt_sign = 1;					// sign on the optimization
 		int fname_offset = 0;				// offset on the file name numbers
 		bool write_files = true;
+		void fromJson(std::string conf){
+    		Json::Reader reader;
+    		Json::Value obj;
+    		reader.parse(conf, obj);
+    		PARSE_I(tmax);
+			PARSE_I(cmd_dt);
+			PARSE_I(init_cmd_dt);
+			PARSE_I(n_samples);
+			PARSE_I(n_iters_max);
+			PARSE_I(n_iters_min);
+			PARSE_I(n_starts);
+			PARSE_I(opt_sign);
+			PARSE_I(fname_offset);
+			PARSE_B(write_files);
+    	};
 	} Config;
 
 	typedef struct {
@@ -33,6 +50,22 @@ public:
 		double bound_max = 19000;
 		double obj_filter_corner = 0.03;
 		double convergence_thresh = 0.1;
+		void fromJson(std::string conf){
+    		Json::Reader reader;
+    		Json::Value obj;
+    		reader.parse(conf, obj);
+			PARSE_D(lr_set);
+			PARSE_D(lr_tol);
+			PARSE_D(alpha);
+			PARSE_D(tol_min);
+			PARSE_D(tol_max);
+			PARSE_D(set_min);
+			PARSE_D(set_max);
+			PARSE_D(bound_min);
+			PARSE_D(bound_max);
+			PARSE_D(obj_filter_corner);
+			PARSE_D(convergence_thresh);
+    	};
 	} HyperParams;
 	HyperParams hparams;
 	FILE *file;

@@ -54,6 +54,9 @@ void stochasticGradients(){
 	//const char* db = get_data_path("/proc/gfs_pred_0deg5/20181129_12/");
 	const char* db = get_data_path("/proc/gfs_pred_0deg5/20190119_18/");
 	sim_state<float> state0;
+
+	state0.fromJson("{\"alt\":1000.}");
+	
 	state0.lat = 37.6122;
 	state0.lon = -116.7649 + 360;
 	state0.t = 1547956465; //yooootime
